@@ -150,19 +150,21 @@ int main(int argc, char** argv)
     const std::string block_index_filename = argv[2];
     const std::string block_table_filename = argv[3];
     const std::string tx_index_filename = argv[4];
+    const std::string header_index_filename = argv[5];
 
-    for (int i = 5; i < argc; ++i)
+    for (int i = 6; i < argc; ++i)
         args.push_back(argv[i]);
 
     if (command == "initialize_new")
     {
-        store::create(block_index_filename);
         store::create(block_table_filename);
+        store::create(header_index_filename);
+        store::create(block_index_filename);
         store::create(tx_index_filename);
     }
 
-    block_database db(block_index_filename, block_table_filename,
-        tx_index_filename, 1000, 50);
+    block_database db(block_table_filename, header_index_filename,
+        block_index_filename, tx_index_filename, 1000, 50);
 
     if (command == "initialize_new")
     {
