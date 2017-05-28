@@ -757,7 +757,6 @@ void data_base::pop_above(block_const_ptr_list_ptr out_blocks,
 
         // Mark the blocks as validated for their respective heights.
         block->header().validation.height = height;
-        block->validation.error = error::success;
         block->validation.start_pop = start_time;
         out_blocks->insert(out_blocks->begin(), block);
     }
