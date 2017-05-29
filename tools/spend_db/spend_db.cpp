@@ -216,7 +216,7 @@ int main(int argc, char** argv)
         BITCOIN_ASSERT(result);
 
         db.store(outpoint, spend);
-        db.synchronize();
+        db.commit();
     }
     else if (command == "remove")
     {
@@ -235,7 +235,7 @@ int main(int argc, char** argv)
         BITCOIN_ASSERT(result);
 
         db.unlink(outpoint);
-        db.synchronize();
+        db.commit();
     }
     else if (command == "statinfo")
     {

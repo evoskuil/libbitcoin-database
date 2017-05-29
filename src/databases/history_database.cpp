@@ -132,14 +132,7 @@ bool history_database::open()
         rows_manager_.start();
 }
 
-bool history_database::close()
-{
-    return
-        lookup_file_.close() &&
-        rows_file_.close();
-}
-
-void history_database::synchronize()
+void history_database::commit()
 {
     lookup_manager_.sync();
     rows_manager_.sync();
@@ -150,6 +143,13 @@ bool history_database::flush() const
     return
         lookup_file_.flush() &&
         rows_file_.flush();
+}
+
+bool history_database::close()
+{
+    return
+        lookup_file_.close() &&
+        rows_file_.close();
 }
 
 // Queries.

@@ -167,7 +167,7 @@ int main(int argc, char** argv)
         BITCOIN_ASSERT(result);
 
         db.store(tx, height, index);
-        db.synchronize();
+        db.commit();
     }
     else if (command == "remove")
     {
@@ -188,7 +188,7 @@ int main(int argc, char** argv)
         BITCOIN_ASSERT(result);
 
         db.unconfirm(hash);
-        db.synchronize();
+        db.commit();
     }
     else
     {

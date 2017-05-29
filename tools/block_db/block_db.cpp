@@ -267,7 +267,7 @@ int main(int argc, char** argv)
             throw std::runtime_error("store has no genesis block");
 
         db.store(block, top, true);
-        db.synchronize();
+        db.commit();
     }
     else if (command == "unlink")
     {
@@ -285,7 +285,7 @@ int main(int argc, char** argv)
         BITCOIN_ASSERT(result);
 
         db.unconfirm(from_height);
-        db.synchronize();
+        db.commit();
     }
     else if (command == "last_height")
     {
