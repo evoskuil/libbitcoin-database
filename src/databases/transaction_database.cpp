@@ -55,21 +55,19 @@ using namespace bc::machine;
 
 // Record format (v3):
 // ----------------------------------------------------------------------------
-// [ height/forks:4         - atomic ] (atomic with position)
-// [ position/unconfirmed:2 - atomic ] (atomic with height)
-// [ output_count:varint    - const  ]
-// [ [ spender_height:4 - atomic ][ value:8 ][ script:varint ] ]...
-// [ input_count:varint     - const  ]
+// [ height/forks:4         - atomic1 ]
+// [ position/unconfirmed:2 - atomic1 ]
+// [ output_count:varint    - const   ]
+// [ [ spender_height:4 - atomic2 ][ value:8 ][ script:varint ] ]...
+// [ input_count:varint     - const   ]
 // [ [ hash:32 ][ index:2 ][ script:varint ][ sequence:4 ] ]...
-// [ locktime:varint        - const  ]
-// [ version:varint         - const  ]
+// [ locktime:varint        - const   ]
+// [ version:varint         - const   ]
 
 static BC_CONSTEXPR auto prefix_size = slab_row<hash_digest>::prefix_size;
 static constexpr auto height_size = sizeof(uint32_t);
 static constexpr auto position_size = sizeof(uint16_t);
 static constexpr auto value_size = sizeof(uint64_t);
-
-// TODO: add indexed spender flag to each output (cache?).
 
 // Valid tx position should never reach 2^16.
 const size_t transaction_database::unconfirmed = max_uint16;
@@ -122,10 +120,9 @@ transaction_database::~transaction_database()
     close();
 }
 
-// Create.
+// Startup and shutdown.
 // ----------------------------------------------------------------------------
 
-// Initialize files and start.
 bool transaction_database::create()
 {
     // Resize and create require an opened file.
@@ -144,9 +141,6 @@ bool transaction_database::create()
         lookup_header_.start() &&
         lookup_manager_.start();
 }
-
-// Startup and shutdown.
-// ----------------------------------------------------------------------------
 
 bool transaction_database::open()
 {
@@ -174,6 +168,7 @@ bool transaction_database::close()
 // Queries.
 // ----------------------------------------------------------------------------
 
+// TODO: review.
 // private
 memory_ptr transaction_database::find(const hash_digest& hash,
     size_t fork_height, bool require_confirmed) const
@@ -224,6 +219,7 @@ transaction_result transaction_database::get(file_offset offset) const
     return{ slab, reader.read_hash(), height, position };
 }
 
+// TODO: review.
 transaction_result transaction_database::get(const hash_digest& hash,
     size_t fork_height, bool require_confirmed) const
 {
@@ -247,6 +243,7 @@ transaction_result transaction_database::get(const hash_digest& hash,
     return{ slab, hash, height, position };
 }
 
+// TODO: review.
 // TODO: fork_height is block index only.
 bool transaction_database::get_output(output& out_output, size_t& out_height,
     bool& out_coinbase, const output_point& point, size_t fork_height,
@@ -287,6 +284,7 @@ bool transaction_database::get_output(output& out_output, size_t& out_height,
 // Store.
 // ----------------------------------------------------------------------------
 
+// TODO: review.
 file_offset transaction_database::store(const chain::transaction& tx,
     size_t height, size_t position)
 {
@@ -343,6 +341,7 @@ file_offset transaction_database::store(const chain::transaction& tx,
 // Update.
 // ----------------------------------------------------------------------------
 
+// TODO: review.
 bool transaction_database::spend(const output_point& point,
     size_t spender_height)
 {
@@ -383,11 +382,13 @@ bool transaction_database::spend(const output_point& point,
     return true;
 }
 
+// TODO: review.
 bool transaction_database::unspend(const output_point& point)
 {
     return spend(point, output::validation::not_spent);
 }
 
+// TODO: review.
 file_offset transaction_database::confirm(const hash_digest& hash,
     size_t height, size_t position)
 {
@@ -407,6 +408,7 @@ file_offset transaction_database::confirm(const hash_digest& hash,
     return lookup_map_.update(hash, update);
 }
 
+// TODO: review.
 bool transaction_database::unconfirm(const hash_digest& hash)
 {
     // The transaction was verified under an unknown chain state, so we set the

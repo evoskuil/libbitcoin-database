@@ -92,10 +92,9 @@ history_database::~history_database()
     close();
 }
 
-// Create.
+// Startup and shutdown.
 // ----------------------------------------------------------------------------
 
-// Initialize files and start.
 bool history_database::create()
 {
     // Resize and create require an opened file.
@@ -118,9 +117,6 @@ bool history_database::create()
         lookup_manager_.start() &&
         rows_manager_.start();
 }
-
-// Startup and shutdown.
-// ----------------------------------------------------------------------------
 
 bool history_database::open()
 {
@@ -179,6 +175,19 @@ history_database::list history_database::get(const short_hash& key,
     return result;
 }
 
+history_statinfo history_database::statinfo() const
+{
+    return
+    {
+        lookup_header_.size(),
+        lookup_manager_.count(),
+        rows_manager_.count()
+    };
+}
+
+// Store.
+// ----------------------------------------------------------------------------
+
 void history_database::store(const short_hash& key,
     const payment_record& payment)
 {
@@ -190,19 +199,12 @@ void history_database::store(const short_hash& key,
     rows_multimap_.add_row(key, write);
 }
 
+// Update.
+// ----------------------------------------------------------------------------
+
 bool history_database::unlink_last_row(const short_hash& key)
 {
     return rows_multimap_.delete_last_row(key);
-}
-
-history_statinfo history_database::statinfo() const
-{
-    return
-    {
-        lookup_header_.size(),
-        lookup_manager_.count(),
-        rows_manager_.count()
-    };
 }
 
 } // namespace database
