@@ -63,11 +63,16 @@ float unspent_outputs::hit_rate() const
     return hits_ * 1.0f / queries_;
 }
 
-void unspent_outputs::add(const transaction& transaction, size_t height,
-    bool confirmed)
+void unspent_outputs::add(const transaction& tx, size_t height, bool confirmed)
 {
-    if (disabled() || transaction.outputs().empty())
+    if (disabled() || tx.outputs().empty())
         return;
+
+    if (confirmed && tx.is_coinbase())
+    {
+        LOG_DEBUG(LOG_DATABASE)
+            << "Output cache hit rate: " << hit_rate() << ", size: " << size();
+    }
 
     // Critical Section
     ///////////////////////////////////////////////////////////////////////////
@@ -83,7 +88,7 @@ void unspent_outputs::add(const transaction& transaction, size_t height,
 
     unspent_.insert(
     {
-        unspent_transaction{ transaction, height, confirmed },
+        unspent_transaction{ tx, height, confirmed },
         ++sequence_
     });
     ///////////////////////////////////////////////////////////////////////////

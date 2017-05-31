@@ -54,8 +54,7 @@ public:
     float hit_rate() const;
 
     /// Add a set of outputs to the cache (purges older entry).
-    void add(const chain::transaction& transaction, size_t height,
-        bool confirmed);
+    void add(const chain::transaction& tx, size_t height, bool confirmed);
 
     /// Remove a set of outputs from the cache (has been reorganized out).
     void remove(const hash_digest& tx_hash);
