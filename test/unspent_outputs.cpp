@@ -117,28 +117,26 @@ BOOST_AUTO_TEST_CASE(unspent_outputs__remove2__remove_one_output__expected_outpu
     cache.add(tx1, 0, false);
     cache.add(tx2, expected_height, false);
     BOOST_REQUIRE_EQUAL(cache.size(), 2u);
+    BOOST_REQUIRE(cache.populate({ tx1.hash(), 0 }, max_size_t));
+    BOOST_REQUIRE(cache.populate({ tx1.hash(), 1 }, max_size_t));
+    BOOST_REQUIRE(cache.populate({ tx2.hash(), 0 }, max_size_t));
 
-    bool out_coinbase;
-    size_t out_height;
-    chain::output out_value;
-    BOOST_REQUIRE(cache.get(out_value, out_height, out_coinbase, { tx1.hash(), 0 }, max_size_t, false));
-    BOOST_REQUIRE(cache.get(out_value, out_height, out_coinbase, { tx1.hash(), 1 }, max_size_t, false));
-    BOOST_REQUIRE(cache.get(out_value, out_height, out_coinbase, { tx2.hash(), 0 }, max_size_t, false));
-    BOOST_REQUIRE(cache.get(out_value, out_height, out_coinbase, { tx2.hash(), 1 }, max_size_t, false));
-    BOOST_REQUIRE(out_value.is_valid());
-    BOOST_REQUIRE_EQUAL(out_coinbase, false);
-    BOOST_REQUIRE_EQUAL(out_height, expected_height);
-    BOOST_REQUIRE_EQUAL(out_value.value(), expected_value);
+    chain::output_point point{ tx2.hash(), 1 };
+    BOOST_REQUIRE(cache.populate(point, max_size_t));
+
+    BOOST_REQUIRE(point.validation.cache.is_valid());
+    BOOST_REQUIRE_EQUAL(point.validation.cache.value(), expected_value);
+    BOOST_REQUIRE_EQUAL(point.validation.coinbase_height, output_point::validation::unspecified);
 
     cache.remove({ tx1.hash(), 1 });
     BOOST_REQUIRE_EQUAL(cache.size(), 2u);
 
     cache.remove({ tx1.hash(), 0 });
     BOOST_REQUIRE_EQUAL(cache.size(), 1u);
-    BOOST_REQUIRE(!cache.get(out_value, out_height, out_coinbase, { tx1.hash(), 0 }, max_size_t, false));
-    BOOST_REQUIRE(!cache.get(out_value, out_height, out_coinbase, { tx1.hash(), 1 }, max_size_t, false));
-    BOOST_REQUIRE(cache.get(out_value, out_height, out_coinbase, { tx2.hash(), 0 }, max_size_t, false));
-    BOOST_REQUIRE(cache.get(out_value, out_height, out_coinbase, { tx2.hash(), 1 }, max_size_t, false));
+    BOOST_REQUIRE(!cache.populate({ tx1.hash(), 0 }, max_size_t));
+    BOOST_REQUIRE(!cache.populate({ tx1.hash(), 1 }, max_size_t));
+    BOOST_REQUIRE(cache.populate({ tx2.hash(), 0 }, max_size_t));
+    BOOST_REQUIRE(cache.populate({ tx2.hash(), 1 }, max_size_t));
 }
 
 BOOST_AUTO_TEST_CASE(unspent_outputs__get__two_capacity_1__size_1_expected)
@@ -149,13 +147,10 @@ BOOST_AUTO_TEST_CASE(unspent_outputs__get__two_capacity_1__size_1_expected)
     cache.add(tx1, expected_height, false);
     BOOST_REQUIRE_EQUAL(cache.size(), 1u);
 
-    bool out_coinbase;
-    size_t out_height;
-    chain::output out_value1;
-    BOOST_REQUIRE(cache.get(out_value1, out_height, out_coinbase, { tx1.hash(), 1 }, max_size_t, false));
-    BOOST_REQUIRE_EQUAL(out_coinbase, false);
-    BOOST_REQUIRE_EQUAL(out_height, expected_height);
-    BOOST_REQUIRE(!out_value1.is_valid());
+    chain::output_point point{ tx1.hash(), 1 };
+    BOOST_REQUIRE(cache.populate(point, max_size_t));
+    BOOST_REQUIRE_EQUAL(point.validation.coinbase_height, output_point::validation::unspecified);
+    BOOST_REQUIRE(!point.validation.cache.is_valid());
 
     static const uint64_t expected2a = 41;
     static const uint64_t expected2b = 42;
@@ -165,15 +160,15 @@ BOOST_AUTO_TEST_CASE(unspent_outputs__get__two_capacity_1__size_1_expected)
     cache.add(tx2, 0, false);
     BOOST_REQUIRE_EQUAL(cache.size(), 1u);
 
-    chain::output out_value2a;
-    BOOST_REQUIRE(cache.get(out_value2a, out_height, out_coinbase, { tx2.hash(), 1 }, max_size_t, false));
-    BOOST_REQUIRE(out_value2a.is_valid());
-    BOOST_REQUIRE_EQUAL(out_value2a.value(), expected2a);
+    chain::output_point point2a{ tx2.hash(), 1 };
+    BOOST_REQUIRE(cache.populate(point2a, max_size_t));
+    BOOST_REQUIRE(point2a.validation.cache.is_valid());
+    BOOST_REQUIRE_EQUAL(point2a.validation.cache.value(), expected2a);
 
-    chain::output out_value2b;
-    BOOST_REQUIRE(cache.get(out_value2b, out_height, out_coinbase, { tx2.hash(), 2 }, max_size_t, false));
-    BOOST_REQUIRE(out_value2b.is_valid());
-    BOOST_REQUIRE_EQUAL(out_value2b.value(), expected2b);
+    chain::output_point point2b{ tx2.hash(), 2 };
+    BOOST_REQUIRE(cache.populate(point2b, max_size_t));
+    BOOST_REQUIRE(point2b.validation.cache.is_valid());
+    BOOST_REQUIRE_EQUAL(point2b.validation.cache.value(), expected2b);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

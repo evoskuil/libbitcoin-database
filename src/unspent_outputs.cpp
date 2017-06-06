@@ -26,7 +26,8 @@ namespace database {
 
 using namespace bc::chain;
 
-// Because of BIP30 it is safe to use tx hashes as identifiers here.
+// This does not differentiate indexed-block transactions. These are treated as
+// unconfirmed, so this optimizes only for a top height fork point and tx pool.
 unspent_outputs::unspent_outputs(size_t capacity)
   : capacity_(capacity), hits_(1), queries_(1), sequence_(0)
 {
@@ -86,6 +87,8 @@ void unspent_outputs::add(const transaction& tx, size_t height, bool confirmed)
     if (unspent_.size() >= capacity_)
         unspent_.right.erase(unspent_.right.begin());
 
+    // TODO: promote the unconfirmed tx cache instead of replacing it.
+    // A confirmed tx may replace the same unconfirmed tx here.
     unspent_.insert(
     {
         unspent_transaction{ tx, height, confirmed },
@@ -125,6 +128,7 @@ void unspent_outputs::remove(const hash_digest& tx_hash)
     ///////////////////////////////////////////////////////////////////////////
 }
 
+// The output is confirmed spent, so remove it from unspent outputs.
 void unspent_outputs::remove(const output_point& point)
 {
     if (disabled())
@@ -161,14 +165,15 @@ void unspent_outputs::remove(const output_point& point)
     ///////////////////////////////////////////////////////////////////////////
 }
 
-bool unspent_outputs::get(output& out_output, size_t& out_height,
-    bool& out_coinbase, const output_point& point, size_t fork_height,
-    bool require_confirmed) const
+// All responses are unspent, metadata should be defaulted by caller.
+bool unspent_outputs::populate(const output_point& point,
+    size_t fork_height) const
 {
     if (disabled())
         return false;
 
     ++queries_;
+    auto& prevout = point.validation;
     const unspent_transaction key{ point };
 
     // Critical Section
@@ -177,30 +182,31 @@ bool unspent_outputs::get(output& out_output, size_t& out_height,
 
     // Find the unspent tx entry.
     const auto tx = unspent_.left.find(key);
+    if (tx == unspent_.left.end())
+        return false;
 
-    if (tx == unspent_.left.end() ||
-        (require_confirmed && !tx->first.is_confirmed()))
+    const auto& unspent = tx->first;
+    const auto height = unspent.height();
+    const auto require_confirmed = (fork_height != max_size_t);
+    const auto confirmed = tx->first.is_confirmed() && height <= fork_height;
+
+    // Guarantee confirmation state.
+    if (require_confirmed && !confirmed)
         return false;
 
     // Find the output at the specified index for the found unspent tx.
     const auto outputs = tx->first.outputs();
     const auto output = outputs->find(point.index());
-
     if (output == outputs->end())
         return false;
 
-    // Determine if the cached unspent tx is above specified fork_height.
-    // Since the hash table does not allow duplicates there are no others.
-    const auto& unspent = tx->first;
-    const auto height = unspent.height();
-
-    if (height > fork_height)
-        return false;
-
+    // Populate the successful cache hit and output metadata.
     ++hits_;
-    out_height = height;
-    out_coinbase = unspent.is_coinbase();
-    out_output = output->second;
+    prevout.confirmed = confirmed;
+    prevout.cache = output->second;
+    if (unspent.is_coinbase())
+        prevout.coinbase_height = height;
+
     return true;
     ///////////////////////////////////////////////////////////////////////////
 }

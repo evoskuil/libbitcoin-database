@@ -29,10 +29,18 @@ namespace libbitcoin {
 namespace database {
 
 using namespace bc::chain;
+using namespace bc::machine;
 
-static constexpr size_t value_size = sizeof(uint64_t);
+static constexpr size_t indexed_size = sizeof(uint8_t);
 static constexpr size_t height_size = sizeof(uint32_t);
+static constexpr size_t value_size = sizeof(uint64_t);
 static constexpr size_t position_size = sizeof(uint16_t);
+static constexpr size_t state_size = sizeof(uint8_t);
+static constexpr size_t metadata_size = height_size + position_size +
+    state_size;
+
+const uint16_t transaction_result::unconfirmed = max_uint16;
+const uint32_t transaction_result::unverified = rule_fork::unverified;
 
 transaction_result::transaction_result()
   : transaction_result(nullptr)
@@ -41,27 +49,31 @@ transaction_result::transaction_result()
 
 transaction_result::transaction_result(memory_ptr slab)
   : slab_(nullptr),
-    height_(0),
-    position_(0),
-    hash_(null_hash)
+    height_(unverified),
+    position_(unconfirmed),
+    hash_(null_hash),
+    state_(transaction_state::missing)
 {
 }
 
 transaction_result::transaction_result(memory_ptr slab, hash_digest&& hash,
-    uint32_t height, uint16_t position)
+    uint32_t height, uint16_t position, transaction_state state)
   : slab_(slab),
     height_(height),
     position_(position),
-    hash_(std::move(hash))
+    hash_(std::move(hash)),
+    state_(state)
 {
 }
 
 transaction_result::transaction_result(memory_ptr slab,
-    const hash_digest& hash, uint32_t height, uint16_t position)
+    const hash_digest& hash, uint32_t height, uint16_t position,
+    transaction_state state)
   : slab_(slab),
     height_(height),
     position_(position),
-    hash_(hash)
+    hash_(hash),
+    state_(state)
 {
 }
 
@@ -75,16 +87,25 @@ void transaction_result::reset()
     slab_.reset();
 }
 
-bool transaction_result::confirmed() const
+code transaction_result::error() const
 {
-    return position_ != transaction_database::unconfirmed;
+    // Height stores error code if the tx is invalid.
+    return state_ == transaction_state::invalid ?
+        static_cast<error::error_code_t>(height_) : error::success;
 }
 
+transaction_state transaction_result::state() const
+{
+    return state_;
+}
+
+// Position is unconfirmed unless if block-associated.
 size_t transaction_result::position() const
 {
     return position_;
 }
 
+// Height is overloaded (holds forks) unless confirmed.
 size_t transaction_result::height() const
 {
     return height_;
@@ -98,30 +119,28 @@ const hash_digest& transaction_result::hash() const
 // Spentness is unguarded and will be inconsistent during write.
 bool transaction_result::is_spent(size_t fork_height) const
 {
-    // Cannot be spent if unconfirmed.
-    if (!confirmed())
+    const auto allow_indexed = (fork_height != max_size_t);
+    const auto confirmed =
+        (state_ == transaction_state::indexed && allow_indexed) ||
+        (state_ == transaction_state::confirmed && height_ <= fork_height);
+
+    // Cannot be spent unless confirmed.
+    if (!confirmed)
         return false;
 
     BITCOIN_ASSERT(slab_);
-    const auto tx_start = REMAP_ADDRESS(slab_) + height_size + position_size;
+    const auto tx_start = REMAP_ADDRESS(slab_) + metadata_size;
     auto deserial = make_unsafe_deserializer(tx_start);
     const auto outputs = deserial.read_size_little_endian();
-    BITCOIN_ASSERT(deserial);
 
     // Search all outputs for an unspent indication.
-    for (uint32_t output = 0; output < outputs; ++output)
+    for (uint32_t out = 0; out < outputs; ++out)
     {
-        const auto spender_height = deserial.read_4_bytes_little_endian();
-        BITCOIN_ASSERT(deserial);
+        // TODO: This reads the full output, which is simple but not optimial.
+        const auto output = output::factory(deserial, false);
 
-        // A spend from above the fork height is not an actual spend.
-        if (spender_height == output::validation::not_spent ||
-            spender_height > fork_height)
+        if (!output.validation.spent(fork_height, allow_indexed))
             return false;
-
-        deserial.skip(value_size);
-        deserial.skip(deserial.read_size_little_endian());
-        BITCOIN_ASSERT(deserial);
     }
 
     return true;
@@ -132,20 +151,18 @@ bool transaction_result::is_spent(size_t fork_height) const
 chain::output transaction_result::output(uint32_t index) const
 {
     BITCOIN_ASSERT(slab_);
-    const auto tx_start = REMAP_ADDRESS(slab_) + height_size + position_size;
+    const auto tx_start = REMAP_ADDRESS(slab_) + metadata_size;
     auto deserial = make_unsafe_deserializer(tx_start);
     const auto outputs = deserial.read_size_little_endian();
-    BITCOIN_ASSERT(deserial);
 
     if (index >= outputs)
         return{};
 
     // Skip outputs until the target output.
-    for (uint32_t output = 0; output < index; ++output)
+    for (uint32_t out = 0; out < index; ++out)
     {
-        deserial.skip(height_size + value_size);
+        deserial.skip(indexed_size + height_size + value_size);
         deserial.skip(deserial.read_size_little_endian());
-        BITCOIN_ASSERT(deserial);
     }
 
     // Read and return the target output (including spender height).
@@ -156,7 +173,7 @@ chain::output transaction_result::output(uint32_t index) const
 chain::transaction transaction_result::transaction() const
 {
     BITCOIN_ASSERT(slab_);
-    const auto tx_start = REMAP_ADDRESS(slab_) + height_size + position_size;
+    const auto tx_start = REMAP_ADDRESS(slab_) + metadata_size;
     auto deserial = make_unsafe_deserializer(tx_start);
     return transaction::factory(deserial, hash_);
 }
