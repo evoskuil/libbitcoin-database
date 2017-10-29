@@ -127,9 +127,14 @@ stealth_database::list stealth_database::get(const binary& filter,
         const auto record = rows_manager_.get(row);
         auto deserial = make_unsafe_deserializer(REMAP_ADDRESS(record));
 
-        // Failed reads are conflated with skipped returns.
-        if (stealth.from_data(deserial, from_height, filter))
-            result.push_back(stealth);
+        if (!stealth.from_data(deserial, from_height, filter))
+        {
+            // TODO: Failed reads are conflated with skipped returns.
+            BITCOIN_ASSERT_MSG(false, "stealth row read failure");
+            continue;
+        }
+
+        result.push_back(stealth);
     }
 
     return result;

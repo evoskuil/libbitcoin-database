@@ -26,6 +26,7 @@
 #include <bitcoin/database/memory/memory.hpp>
 #include <bitcoin/database/primitives/hash_table_header.hpp>
 #include <bitcoin/database/primitives/record_manager.hpp>
+#include <bitcoin/database/primitives/record_row.hpp>
 
 namespace libbitcoin {
 namespace database {
@@ -61,7 +62,6 @@ template <typename KeyType>
 class record_hash_table
 {
 public:
-    typedef KeyType key_type;
     typedef byte_serializer::functor write_function;
 
     static const array_index not_found;
@@ -84,6 +84,8 @@ public:
     bool unlink(const KeyType& key);
 
 private:
+    typedef record_row<KeyType> row;
+
     // What is the bucket given a hash.
     array_index bucket_index(const KeyType& key) const;
 
@@ -95,7 +97,7 @@ private:
 
     // Release node from linked chain.
     template <typename ListItem>
-    void release(const ListItem& item, file_offset previous);
+    void unlink(const ListItem& item, array_index previous);
 
     record_hash_table_header& header_;
     record_manager& manager_;

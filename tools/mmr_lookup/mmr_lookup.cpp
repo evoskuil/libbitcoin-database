@@ -20,7 +20,7 @@ void show_key_size_error()
 }
 
 template <size_t KeySize>
-int mmr_lookup(const data_chunk& key_data, const size_t value_size,
+int mmr_find(const data_chunk& key_data, const size_t value_size,
     const std::string& map_filename, const std::string& rows_filename)
 {
     typedef byte_array<KeySize> hash_type;
@@ -56,7 +56,7 @@ int mmr_lookup(const data_chunk& key_data, const size_t value_size,
     record_list lrs(lrs_manager);
     record_hash_table<hash_type> ht(header, ht_manager);
     record_multimap<hash_type> multimap(ht, lrs);
-    record_multimap_iterable container(lrs, multimap.lookup(key));
+    record_multimap_iterable container(lrs, multimap.find(key));
 
     for (const array_index index: container)
     {

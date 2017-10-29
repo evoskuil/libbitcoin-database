@@ -55,7 +55,6 @@ template <typename KeyType>
 class slab_hash_table
 {
 public:
-    typedef KeyType key_type;
     typedef byte_serializer::functor write_function;
 
     static const file_offset not_found;
@@ -90,7 +89,7 @@ private:
 
     // Release node from linked chain.
     template <typename ListItem>
-    void release(const ListItem& item, file_offset previous);
+    void unlink(const ListItem& item, file_offset previous);
 
     slab_hash_table_header& header_;
     slab_manager& manager_;

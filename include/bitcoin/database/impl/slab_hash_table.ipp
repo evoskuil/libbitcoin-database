@@ -48,11 +48,8 @@ file_offset slab_hash_table<KeyType>::store(const KeyType& key,
     slab_row<KeyType> slab(manager_);
     const auto position = slab.create(key, write, value_size);
 
-    // For a given key in this hash table new item creation must be atomic from
-    // read of the old value to write of the new. Otherwise concurrent write of
-    // hash table conflicts will corrupt the key's record row.
-    ///////////////////////////////////////////////////////////////////////////
     // Critical Section.
+    ///////////////////////////////////////////////////////////////////////////
     mutex_.lock();
 
     // Link new slab.next to current first slab.
@@ -151,7 +148,7 @@ bool slab_hash_table<KeyType>::unlink(const KeyType& key)
         // Found, unlink current item from previous.
         if (item.compare(key))
         {
-            release(item, previous);
+            unlink(item, previous);
             return true;
         }
 
@@ -188,7 +185,7 @@ void slab_hash_table<KeyType>::link(const KeyType& key, file_offset begin)
 
 template <typename KeyType>
 template <typename ListItem>
-void slab_hash_table<KeyType>::release(const ListItem& item,
+void slab_hash_table<KeyType>::unlink(const ListItem& item,
     file_offset previous)
 {
     ListItem previous_item(manager_, previous);

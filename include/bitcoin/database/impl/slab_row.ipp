@@ -40,9 +40,9 @@ class slab_row
 {
 public:
     typedef KeyType key_type;
-    static BC_CONSTEXPR size_t position_size = sizeof(file_offset);
     static BC_CONSTEXPR size_t key_start = 0;
     static BC_CONSTEXPR size_t key_size = std::tuple_size<KeyType>::value;
+    static BC_CONSTEXPR size_t position_size = sizeof(file_offset);
     static BC_CONSTEXPR file_offset prefix_size = key_size + position_size;
 
     typedef byte_serializer::functor write_function;

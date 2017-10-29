@@ -73,8 +73,8 @@ public:
     /// Add a row for the key. If key doesn't exist it will be created.
     void store(const short_hash& key, const chain::payment_record& payment);
 
-    /// Logically delete the last row that was added to key.
-    bool unlink_last_row(const short_hash& key);
+    /// Logically delete the last record that was added to key.
+    bool unlink(const short_hash& key);
 
     /// Commit latest inserts.
     void synchronize();
@@ -98,10 +98,9 @@ private:
     record_manager lookup_manager_;
     record_map lookup_map_;
 
-    /// List of history rows.
+    /// History rows.
     memory_map rows_file_;
     record_manager rows_manager_;
-    record_list rows_list_;
     record_multiple_map rows_multimap_;
 };
 

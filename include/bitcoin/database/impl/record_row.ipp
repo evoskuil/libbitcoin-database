@@ -19,64 +19,12 @@
 #ifndef LIBBITCOIN_DATABASE_RECORD_ROW_IPP
 #define LIBBITCOIN_DATABASE_RECORD_ROW_IPP
 
-#include <cstddef>
-#include <cstdint>
 #include <bitcoin/database/define.hpp>
 #include <bitcoin/database/memory/memory.hpp>
 #include <bitcoin/database/primitives/record_manager.hpp>
 
 namespace libbitcoin {
 namespace database {
-
-/**
- * Item for record_hash_table. A chained list with the key included.
- *
- * Stores the key, next index and user data.
- * With the starting item, we can iterate until the end using the
- * next_index() method.
- */
-template <typename KeyType>
-class record_row
-{
-public:
-    typedef KeyType key_type;
-    static BC_CONSTEXPR size_t index_size = sizeof(array_index);
-    static BC_CONSTEXPR size_t key_start = 0;
-    static BC_CONSTEXPR size_t key_size = std::tuple_size<KeyType>::value;
-    static BC_CONSTEXPR file_offset prefix_size = key_size + index_size;
-
-    typedef byte_serializer::functor write_function;
-
-    record_row(record_manager& manager, array_index index=0);
-
-    /// Allocate unlinked item for the given key.
-    array_index create(const KeyType& key, write_function write);
-
-    /// Link allocated/populated item.
-    void link(array_index next);
-
-    /// Does this match?
-    bool compare(const KeyType& key) const;
-
-    /// The actual user data.
-    memory_ptr data() const;
-
-    /// The file offset of the user data.
-    file_offset offset() const;
-
-    /// Position of next item in the chained list.
-    array_index next_index() const;
-
-    /// Write a new next index.
-    void write_next_index(array_index next);
-
-private:
-    memory_ptr raw_data(file_offset offset) const;
-
-    array_index index_;
-    record_manager& manager_;
-    mutable shared_mutex mutex_;
-};
 
 template <typename KeyType>
 record_row<KeyType>::record_row(record_manager& manager, array_index index)
@@ -116,8 +64,7 @@ void record_row<KeyType>::link(array_index next)
 
     // Write record.
     const auto memory = raw_data(key_size);
-    const auto next_data = REMAP_ADDRESS(memory);
-    auto serial = make_unsafe_serializer(next_data);
+    auto serial = make_unsafe_serializer(REMAP_ADDRESS(memory));
 
     //*************************************************************************
     serial.template write_little_endian<array_index>(next);

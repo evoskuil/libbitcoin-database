@@ -22,7 +22,7 @@
 #include <string>
 #include <bitcoin/bitcoin.hpp>
 #include <bitcoin/database/memory/memory.hpp>
-#include "../impl/record_row.ipp"
+#include <bitcoin/database/primitives/record_row.hpp>
 #include "../impl/remainder.ipp"
 
 namespace libbitcoin {
@@ -47,13 +47,11 @@ array_index record_hash_table<KeyType>::store(const KeyType& key,
     write_function write)
 {
     // Allocate and populate new unlinked record.
-    record_row<KeyType> record(manager_);
+    row record(manager_);
     const auto index = record.create(key, write);
 
-    // For a given key in this hash table new item creation must be atomic from
-    // read of the old value to write of the new.
-    ///////////////////////////////////////////////////////////////////////////
     // Critical Section.
+    ///////////////////////////////////////////////////////////////////////////
     mutex_.lock();
 
     // Link new record.next to current first record.
@@ -81,7 +79,7 @@ array_index record_hash_table<KeyType>::update(const KeyType& key,
     // Iterate through list...
     while (current != header_.empty)
     {
-        const record_row<KeyType> item(manager_, current);
+        const row item(manager_, current);
 
         // Found.
         if (item.compare(key))
@@ -110,7 +108,7 @@ memory_ptr record_hash_table<KeyType>::find(const KeyType& key) const
     // Iterate through list...
     while (current != header_.empty)
     {
-        const record_row<KeyType> item(manager_, current);
+        const row item(manager_, current);
 
         // Found, return data.
         if (item.compare(key))
@@ -131,7 +129,7 @@ bool record_hash_table<KeyType>::unlink(const KeyType& key)
 {
     // Find start item...
     const auto begin = read_bucket_value(key);
-    const record_row<KeyType> begin_item(manager_, begin);
+    const row begin_item(manager_, begin);
 
     // If start item has the key then unlink from buckets.
     if (begin_item.compare(key))
@@ -147,12 +145,12 @@ bool record_hash_table<KeyType>::unlink(const KeyType& key)
     // Iterate through list...
     while (current != header_.empty)
     {
-        const record_row<KeyType> item(manager_, current);
+        const row item(manager_, current);
 
         // Found, unlink current item from previous.
         if (item.compare(key))
         {
-            release(item, previous);
+            unlink(item, previous);
             return true;
         }
 
@@ -189,8 +187,8 @@ void record_hash_table<KeyType>::link(const KeyType& key, array_index begin)
 
 template <typename KeyType>
 template <typename ListItem>
-void record_hash_table<KeyType>::release(const ListItem& item,
-    file_offset previous)
+void record_hash_table<KeyType>::unlink(const ListItem& item,
+    array_index previous)
 {
     ListItem previous_item(manager_, previous);
     previous_item.write_next_index(item.next_index());

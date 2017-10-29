@@ -22,8 +22,9 @@
 #include <cstddef>
 #include <bitcoin/bitcoin.hpp>
 #include <bitcoin/database/memory/memory.hpp>
+#include <bitcoin/database/primitives/record_hash_table.hpp>
+#include <bitcoin/database/primitives/record_multimap.hpp>
 #include <bitcoin/database/primitives/record_multimap_iterable.hpp>
-#include <bitcoin/database/primitives/record_multimap_iterator.hpp>
 
 // Record format (v4) [47 bytes]:
 // ----------------------------------------------------------------------------
@@ -48,18 +49,17 @@ using namespace bc::chain;
 
 static constexpr auto rows_header_size = 0u;
 
+static constexpr auto height_size = sizeof(uint32_t);
 static constexpr auto flag_size = sizeof(uint8_t);
 static constexpr auto point_size = std::tuple_size<point>::value;
-static constexpr auto height_position = flag_size + point_size;
-static constexpr auto height_size = sizeof(uint32_t);
 static constexpr auto checksum_size = sizeof(uint64_t);
 static constexpr auto value_size = flag_size + point_size + height_size +
     checksum_size;
 
-static BC_CONSTEXPR auto record_size =
+static BC_CONSTEXPR auto table_record_size =
     hash_table_multimap_record_size<short_hash>();
 static BC_CONSTEXPR auto row_record_size =
-    hash_table_record_size<hash_digest>(value_size);
+    multimap_record_size(value_size);
 
 enum class point_kind : uint8_t
 {
@@ -77,13 +77,12 @@ history_database::history_database(const path& lookup_filename,
     lookup_file_(lookup_filename, mutex, expansion),
     lookup_header_(lookup_file_, buckets),
     lookup_manager_(lookup_file_, record_hash_table_header_size(buckets),
-        record_size),
+        table_record_size),
     lookup_map_(lookup_header_, lookup_manager_),
 
     rows_file_(rows_filename, mutex, expansion),
     rows_manager_(rows_file_, rows_header_size, row_record_size),
-    rows_list_(rows_manager_),
-    rows_multimap_(lookup_map_, rows_list_)
+    rows_multimap_(lookup_map_, rows_manager_)
 {
 }
 
@@ -159,22 +158,31 @@ history_database::list history_database::get(const short_hash& key,
     size_t limit, size_t from_height) const
 {
     list result;
-    payment_record payment;
-    const auto start = rows_multimap_.lookup(key);
-    const auto records = record_multimap_iterable(rows_list_, start);
+    ////payment_record payment;
+    ////const auto start = rows_multimap_.find(key);
+    ////const auto records = record_multimap_iterable(rows_multimap_, start);
 
-    for (const auto index: records)
-    {
-        if (limit > 0 && result.size() >= limit)
-            break;
+    ////// TODO: create keyless (non-template) record_row.
+    ////const auto& todo = key;
 
-        const auto record = rows_list_.get(index);
-        auto deserial = make_unsafe_deserializer(REMAP_ADDRESS(record));
+    ////for (const auto index: records)
+    ////{
+    ////    if (limit > 0 && result.size() >= limit)
+    ////        break;
 
-        // Failed reads are conflated with skipped returns.
-        if (payment.from_data(deserial, from_height))
-            result.push_back(payment);
-    }
+    ////    const record_row<short_hash> record(rows_manager_, index);
+    ////    const auto data = REMAP_ADDRESS(record.data());
+    ////    auto deserial = make_unsafe_deserializer(data);
+
+    ////    if (!payment.from_data(deserial, from_height))
+    ////    {
+    ////        // TODO: Failed reads are conflated with skipped returns.
+    ////        BITCOIN_ASSERT_MSG(false, "history row read failure");
+    ////        continue;
+    ////    }
+
+    ////    result.push_back(payment);
+    ////}
 
     return result;
 }
@@ -187,12 +195,12 @@ void history_database::store(const short_hash& key,
         payment.to_data(serial, false);
     };
 
-    rows_multimap_.add_row(key, write);
+    rows_multimap_.store(key, write);
 }
 
-bool history_database::unlink_last_row(const short_hash& key)
+bool history_database::unlink(const short_hash& key)
 {
-    return rows_multimap_.delete_last_row(key);
+    return rows_multimap_.unlink(key);
 }
 
 history_statinfo history_database::statinfo() const

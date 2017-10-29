@@ -49,9 +49,6 @@
     <ClCompile Include="..\..\..\..\src\primitives\slab_manager.cpp">
       <Filter>src\primitives</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\src\primitives\record_list.cpp">
-      <Filter>src\primitives</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\..\src\primitives\record_manager.cpp">
       <Filter>src\primitives</Filter>
     </ClCompile>
@@ -132,9 +129,6 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\database\primitives\record_hash_table.hpp">
       <Filter>include\bitcoin\database\primitives</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\include\bitcoin\database\primitives\record_list.hpp">
-      <Filter>include\bitcoin\database\primitives</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\..\include\bitcoin\database\primitives\record_manager.hpp">
       <Filter>include\bitcoin\database\primitives</Filter>
     </ClInclude>
@@ -152,6 +146,9 @@
     </ClInclude>
     <ClInclude Include="..\..\..\..\include\bitcoin\database\unspent_outputs.hpp">
       <Filter>include\bitcoin\database</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\primitives\record_row.hpp">
+      <Filter>include\bitcoin\database\primitives</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

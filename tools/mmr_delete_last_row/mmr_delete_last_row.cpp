@@ -20,7 +20,7 @@ void show_key_size_error()
 }
 
 template <size_t KeySize>
-int mmr_lookup(
+int mmr_find(
     const data_chunk& key_data, const size_t value_size,
     const std::string& map_filename, const std::string& rows_filename)
 {
@@ -59,7 +59,7 @@ int mmr_lookup(
 
     record_list lrs(lrs_manger);
     record_multimap<hash_type> multimap(ht, lrs);
-    multimap.delete_last_row(key);
+    multimap.unlink(key);
     return 0;
 }
 

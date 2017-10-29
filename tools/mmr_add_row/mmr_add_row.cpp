@@ -56,7 +56,7 @@ int mmr_add_row(const data_chunk& key_data, const data_chunk& value,
     {
         serial.write_forward(value);
     };
-    multimap.add_row(key, write);
+    multimap.store(key, write);
 
     alloc.sync();
     recs.sync();
