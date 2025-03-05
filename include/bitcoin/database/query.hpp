@@ -475,6 +475,7 @@ public:
     /// These are used in confirmation.
 
     bool is_spent_coinbase(const tx_link& link) const NOEXCEPT;
+    code get_double_spent(const point_sets& sets) const NOEXCEPT;
     code block_confirmable(const header_link& link) const NOEXCEPT;
     code unspent_duplicates(const header_link& coinbase,
         const context& ctx) const NOEXCEPT;
@@ -552,19 +553,13 @@ protected:
     /// -----------------------------------------------------------------------
     tx_links get_strong_txs(const tx_link& link) const NOEXCEPT;
     tx_links get_strong_txs(const hash_digest& tx_hash) const NOEXCEPT;
-    code populate_prevouts(point_sets& sets, size_t points,
-        const header_link& link) const NOEXCEPT;
+    bool set_strong(const header_link& link, const tx_links& txs,
+        bool positive) NOEXCEPT;
 
-    code push_spenders(tx_links& out, const point& point,
-        const point_link& self) const NOEXCEPT;
-    code get_double_spenders(tx_links& out, const block& block) const NOEXCEPT;
-
+    error::error_t spent(const tx_link& link, uint32_t index) const NOEXCEPT;
     error::error_t unspendable(uint32_t sequence, bool coinbase,
         const tx_link& prevout_tx, uint32_t version,
         const context& ctx) const NOEXCEPT;
-
-    bool set_strong(const header_link& link, const tx_links& txs,
-        bool positive) NOEXCEPT;
 
     /// Context.
     /// -----------------------------------------------------------------------

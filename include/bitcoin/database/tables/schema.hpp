@@ -321,13 +321,14 @@ namespace schema
         static constexpr size_t pk = schema::prevout_;
         static constexpr size_t minsize =
             ////schema::bit + // merged bit into tx.
-            one +                       // varint(conflict-count)
+            ////one +                   // varint(conflict-count)
             schema::transaction::pk +   // prevout_tx
-            one;                        // varint(sequence)
+            one +                       // varint(index)
+            sizeof(uint32_t);           // sequence
         static constexpr size_t minrow = minsize;
         static constexpr size_t size = max_size_t;
-        static_assert(minsize == 6u);
-        static_assert(minrow == 6u);
+        static_assert(minsize == 9u);
+        static_assert(minrow == 9u);
     };
 
     // slab hashmap
@@ -390,6 +391,7 @@ struct point_set
         // From header->prevouts cache.
         tx_link tx{};
         bool coinbase{};
+        uint32_t index{};
         uint32_t sequence{};
     };
 

@@ -36,61 +36,11 @@ struct prevout
   : public array_map<schema::prevout>
 {
     using tx = linkage<schema::tx>;
+    using ix = linkage<schema::index>;
+    using pt = linkage<schema::ins_>;
     using header = linkage<schema::block>;
     using array_map<schema::prevout>::arraymap;
     static constexpr size_t offset = sub1(to_bits(tx::size));
-
-    // The below implementation overloads tx-sized record count with sequences.
-    static_assert(tx::size == sizeof(uint32_t), "sequence-tx overload error");
-
-    // This supports only a single record (not too useful).
-    struct slab
-      : public schema::prevout
-    {
-        inline link count() const NOEXCEPT
-        {
-            return tx::size;
-        }
-
-        inline bool coinbase() const NOEXCEPT
-        {
-            return system::get_right(prevout_tx, offset);
-        }
-
-        inline tx::integer output_tx_fk() const NOEXCEPT
-        {
-            return system::set_right(prevout_tx, offset, false);
-        }
-
-        inline void set(bool coinbase, tx::integer output_tx_fk) NOEXCEPT
-        {
-            using namespace system;
-            BC_ASSERT_MSG(!get_right(output_tx_fk, offset), "overflow");
-            prevout_tx = set_right(output_tx_fk, offset, coinbase);
-        }
-
-        inline bool from_data(reader& source) NOEXCEPT
-        {
-            prevout_tx = source.read_little_endian<tx::integer, tx::size>();
-            BC_ASSERT(!source || source.get_read_position() == count() * minrow);
-            return source;
-        }
-
-        inline bool to_data(finalizer& sink) const NOEXCEPT
-        {
-            sink.write_little_endian<tx::integer, tx::size>(prevout_tx);
-            BC_ASSERT(!sink || sink.get_write_position() == count() * minrow);
-            return sink;
-        }
-
-        inline bool operator==(const slab& other) const NOEXCEPT
-        {
-            return coinbase() == other.coinbase()
-                && output_tx_fk() == other.output_tx_fk();
-        }
-
-        tx::integer prevout_tx{};
-    };
 
     struct slab_put_ref
       : public schema::prevout
@@ -99,9 +49,24 @@ struct prevout
         {
             // TODO: assert overflow.
             using namespace system;
-            const auto conflicts_ = conflicts.size();
-            return variable_size(conflicts_) + (conflicts_ * tx::size) +
-                (block.spends() * (tx::size + sizeof(uint32_t)));
+            const auto& txs = *block.transactions_ptr();
+            BC_ASSERT_MSG(!is_zero(txs.size()), "empty block");
+
+            const auto base = variable_size(sub1(txs.size()));
+            return std::accumulate(std::next(txs.begin()), txs.end(), base,
+                [](size_t total, const auto& tx) NOEXCEPT
+                {
+                    total += (variable_size(tx->version()) +
+                        variable_size(tx->inputs()));
+
+                    const auto& ins = *tx->inputs_ptr();
+                    return std::accumulate(ins.begin(), ins.end(), total,
+                        [](size_t sum, const auto& in) NOEXCEPT
+                        {
+                            return sum + tx::size + sizeof(uint32_t) +
+                                variable_size(in->point().index());
+                        });
+                });
         }
 
         static constexpr tx::integer merge(bool coinbase,
@@ -114,76 +79,44 @@ struct prevout
 
         inline bool to_data(finalizer& sink) const NOEXCEPT
         {
-            const auto write_con = [&](const auto& con) NOEXCEPT
-            {
-                sink.write_little_endian<tx::integer, tx::size>(con);
-            };
-
-            const auto write_tx = [&](const auto& tx) NOEXCEPT
-            {
-                const auto& ins = tx->inputs_ptr();
-                return std::for_each(ins->begin(), ins->end(),
-                    [&](const auto& in) NOEXCEPT
-                    {
-                        // Sets terminal sentinel for block-internal spends.
-                        const auto value = in->metadata.inside ? tx::terminal :
-                            merge(in->metadata.coinbase, in->metadata.parent);
-
-                        sink.write_little_endian<tx::integer, tx::size>(value);
-                        sink.write_little_endian<uint32_t>(in->sequence());
-                    });
-            };
-
             using namespace system;
-            const auto& cons = conflicts;
             const auto& txs = *block.transactions_ptr();
-            const auto number = possible_narrow_cast<tx::integer>(cons.size());
-            BC_ASSERT_MSG(txs.size() > one, "empty block");
+            BC_ASSERT_MSG(!is_zero(txs.size()), "empty block");
 
-            // Count is written as a tx link so the table can remain an array.
-            sink.write_variable(number);
-            std::for_each(cons.begin(), cons.end(), write_con);
-            std::for_each(std::next(txs.begin()), txs.end(), write_tx);
+            // Write block section heading (spending tx count).
+            sink.write_variable(sub1(txs.size()));
+
+            std::for_each(std::next(txs.begin()), txs.end(),
+                [&](const auto& tx) NOEXCEPT
+                {
+                    // Write tx section heading (tx input count and version).
+                    sink.write_variable(tx->version());
+                    sink.write_variable(tx->inputs());
+
+                    const auto& ins = *tx->inputs_ptr();
+                    return std::for_each(ins.begin(), ins.end(),
+                        [&](const auto& in) NOEXCEPT
+                        {
+                            // Sets terminal sentinel for block-internal spends.
+                            const auto value = in->metadata.inside ? tx::terminal :
+                                merge(in->metadata.coinbase, in->metadata.parent);
+
+                            sink.write_little_endian<tx::integer, tx::size>(value);
+                            sink.write_variable(in->point().index());
+                            sink.write_little_endian<uint32_t>(in->sequence());
+                        });
+                });
 
             BC_ASSERT(!sink || (sink.get_write_position() == count()));
             return sink;
         }
 
-        const std::vector<tx::integer>& conflicts{};
         const system::chain::block& block{};
     };
 
     struct slab_get
       : public schema::prevout
     {
-        inline link count() const NOEXCEPT
-        {
-            // TODO: assert overflow.
-            using namespace system;
-            const auto conflicts_ = conflicts.size();
-            return variable_size(conflicts_) + (conflicts_ * tx::size) +
-                (spends.size() * (tx::size + sizeof(uint32_t)));
-        }
-
-        inline bool from_data(reader& source) NOEXCEPT
-        {
-            auto& cons = conflicts;
-            cons.resize(source.read_variable());
-            std::for_each(cons.begin(), cons.end(), [&](auto& value) NOEXCEPT
-            {
-                value = source.read_little_endian<tx::integer, tx::size>();
-            });
-
-            std::for_each(spends.begin(), spends.end(), [&](auto& value) NOEXCEPT
-            {
-                value.first = source.read_little_endian<tx::integer, tx::size>();
-                value.second = source.read_little_endian<uint32_t>();
-            });
-
-            BC_ASSERT(!source || source.get_read_position() == count());
-            return source;
-        }
-
         static inline bool coinbase(tx::integer spend) NOEXCEPT
         {
             // Inside are always reflected as coinbase.
@@ -197,9 +130,33 @@ struct prevout
             return spend == tx::terminal ? spend : set_right(spend, offset, false);
         }
 
-        // Spend count is derived in confirmation from block.txs.ins.
-        std::vector<tx::integer> conflicts{};
-        std::vector<std::pair<tx::integer, uint32_t>> spends{};
+        inline bool from_data(reader& source) NOEXCEPT
+        {
+            using namespace system;
+
+            // Read block section heading (spending tx count).
+            sets.resize(possible_narrow_cast<size_t>(source.read_variable()));
+
+            std::for_each(sets.begin(), sets.end(), [&](auto& set) NOEXCEPT
+            {
+                // Read tx section heading (tx input count and version).
+                set.version = possible_narrow_cast<uint32_t>(source.read_variable());
+                set.points.resize(possible_narrow_cast<size_t>(source.read_variable()));
+                std::for_each(set.points.begin(), set.points.end(),[&](auto& value) NOEXCEPT
+                {
+                    const auto tx = source.read_little_endian<tx::integer, tx::size>();
+                    value.tx = output_tx_fk(tx);
+                    value.coinbase = coinbase(tx);
+                    value.index = system::narrow_cast<uint32_t>(source.read_variable());
+                    value.sequence = source.read_little_endian<uint32_t>();
+                });
+            });
+
+            ////BC_ASSERT(!source || source.get_read_position() == count());
+            return source;
+        }
+
+        point_sets sets{};
     };
 };
 
