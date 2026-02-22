@@ -48,13 +48,16 @@ constexpr size_t prevout_ = 5;  // ->prevout slab.
 constexpr size_t txs_ = 5;      // ->txs slab.
 constexpr size_t tx = 4;        // ->tx record.
 constexpr size_t block = 3;     // ->header record.
-constexpr size_t bk_slab = 4;   // ->validated_bk record.
 constexpr size_t tx_slab = 5;   // ->validated_tx record.
 constexpr size_t filter_ = 5;   // ->filter record.
 constexpr size_t doubles_ = 4;  // doubles bucket (no actual keys).
 
 /// Archive tables.
 /// -----------------------------------------------------------------------
+
+// size_t `cell` sets the hashmap bucket size (minimum size of link type).
+// bool `align` causes arraymap bucket size to be expanded to nearest word.
+// Memory fencing used (vs. mutex) when array/hashmap bucket is word sized.
 
 // record hashmap
 struct header
@@ -295,20 +298,20 @@ struct prevout
     static_assert(link::size == 5u);
 };
 
-// slab arraymap
+// record arraymap
 struct validated_bk
 {
     static constexpr size_t align = false;
-    static constexpr size_t pk = schema::bk_slab;
+    static constexpr size_t pk = schema::block;
     using link = linkage<pk, to_bits(pk)>;
     static constexpr size_t minsize =
-        schema::code +  // TODO: change code to variable.
-        one;
+        schema::code;
     static constexpr size_t minrow = minsize;
-    static constexpr size_t size = max_size_t;
-    static_assert(minsize == 2u);
-    static_assert(minrow == 2u);
-    static_assert(link::size == 4u);
+    static constexpr size_t size = minsize;
+    static constexpr link count() NOEXCEPT { return 1; }
+    static_assert(minsize == 1u);
+    static_assert(minrow == 1u);
+    static_assert(link::size == 3u);
 };
 
 // slab modest (sk:4) multimap, with low multiple rate.
@@ -331,6 +334,7 @@ struct validated_tx
     static inline link count() NOEXCEPT;
     static_assert(minsize == 14u);
     static_assert(minrow == 23u);
+    static_assert(link::size == 5u);
 };
 
 /// Optional tables.

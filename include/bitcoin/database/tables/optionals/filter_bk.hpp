@@ -40,6 +40,7 @@ struct filter_bk
         {
             hash = source.read_hash();
             head = source.read_hash();
+            BC_ASSERT(!source || source.get_read_position() == count() * minrow);
             return source;
         }
 

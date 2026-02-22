@@ -234,7 +234,7 @@ BOOST_AUTO_TEST_CASE(query_validate__get_block_state__valid__block_valid)
     BOOST_REQUIRE(query.initialize(test::genesis));
     BOOST_REQUIRE(query.set(test::block1, context{}, false, false));
 
-    BOOST_REQUIRE(query.set_block_valid(1, 42));
+    BOOST_REQUIRE(query.set_block_valid(1));
     BOOST_REQUIRE_EQUAL(query.get_header_state(1), error::block_valid);
     BOOST_REQUIRE_EQUAL(query.get_block_state(1), error::block_valid);
 }
