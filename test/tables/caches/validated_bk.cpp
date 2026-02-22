@@ -22,39 +22,36 @@
 BOOST_AUTO_TEST_SUITE(validated_bk_tests)
 
 using namespace system;
-const table::validated_bk::slab slab1{ {}, 0x42, 0x1122334455667788 };
-const table::validated_bk::slab slab2{ {}, 0xab, 0x0000000000000042 };
+const table::validated_bk::record record1{ {}, 0x42 };
+const table::validated_bk::record record2{ {}, 0xab };
 const data_chunk expected_head = base16_chunk
 (
-    "00000000"
-    "00000000"
-    "0a000000"
-    "ffffffff"
-    "ffffffff"
-    "ffffffff"
-    "ffffffff"
-    "ffffffff"
-    "ffffffff"
+    "000000"
+    "000000"
+    "010000"
+    "ffffff"
+    "ffffff"
+    "ffffff"
+    "ffffff"
+    "ffffff"
+    "ffffff"
 );
 const data_chunk closed_head = base16_chunk
 (
-    "0c000000"
-    "00000000"
-    "0a000000"
-    "ffffffff"
-    "ffffffff"
-    "ffffffff"
-    "ffffffff"
-    "ffffffff"
-    "ffffffff"
+    "020000"
+    "000000"
+    "010000"
+    "ffffff"
+    "ffffff"
+    "ffffff"
+    "ffffff"
+    "ffffff"
+    "ffffff"
 );
 const data_chunk expected_body = base16_chunk
 (
     "42"                 // code1
-    "ff8877665544332211" // fees1
-
     "ab"                 // code2
-    "42"                 // fees2
 );
 
 BOOST_AUTO_TEST_CASE(validated_bk__put__two__expected)
@@ -64,10 +61,10 @@ BOOST_AUTO_TEST_CASE(validated_bk__put__two__expected)
     table::validated_bk instance{ head_store, body_store, 8 };
     BOOST_REQUIRE(instance.create());
 
-    BOOST_REQUIRE(instance.put(0, slab1));
+    BOOST_REQUIRE(instance.put(0, record1));
     BOOST_REQUIRE_EQUAL(instance.at(0), 0u);
-    BOOST_REQUIRE(instance.put(1, slab2));
-    BOOST_REQUIRE_EQUAL(instance.at(1), 10u);
+    BOOST_REQUIRE(instance.put(1, record2));
+    BOOST_REQUIRE_EQUAL(instance.at(1), 1u);
 
     BOOST_REQUIRE_EQUAL(head_store.buffer(), expected_head);
     BOOST_REQUIRE_EQUAL(body_store.buffer(), expected_body);
@@ -85,11 +82,11 @@ BOOST_AUTO_TEST_CASE(validated_bk__get__two__expected)
     BOOST_REQUIRE_EQUAL(head_store.buffer(), expected_head);
     BOOST_REQUIRE_EQUAL(body_store.buffer(), expected_body);
 
-    table::validated_bk::slab out{};
+    table::validated_bk::record out{};
     BOOST_REQUIRE(instance.get(0, out));
-    BOOST_REQUIRE(out == slab1);
-    BOOST_REQUIRE(instance.get(10, out));
-    BOOST_REQUIRE(out == slab2);
+    BOOST_REQUIRE(out == record1);
+    BOOST_REQUIRE(instance.get(1, out));
+    BOOST_REQUIRE(out == record2);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

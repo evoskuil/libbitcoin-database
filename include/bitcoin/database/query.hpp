@@ -502,7 +502,7 @@ public:
         const header_link& link) const NOEXCEPT;
 
     /// Setters.
-    bool set_block_valid(const header_link& link, uint64_t fees) NOEXCEPT;
+    bool set_block_valid(const header_link& link) NOEXCEPT;
     bool set_block_unconfirmable(const header_link& link) NOEXCEPT;
     bool set_block_confirmable(const header_link& link) NOEXCEPT;
     bool set_block_unknown(const header_link& link) NOEXCEPT;
@@ -653,6 +653,13 @@ protected:
     /// Called by confirmation chaser.
     bool is_block_validated(code& state, const header_link& link,
         size_t height, size_t checkpoint) const NOEXCEPT;
+
+    /// Setters.
+    /// -----------------------------------------------------------------------
+    bool set_block_state(const header_link& link,
+        schema::block_state state) NOEXCEPT;
+    bool set_tx_state(const tx_link& link, const context& ctx,
+        uint64_t fee, size_t sigops, schema::tx_state state) NOEXCEPT;
 
     /// Confirm.
     /// -----------------------------------------------------------------------

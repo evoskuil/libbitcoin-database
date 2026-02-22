@@ -34,57 +34,28 @@ struct validated_bk
     using coding = linkage<schema::code>;
     using array_map<schema::validated_bk>::arraymap;
 
-    struct slab
+    struct record
       : public schema::validated_bk
     {
-        inline link count() const NOEXCEPT
-        {
-            using namespace system;
-            return possible_narrow_cast<link::integer>(coding::size +
-                variable_size(fees));
-        }
-
         inline bool from_data(reader& source) NOEXCEPT
         {
             code = source.read_little_endian<coding::integer, coding::size>();
-            fees = source.read_variable();
-            BC_ASSERT(!source || source.get_read_position() == count());
+            BC_ASSERT(!source || source.get_read_position() == count() * minrow);
             return source;
         }
 
         inline bool to_data(finalizer& sink) const NOEXCEPT
         {
             sink.write_little_endian<coding::integer, coding::size>(code);
-            sink.write_variable(fees);
-            BC_ASSERT(!sink || sink.get_write_position() == count());
+            BC_ASSERT(!sink || sink.get_write_position() == count() * minrow);
             return sink;
         }
 
-        inline bool operator==(const slab& other) const NOEXCEPT
+        inline bool operator==(const record& other) const NOEXCEPT
         {
-            return code == other.code
-                && fees == other.fees;
+            return code == other.code;
         }
 
-        coding::integer code{};
-        uint64_t fees{};
-    };
-
-    struct slab_get_code
-      : public schema::validated_bk
-    {
-        inline link count() const NOEXCEPT
-        {
-            BC_ASSERT(false);
-            return {};
-        }
-
-        inline bool from_data(reader& source) NOEXCEPT
-        {
-            code = source.read_little_endian<coding::integer, coding::size>();
-            return source;
-        }
-    
         coding::integer code{};
     };
 };
