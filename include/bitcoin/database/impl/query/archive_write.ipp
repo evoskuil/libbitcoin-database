@@ -381,7 +381,7 @@ code CLASS::set_code(const block& block, const header_link& key,
     if (is_zero(txs))
         return error::txs_empty;
 
-    const auto count = possible_narrow_cast<tx_link::integer>(txs);
+    const auto count = possible_narrow_cast<unsigned_type<schema::count_>>(txs);
     const auto tx_fks = store_.tx.allocate(count);
     if (tx_fks.is_terminal())
         return error::tx_tx_allocate;
