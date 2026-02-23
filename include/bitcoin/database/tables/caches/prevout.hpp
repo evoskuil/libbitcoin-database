@@ -135,17 +135,17 @@ struct prevout
             return source;
         }
 
-        static inline bool coinbase(tx::integer spend) NOEXCEPT
+        static constexpr bool coinbase(tx::integer merged) NOEXCEPT
         {
-            // Inside are always reflected as coinbase.
-            return system::get_right(spend, offset);
+            // Inside spends are always reflected as coinbase.
+            return system::get_right(merged, offset);
         }
 
-        static inline tx::integer output_tx_fk(tx::integer spend) NOEXCEPT
+        static constexpr tx::integer output_tx_fk(tx::integer merged) NOEXCEPT
         {
             // Inside spends are mapped to terminal.
-            using namespace system;
-            return spend == tx::terminal ? spend : set_right(spend, offset, false);
+            return merged == tx::terminal ? merged :
+                system::set_right(merged, offset, false);
         }
 
         // Spend count is derived in confirmation from block.txs.ins.
