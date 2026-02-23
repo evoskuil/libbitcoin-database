@@ -31,7 +31,7 @@ constexpr size_t bit = 1;       // single bit flag.
 constexpr size_t code = 1;      // validation state.
 constexpr size_t size = 3;      // tx/block size/weight.
 constexpr size_t height_ = 3;   // height record.
-constexpr size_t count_ = 3;    // txs count.
+constexpr size_t count_ = 2;    // txs count.
 constexpr size_t index = 3;     // input/output index.
 constexpr size_t sigops = 3;    // signature op count.
 constexpr size_t flags = 4;     // fork flags.
@@ -62,7 +62,6 @@ constexpr size_t doubles_ = 4;  // doubles bucket (no actual keys).
 // record hashmap
 struct header
 {
-    // TODO: merge milestone with parent.pk.
     static constexpr size_t sk = schema::hash;
     static constexpr size_t pk = schema::block;
     using link = linkage<pk, sub1(to_bits(pk))>; // reduced for strong_tx merge.
@@ -71,7 +70,7 @@ struct header
         schema::flags +         // context.flags
         schema::height_ +       // context.height
         sizeof(uint32_t) +      // context.mtp
-        schema::bit +           // milestone
+        schema::bit +           // milestone [TODO: merge into parent pk]
         pk +                    // parent.pk
         sizeof(uint32_t) +      // version
         sizeof(uint32_t) +      // timestamp
@@ -91,13 +90,12 @@ struct header
 // record hashmap
 struct transaction
 {
-    // TODO: merge coinbase with something.
     static constexpr size_t sk = schema::hash;
     static constexpr size_t pk = schema::tx;
     using link = linkage<pk, sub1(to_bits(pk))>; // reduced for prevout merge.
     using key = system::data_array<sk>;
     static constexpr size_t minsize =
-        schema::bit +           // coinbase
+        schema::bit +           // coinbase [TODO: merge into light]
         schema::size +          // light
         schema::size +          // heavy
         sizeof(uint32_t) +      // locktime
@@ -207,16 +205,16 @@ struct txs
     static constexpr size_t pk = schema::txs_;
     using link = linkage<pk, to_bits(pk)>;
     static constexpr size_t minsize =
+        schema::size +          // light
+        schema::size +          // heavy
         count_ +                // txs
-        schema::size +          // block.serialized_size(false)
-        schema::size +          // block.serialized_size(true)
         schema::transaction::pk;// coinbase tx
-        ////schema::bit +       // is interval - merged bit into schema::size.
-        ////0 | schema::hash +  // electrum interval hash (each 2048th block).
+        ////schema::bit +       // is interval [merged into light]
+        ////0 | schema::hash +  // interval hash [each 2048th block]
     static constexpr size_t minrow = minsize;
     static constexpr size_t size = max_size_t;
-    static_assert(minsize == 13u);
-    static_assert(minrow == 13u);
+    static_assert(minsize == 12u);
+    static_assert(minrow == 12u);
     static_assert(link::size == 5u);
 };
 
@@ -327,8 +325,8 @@ struct validated_tx
         schema::header::pk +
         sizeof(uint32_t) +
         schema::code +  // TODO: change code to variable.
-        one +
-        one;
+        one +           // variable: fee
+        one;            // variable: sigops
     static constexpr size_t minrow = pk + sk + minsize;
     static constexpr size_t size = max_size_t;
     static constexpr size_t cell = link::size;
