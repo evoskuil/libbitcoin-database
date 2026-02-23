@@ -341,14 +341,19 @@ public:
     inline point_key get_point_key(const point_link& link) const NOEXCEPT;
     inline hash_digest get_point_hash(const point_link& link) const NOEXCEPT;
 
-    /// False implies not confirmed.
-    bool get_tx_height(size_t& out, const tx_link& link) const NOEXCEPT;
+    /// False position implies not confirmed (or fault).
     bool get_tx_position(size_t& out, const tx_link& link) const NOEXCEPT;
-    bool get_tx_sizes(size_t& light, size_t& is_locked,
+    bool get_tx_height(size_t& out, const tx_link& link) const NOEXCEPT;
+
+    /// Sizes.
+    size_t get_tx_size(const tx_link& link, bool witness) const NOEXCEPT;
+    size_t get_block_size(const header_link& link, bool witness) const NOEXCEPT;
+    bool get_block_sizes(size_t& light, size_t& heavy,
+        const header_link& link) const NOEXCEPT;
+    bool get_tx_sizes(size_t& light, size_t& heavy,
         const tx_link& link) const NOEXCEPT;
 
     /// Terminal implies not found, false implies fault.
-    size_t get_block_size(const header_link& link) const NOEXCEPT;
     height_link get_height(const hash_digest& key) const NOEXCEPT;
     height_link get_height(const header_link& link) const NOEXCEPT;
     bool get_height(size_t& out, const hash_digest& key) const NOEXCEPT;
@@ -400,6 +405,12 @@ public:
 
     /// Fees.
     /// -----------------------------------------------------------------------
+
+    /// Virtual size incorporates witnesses if archived.
+    bool get_tx_virtual_size(uint64_t& out,
+        const tx_link& link) const NOEXCEPT;
+    bool get_block_virtual_size(uint64_t& out,
+        const header_link& link) const NOEXCEPT;
 
     /// Total fee value by tx or block.
     uint64_t get_tx_fee(const tx_link& link) const NOEXCEPT;
@@ -771,6 +782,7 @@ private:
     template <typename Functor>
     static inline code parallel_address_transform(std::atomic_bool& cancel,
         outpoints& out, const output_links& links, Functor&& functor) NOEXCEPT;
+    static constexpr size_t virtual_size(size_t light, size_t heavy) NOEXCEPT;
 
     // Not thread safe.
     size_t get_fork_() const NOEXCEPT;

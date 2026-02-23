@@ -392,13 +392,17 @@ code CLASS::set_code(const block& block, const header_link& key,
         if ((ec = set_code(fk++, *tx, bypass)))
             return ec;
 
-    using bytes = linkage<schema::size>::integer;
+    // Optional hash, only has value on height intervals.
     auto interval = create_interval(key, height);
-    const auto size = block.serialized_size(true);
-    const auto wire = possible_narrow_cast<bytes>(size);
 
-    // Depth is only used for genesis (is_zero(tx_fks[0])).
+    // Depth is only set by writer for genesis (is_zero(tx_fks[0])).
     const auto depth = store_.interval_depth();
+
+    using bytes = linkage<schema::size>::integer;
+    const auto light = possible_narrow_cast<bytes>(
+        block.serialized_size(false));
+    const auto heavy = possible_narrow_cast<bytes>
+        (block.serialized_size(true));
 
     // ========================================================================
     const auto scope = store_.get_transactor();
@@ -413,8 +417,9 @@ code CLASS::set_code(const block& block, const header_link& key,
     return store_.txs.put(to_txs(key), table::txs::put_group
     {
         {},
-        wire,
         count,
+        light,
+        heavy,
         tx_fks,
         std::move(interval),
         depth

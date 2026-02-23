@@ -38,7 +38,7 @@ size_t CLASS::get_candidate_size(size_t top) const NOEXCEPT
 {
     size_t wire{};
     for (auto height = zero; height <= top; ++height)
-        wire += get_block_size(to_candidate(height));
+        wire += get_block_size(to_candidate(height), true);
 
     return wire;
 }
@@ -55,7 +55,7 @@ size_t CLASS::get_confirmed_size(size_t top) const NOEXCEPT
 {
     size_t wire{};
     for (auto height = zero; height <= top; ++height)
-        wire += get_block_size(to_confirmed(height));
+        wire += get_block_size(to_confirmed(height), true);
 
     return wire;
 }

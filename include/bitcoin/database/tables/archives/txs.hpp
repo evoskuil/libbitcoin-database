@@ -31,6 +31,8 @@ namespace libbitcoin {
 namespace database {
 namespace table {
 
+// TODO: make heavy field variable size.
+
 /// Txs is a slab arraymap of tx fks (first is count), indexed by header.fk.
 struct txs
   : public array_map<schema::txs>
@@ -44,12 +46,21 @@ struct txs
     static constexpr auto offset = bytes::bits;
     static_assert(offset < to_bits(bytes::size));
 
-    static constexpr bytes::integer merge(bool interval,
-        bytes::integer wire) NOEXCEPT
+    static constexpr bytes::integer merge(bool is_interval,
+        bytes::integer light) NOEXCEPT
     {
-        using namespace system;
-        BC_ASSERT_MSG(!get_right(wire, offset), "overflow");
-        return set_right(wire, offset, interval);
+        BC_ASSERT_MSG(!system::get_right(light, offset), "overflow");
+        return system::set_right(light, offset, is_interval);
+    }
+
+    static constexpr bool is_interval(bytes::integer merged) NOEXCEPT
+    {
+        return system::get_right(merged, offset);
+    }
+
+    static constexpr bytes::integer to_light(bytes::integer merged) NOEXCEPT
+    {
+        return system::set_right(merged, offset, false);
     }
 
     // Intervals are optional based on store configuration.
@@ -64,7 +75,7 @@ struct txs
         inline link count() const NOEXCEPT
         {
             return system::possible_narrow_cast<link::integer>(ct::size +
-                bytes::size + tx::size * tx_fks.size() +
+                bytes::size + bytes::size + tx::size * tx_fks.size() +
                 (interval.has_value() ? schema::hash : zero) +
                 to_int(is_genesis()));
         }
@@ -73,15 +84,17 @@ struct txs
         {
             using namespace system;
             tx_fks.resize(source.read_little_endian<ct::integer, ct::size>());
-            const auto flagged = source.read_little_endian<bytes::integer, bytes::size>();
-            wire = set_right(flagged, offset, false);
+            const auto merged = source.read_little_endian<bytes::integer, bytes::size>();
+            heavy = source.read_little_endian<bytes::integer, bytes::size>();
             std::for_each(tx_fks.begin(), tx_fks.end(), [&](auto& fk) NOEXCEPT
             {
                 fk = source.read_little_endian<tx::integer, tx::size>();
             });
 
-            if (get_right(flagged, offset)) interval = source.read_hash();
-            if (is_genesis()) depth = source.read_byte();
+            light = to_light(merged);
+            interval.reset();
+            if (is_interval(merged)) interval = source.read_hash();
+            depth = is_genesis() ? source.read_byte() : zero;
             BC_ASSERT(!source || source.get_read_position() == count());
             return source;
         }
@@ -91,19 +104,19 @@ struct txs
             using namespace system;
             BC_ASSERT(tx_fks.size() < power2<uint64_t>(to_bits(ct::size)));
 
-            const auto flag = interval.has_value();
-            const auto flagged = merge(flag, wire);
+            const auto has_interval = interval.has_value();
+            const auto merged = merge(has_interval, light);
             const auto fks = possible_narrow_cast<ct::integer>(tx_fks.size());
-
             sink.write_little_endian<ct::integer, ct::size>(fks);
-            sink.write_little_endian<bytes::integer, bytes::size>(flagged);
+            sink.write_little_endian<bytes::integer, bytes::size>(merged);
+            sink.write_little_endian<bytes::integer, bytes::size>(heavy);
             std::for_each(tx_fks.begin(), tx_fks.end(),
                 [&](const auto& fk) NOEXCEPT
                 {
                     sink.write_little_endian<tx::integer, tx::size>(fk);
                 });
 
-            if (flag) sink.write_bytes(interval.value());
+            if (has_interval) sink.write_bytes(interval.value());
             if (is_genesis()) sink.write_byte(depth);
             BC_ASSERT(!sink || sink.get_write_position() == count());
             return sink;
@@ -111,12 +124,15 @@ struct txs
 
         inline bool operator==(const slab& other) const NOEXCEPT
         {
-            return wire == other.wire
+            return light == other.light
+                && heavy == other.heavy
                 && tx_fks == other.tx_fks
-                && interval == other.interval;
+                && interval == other.interval
+                && depth == other.depth;
         }
 
-        bytes::integer wire{};
+        bytes::integer light{}; // block.serialized_size(false)
+        bytes::integer heavy{}; // block.serialized_size(true)
         keys tx_fks{};
         hash interval{};
         uint8_t depth{};
@@ -134,33 +150,35 @@ struct txs
         inline link count() const NOEXCEPT
         {
             return system::possible_narrow_cast<link::integer>(ct::size +
-                bytes::size + tx::size * number +
+                bytes::size + bytes::size + tx::size * number +
                 (interval.has_value() ? schema::hash : zero) +
                 to_int(is_zero(tx_fk)));
         }
 
+        // TODO: fks can instead be stored as a count and coinbase fk,
+        // TODO: but will need to be disambiguated from compact blocks.
         inline bool to_data(finalizer& sink) const NOEXCEPT
         {
             BC_ASSERT(number < system::power2<uint64_t>(to_bits(ct::size)));
-            const auto flag = interval.has_value();
 
+            const auto has_interval = interval.has_value();
+            const auto merged = merge(has_interval, light);
             sink.write_little_endian<ct::integer, ct::size>(number);
-            sink.write_little_endian<bytes::integer, bytes::size>(
-                merge(flag, wire));
+            sink.write_little_endian<bytes::integer, bytes::size>(merged);
+            sink.write_little_endian<bytes::integer, bytes::size>(heavy);
 
-            // TODO: this can instead be stored as a count and coinbase fk,
-            // TODO: but will need to be disambiguated from compact blocks.
             for (auto fk = tx_fk; fk < (tx_fk + number); ++fk)
                 sink.write_little_endian<tx::integer, tx::size>(fk);
 
-            if (flag) sink.write_bytes(interval.value());
+            if (has_interval) sink.write_bytes(interval.value());
             if (is_genesis()) sink.write_byte(depth);
             BC_ASSERT(!sink || sink.get_write_position() == count());
             return sink;
         }
 
-        bytes::integer wire{};
         ct::integer number{};
+        bytes::integer light{};
+        bytes::integer heavy{};
         tx::integer tx_fk{};
         hash interval{};
         uint8_t depth{};
@@ -179,9 +197,9 @@ struct txs
         {
             using namespace system;
             const auto number = source.read_little_endian<ct::integer, ct::size>();
-            const auto flagged = source.read_little_endian<bytes::integer, bytes::size>();
-            source.skip_bytes(tx::size * number);
-            if (get_right(flagged, offset)) interval = source.read_hash();
+            const auto merged = source.read_little_endian<bytes::integer, bytes::size>();
+            source.skip_bytes(bytes::size + tx::size * number);
+            if (is_interval(merged)) interval = source.read_hash();
             return source;
         }
 
@@ -202,10 +220,9 @@ struct txs
         inline bool from_data(reader& source) NOEXCEPT
         {
             const auto number = source.read_little_endian<ct::integer, ct::size>();
-            const auto flagged = source.read_little_endian<bytes::integer, bytes::size>();
-            const auto skip = tx::size * number +
-                (system::get_right(flagged, offset) ? schema::hash : zero);
-            source.skip_bytes(skip);
+            const auto merged = source.read_little_endian<bytes::integer, bytes::size>();
+            const auto skip_interval = is_interval(merged) ? schema::hash : zero;
+            source.skip_bytes(bytes::size + tx::size * number + skip_interval);
             depth = source.read_byte();
             return source;
         }
@@ -225,7 +242,7 @@ struct txs
         inline bool from_data(reader& source) NOEXCEPT
         {
             const auto number = source.read_little_endian<ct::integer, ct::size>();
-            source.skip_bytes(bytes::size);
+            source.skip_bytes(bytes::size + bytes::size);
             for (position = zero; position < number; ++position)
                 if (source.read_little_endian<tx::integer, tx::size>() == tx_fk)
                     return source;
@@ -250,7 +267,7 @@ struct txs
         inline bool from_data(reader& source) NOEXCEPT
         {
             const auto number = source.read_little_endian<ct::integer, ct::size>();
-            source.skip_bytes(bytes::size);
+            source.skip_bytes(bytes::size + bytes::size);
             if (is_nonzero(number))
             {
                 coinbase_fk = source.read_little_endian<tx::integer, tx::size>();
@@ -276,7 +293,7 @@ struct txs
         inline bool from_data(reader& source) NOEXCEPT
         {
             const auto number = source.read_little_endian<ct::integer, ct::size>();
-            source.skip_bytes(bytes::size);
+            source.skip_bytes(bytes::size + bytes::size);
             if (number > position)
             {
                 source.skip_bytes(position * tx::size);
@@ -292,9 +309,14 @@ struct txs
         tx::integer tx_fk{};
     };
 
-    struct get_block_size
+    struct get_sizes
       : public schema::txs
     {
+        static constexpr bytes::integer to_size(bytes::integer merged) NOEXCEPT
+        {
+            return system::set_right(merged, offset, false);
+        }
+
         inline link count() const NOEXCEPT
         {
             BC_ASSERT(false);
@@ -304,12 +326,13 @@ struct txs
         inline bool from_data(reader& source) NOEXCEPT
         {
             source.skip_bytes(ct::size);
-            wire = system::set_right(source.read_little_endian<
-                bytes::integer, bytes::size>(), offset, false);
+            light = to_size(source.read_little_endian<bytes::integer, bytes::size>());
+            heavy = source.read_little_endian<bytes::integer, bytes::size>();
             return source;
         }
 
-        bytes::integer wire{};
+        bytes::integer light{};
+        bytes::integer heavy{};
     };
 
     struct get_associated
@@ -323,6 +346,7 @@ struct txs
 
         inline bool from_data(reader& source) NOEXCEPT
         {
+            // Read is cheap but unnecessary, since 0 is never set here.
             associated = to_bool(source.read_little_endian<ct::integer, ct::size>());
             return source;
         }
@@ -342,7 +366,7 @@ struct txs
         inline bool from_data(reader& source) NOEXCEPT
         {
             tx_fks.resize(source.read_little_endian<ct::integer, ct::size>());
-            source.skip_bytes(bytes::size);
+            source.skip_bytes(bytes::size + bytes::size);
             std::for_each(tx_fks.begin(), tx_fks.end(), [&](auto& fk) NOEXCEPT
             {
                 fk = source.read_little_endian<tx::integer, tx::size>();
@@ -370,7 +394,7 @@ struct txs
                 return source;
 
             tx_fks.resize(sub1(number));
-            source.skip_bytes(bytes::size + tx::size);
+            source.skip_bytes(bytes::size + bytes::size + tx::size);
             std::for_each(tx_fks.begin(), tx_fks.end(), [&](auto& fk) NOEXCEPT
             {
                 fk = source.read_little_endian<tx::integer, tx::size>();
@@ -382,7 +406,7 @@ struct txs
         keys tx_fks{};
     };
 
-    struct get_tx_quantity
+    struct get_tx_count
       : public schema::txs
     {
         inline link count() const NOEXCEPT
@@ -412,7 +436,7 @@ struct txs
         inline bool from_data(reader& source) NOEXCEPT
         {
             number = source.read_little_endian<ct::integer, ct::size>();
-            source.skip_bytes(bytes::size);
+            source.skip_bytes(bytes::size + bytes::size);
 
             if (is_zero(number))
             {

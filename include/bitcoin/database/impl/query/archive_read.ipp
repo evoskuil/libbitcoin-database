@@ -110,7 +110,7 @@ hashes CLASS::get_tx_keys(const header_link& link) const NOEXCEPT
 TEMPLATE
 size_t CLASS::get_tx_count(const header_link& link) const NOEXCEPT
 {
-    table::txs::get_tx_quantity txs{};
+    table::txs::get_tx_count txs{};
     if (!store_.txs.at(to_txs(link), txs))
         return {};
 
@@ -176,6 +176,15 @@ bool CLASS::get_tx_position(size_t& out, const tx_link& link) const NOEXCEPT
 }
 
 TEMPLATE
+size_t CLASS::get_tx_size(const tx_link& link,
+    bool witness) const NOEXCEPT
+{
+    size_t light{}, heavy{};
+    return get_tx_sizes(light, heavy, link) ? (witness ? heavy : light) :
+        max_uint64;
+}
+
+TEMPLATE
 bool CLASS::get_tx_sizes(size_t& light, size_t& heavy,
     const tx_link& link) const NOEXCEPT
 {
@@ -192,10 +201,25 @@ bool CLASS::get_tx_sizes(size_t& light, size_t& heavy,
 // ----------------------------------------------------------------------------
 
 TEMPLATE
-size_t CLASS::get_block_size(const header_link& link) const NOEXCEPT
+size_t CLASS::get_block_size(const header_link& link,
+    bool witness) const NOEXCEPT
 {
-    table::txs::get_block_size txs{};
-    return store_.txs.at(to_txs(link), txs) ? txs.wire : zero;
+    size_t light{}, heavy{};
+    return get_block_sizes(light, heavy, link) ? (witness ? heavy : light) :
+        max_uint64;
+}
+
+TEMPLATE
+bool CLASS::get_block_sizes(size_t& light, size_t& heavy,
+    const header_link& link) const NOEXCEPT
+{
+    table::txs::get_sizes sizes{};
+    if (!store_.txs.at(to_txs(link), sizes))
+        return false;
+
+    light = sizes.light;
+    heavy = sizes.heavy;
+    return true;
 }
 
 TEMPLATE

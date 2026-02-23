@@ -29,6 +29,8 @@ namespace libbitcoin {
 namespace database {
 namespace table {
 
+// TODO: merge coinbase bit (saves about 1GB).
+
 /// Transaction is a canonical record hash table.
 struct transaction
   : public hash_map<schema::transaction>
@@ -146,11 +148,14 @@ struct transaction
         inline bool to_data(finalizer& sink) const NOEXCEPT
         {
             using namespace system;
+            const auto light = possible_narrow_cast<bytes::integer>(
+                tx.serialized_size(false));
+            const auto heavy = possible_narrow_cast<bytes::integer>
+                (tx.serialized_size(true));
+
             sink.write_byte(to_int<uint8_t>(tx.is_coinbase()));
-            sink.write_little_endian<bytes::integer, bytes::size>(
-                possible_narrow_cast<bytes::integer>(tx.serialized_size(false)));
-            sink.write_little_endian<bytes::integer, bytes::size>(
-                possible_narrow_cast<bytes::integer>(tx.serialized_size(true)));
+            sink.write_little_endian<bytes::integer, bytes::size>(light);
+            sink.write_little_endian<bytes::integer, bytes::size>(heavy);
             sink.write_little_endian<uint32_t>(tx.locktime());
             sink.write_little_endian<uint32_t>(tx.version());
             sink.write_little_endian<ix::integer, ix::size>(ins_count);
