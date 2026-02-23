@@ -27,14 +27,55 @@
 #include <utility>
 #include <bitcoin/database/define.hpp>
 
+#define SLOW_FEES
+
 namespace libbitcoin {
 namespace database {
 
-// TODO: optimize.
+// private
+TEMPLATE
+constexpr size_t CLASS::virtual_size(size_t light, size_t heavy) NOEXCEPT
+{
+    using namespace system;
+    using namespace system::chain;
+    constexpr auto scale = base_size_contribution + total_size_contribution;
+
+    const auto weight = ceilinged_add(
+        ceilinged_multiply(base_size_contribution, light),
+        ceilinged_multiply(total_size_contribution, heavy));
+
+    // Block weight is 3 * nominal size * + 1 * witness size [bip141].
+    return ceilinged_divide(weight, scale);
+}
+
+TEMPLATE
+bool CLASS::get_tx_virtual_size(uint64_t& out,
+    const tx_link& link) const NOEXCEPT
+{
+    size_t light{}, heavy{};
+    if (!get_tx_sizes(light, heavy, link))
+        return false;
+
+    out = virtual_size(light, heavy);
+    return true;
+}
+
+TEMPLATE
+bool CLASS::get_block_virtual_size(uint64_t& out,
+    const header_link& link) const NOEXCEPT
+{
+    size_t light{}, heavy{};
+    if (!get_block_sizes(light, heavy, link))
+        return false;
+
+    out = virtual_size(light, heavy);
+    return true;
+}
 
 TEMPLATE
 uint64_t CLASS::get_tx_fee(const tx_link& link) const NOEXCEPT
 {
+#if defined(SLOW_FEES)
     const auto tx = get_transaction(link, false);
     if (!tx)
         return max_uint64;
@@ -43,6 +84,12 @@ uint64_t CLASS::get_tx_fee(const tx_link& link) const NOEXCEPT
         return zero;
 
     return populate_without_metadata(*tx) ? tx->fee() : max_uint64;
+#else
+    // Get heavy and light sizes for the tx link and compute virtual size.
+    // Get and total value for each output of the tx link.
+    // Get all outputs links spent by the tx link (spends).
+    // Get and total value for each spend (todo: move value to outs).
+#endif
 }
 
 TEMPLATE

@@ -28,6 +28,7 @@ const table::txs::slab slab0
 {
     {}, // schema::txs [all const static members]
     0x000000,
+    0x000000,
     {
         // tx fk 0 uniquely identifies genesis, resulting in depth storage.
         0x00000000_u32
@@ -39,6 +40,7 @@ const table::txs::slab slab1
 {
     {}, // schema::txs [all const static members]
     0x0000ab,
+    0x0000cc,
     {
         0x56341211_u32
     }
@@ -47,6 +49,7 @@ const table::txs::slab slab2
 {
     {}, // schema::txs [all const static members]
     0x00a00b,
+    0x00cc00,
     {
         0x56341221_u32,
         0x56341222_u32
@@ -56,6 +59,7 @@ const table::txs::slab slab3
 {
     {}, // schema::txs [all const static members]
     0x09000b,
+    0xcc0000,
     {
         0x56341231_u32,
         0x56341232_u32,
@@ -67,7 +71,10 @@ const data_chunk expected0
     // slab0 (count) [1]
     0x01, 0x00, 0x00,
 
-    // slab0 (wire) [0x00]
+    // slab0 (light) [0x00]
+    0x00, 0x00, 0x00,
+
+    // slab0 (heavy) [0x00]
     0x00, 0x00, 0x00,
 
     // slab0 (txs)
@@ -81,8 +88,11 @@ const data_chunk expected1
     // slab1 (count) [1]
     0x01, 0x00, 0x00,
 
-    // slab1 (wire) [0x0000ab]
+    // slab1 (light) [0x0000ab]
     0xab, 0x00, 0x00,
+
+    // slab1 (heavy) [0x0000cc]
+    0xcc, 0x00, 0x00,
 
     // slab1 (txs)
     0x11, 0x12, 0x34, 0x56
@@ -92,8 +102,11 @@ const data_chunk expected2
     // slab2 (count) [2]
     0x02, 0x00, 0x00,
 
-    // slab2 (wire) [0x00a00b]
+    // slab2 (light) [0x00a00b]
     0x0b, 0xa0, 0x00,
+
+    // slab2 (heavy) [0x00cc00]
+    0x00, 0xcc, 0x00,
 
     // slab2
     0x21, 0x12, 0x34, 0x56,
@@ -104,8 +117,11 @@ const data_chunk expected3
     // slab3 (count) [3]
     0x03, 0x00, 0x00,
 
-    // slab3 (wire) [0x09000b]
+    // slab3 (light) [0x09000b]
     0x0b, 0x00, 0x09,
+
+    // slab3 (heavy) [0xcc0000]
+    0x00, 0x00, 0xcc,
 
     // slab3
     0x31, 0x12, 0x34, 0x56,

@@ -518,7 +518,7 @@ BOOST_AUTO_TEST_CASE(query_archive_write__set_block__get_block__expected)
         "4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73" // script
         "00");         // witness
     const auto genesis_txs_head = system::base16_chunk(
-        "0b00000000"   // slab size
+        "0e00000000"   // slab size
         "0000000000"   // pk->
         "ffffffffff"
         "ffffffffff"
@@ -537,7 +537,8 @@ BOOST_AUTO_TEST_CASE(query_archive_write__set_block__get_block__expected)
         "ffffffffff");
     const auto genesis_txs_body = system::base16_chunk(
         "010000"       // txs count (1)
-        "1d0100"       // txs wire (285)
+        "1d0100"       // size light (285)
+        "1d0100"       // size heavy (285)
         "00000000"     // transaction[0]
         "ff");         // depth (255)
 
@@ -670,7 +671,7 @@ BOOST_AUTO_TEST_CASE(query_archive_write__set_block_txs__get_block__expected)
         "4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73" // script
         "00");         // witness
     const auto genesis_txs_head = system::base16_chunk(
-        "0b00000000"   // slab size
+        "0e00000000"   // slab size
         "0000000000"   // pk->
         "ffffffffff"
         "ffffffffff"
@@ -689,7 +690,8 @@ BOOST_AUTO_TEST_CASE(query_archive_write__set_block_txs__get_block__expected)
         "ffffffffff");
     const auto genesis_txs_body = system::base16_chunk(
         "010000"       // txs count (1)
-        "1d0100"       // txs wire (285)
+        "1d0100"       // size light (285)
+        "1d0100"       // size heavy (285)
         "00000000"     // transaction[0]
         "ff");         // depth (255)
 

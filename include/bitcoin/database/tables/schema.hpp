@@ -208,14 +208,15 @@ struct txs
     using link = linkage<pk, to_bits(pk)>;
     static constexpr size_t minsize =
         count_ +                // txs
+        schema::size +          // block.serialized_size(false)
         schema::size +          // block.serialized_size(true)
         schema::transaction::pk;// coinbase tx
         ////schema::bit +       // is interval - merged bit into schema::size.
         ////0 | schema::hash +  // electrum interval hash (each 2048th block).
     static constexpr size_t minrow = minsize;
     static constexpr size_t size = max_size_t;
-    static_assert(minsize == 10u);
-    static_assert(minrow == 10u);
+    static_assert(minsize == 13u);
+    static_assert(minrow == 13u);
     static_assert(link::size == 5u);
 };
 
