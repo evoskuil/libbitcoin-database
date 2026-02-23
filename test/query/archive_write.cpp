@@ -536,9 +536,9 @@ BOOST_AUTO_TEST_CASE(query_archive_write__set_block__get_block__expected)
         "ffffffffff"
         "ffffffffff");
     const auto genesis_txs_body = system::base16_chunk(
-        "010000"       // txs count (1)
         "1d0100"       // size light (285)
         "1d0100"       // size heavy (285)
+        "010000"       // txs count (1)
         "00000000"     // transaction[0]
         "ff");         // depth (255)
 
@@ -556,12 +556,6 @@ BOOST_AUTO_TEST_CASE(query_archive_write__set_block__get_block__expected)
     BOOST_REQUIRE(!query.is_block(test::genesis.hash()));
     BOOST_REQUIRE(query.set(test::genesis, test::context, milestone, false));
     BOOST_REQUIRE(query.is_block(test::genesis.hash()));
-
-    // Verify idempotentcy (these do not change store state).
-    ////BOOST_REQUIRE(query.set(test::genesis.header(), test::context, milestone, false));
-    ////BOOST_REQUIRE(query.set(test::genesis.header(), test::context, milestone, false));
-    ////BOOST_REQUIRE(query.set(test::genesis, test::context, milestone, false, false));
-    ////BOOST_REQUIRE(query.set(test::genesis, test::context, milestone, false, false));
 
     table::header::record element1{};
     BOOST_REQUIRE(store.header.get(query.to_header(test::genesis.hash()), element1));
@@ -689,9 +683,9 @@ BOOST_AUTO_TEST_CASE(query_archive_write__set_block_txs__get_block__expected)
         "ffffffffff"
         "ffffffffff");
     const auto genesis_txs_body = system::base16_chunk(
-        "010000"       // txs count (1)
         "1d0100"       // size light (285)
         "1d0100"       // size heavy (285)
+        "010000"       // txs count (1)
         "00000000"     // transaction[0]
         "ff");         // depth (255)
 
@@ -712,12 +706,6 @@ BOOST_AUTO_TEST_CASE(query_archive_write__set_block_txs__get_block__expected)
     BOOST_REQUIRE(query.set(test::genesis, false, false));
     BOOST_REQUIRE(query.is_block(test::genesis.hash()));
     BOOST_REQUIRE(query.is_associated(0));
-
-    // Verify idempotentcy (these do not change store state).
-    ////BOOST_REQUIRE(query.set(test::genesis.header(), test::context, milestone));
-    ////BOOST_REQUIRE(query.set(test::genesis.header(), test::context, milestone));
-    ////BOOST_REQUIRE(query.set(test::genesis, test::context, milestone));
-    ////BOOST_REQUIRE(query.set(test::genesis, test::context, milestone));
 
     table::header::record element1{};
     BOOST_REQUIRE(store.header.get(query.to_header(test::genesis.hash()), element1));
@@ -752,7 +740,7 @@ BOOST_AUTO_TEST_CASE(query_archive_write__set_block_txs__get_block__expected)
 // ----------------------------------------------------------------------------
 
 // METADATA IS SETTABLE ON CONST TEST OBJECTS.
-// COPY CONSTRUCTION CREATES SAHRED POINTER REFERENCES.
+// COPY CONSTRUCTION CREATES SHARED POINTER REFERENCES.
 // SO POPULATE ON CONST OBJECTS HAS SIDE EFFECTS IF THE OBJECTS SPAN TESTS.
 const auto& clean_(const auto& block_or_tx) NOEXCEPT
 {

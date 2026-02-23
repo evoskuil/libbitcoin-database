@@ -417,9 +417,9 @@ code CLASS::set_code(const block& block, const header_link& key,
     return store_.txs.put(to_txs(key), table::txs::put_group
     {
         {},
-        count,
         light,
         heavy,
+        count,
         tx_fks,
         std::move(interval),
         depth
