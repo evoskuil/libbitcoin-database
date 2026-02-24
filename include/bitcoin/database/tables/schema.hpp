@@ -95,7 +95,7 @@ struct transaction
     using link = linkage<pk, sub1(to_bits(pk))>; // reduced for prevout merge.
     using key = system::data_array<sk>;
     static constexpr size_t minsize =
-        schema::bit +           // coinbase [TODO: merge into light]
+        ////schema::bit +       // coinbase (merged into light)
         schema::size +          // light
         schema::size +          // heavy
         sizeof(uint32_t) +      // locktime
@@ -108,8 +108,8 @@ struct transaction
     static constexpr size_t size = minsize;
     static constexpr size_t cell = link::size;
     static constexpr link count() NOEXCEPT { return 1; }
-    static_assert(minsize == 29u);
-    static_assert(minrow == 65u);
+    static_assert(minsize == 28u);
+    static_assert(minrow == 64u);
     static_assert(link::size == 4u);
     static_assert(cell == 4u);
 };
