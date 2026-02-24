@@ -377,7 +377,6 @@ bool CLASS::set_tx_state(const tx_link& link, const context& ctx,
     uint64_t fee, size_t sigops, schema::tx_state state) NOEXCEPT
 {
     using sigs = linkage<schema::sigops>;
-    BC_ASSERT(sigops<system::power2<sigs::integer>(to_bits(sigs::size)));
 
     // ========================================================================
     const auto scope = store_.get_transactor();

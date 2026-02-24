@@ -29,8 +29,6 @@ namespace libbitcoin {
 namespace database {
 namespace table {
 
-// TODO: merge coinbase bit (saves about 1GB).
-
 /// Transaction is a canonical record hash table.
 struct transaction
   : public hash_map<schema::transaction>
@@ -39,13 +37,17 @@ struct transaction
     using outs = schema::outs::link;
     using out = schema::output::link;
     using ix = linkage<schema::index>;
-    using bytes = linkage<schema::size>;
+    using bytes = linkage<schema::size, sub1(to_bits(schema::size))>;
     using hash_map<schema::transaction>::hashmap;
+    static constexpr auto offset = bytes::bits;
+    static_assert(offset < to_bits(bytes::size));
+
+    static constexpr size_t skip_to_locktime =
+        bytes::size +
+        bytes::size;
 
     static constexpr size_t skip_to_version =
-        schema::bit +
-        bytes::size +
-        bytes::size +
+        skip_to_locktime +
         sizeof(uint32_t);
 
     static constexpr size_t skip_to_ins =
@@ -56,13 +58,31 @@ struct transaction
         skip_to_ins +
         ix::size;
 
+    static constexpr bytes::integer merge(bool is_coinbase,
+        bytes::integer light) NOEXCEPT
+    {
+        BC_ASSERT_MSG(!system::get_right(light, offset), "overflow");
+        return system::set_right(light, offset, is_coinbase);
+    }
+
+    static constexpr bool is_coinbase(bytes::integer merged) NOEXCEPT
+    {
+        return system::get_right(merged, offset);
+    }
+
+    static constexpr bytes::integer to_light(bytes::integer merged) NOEXCEPT
+    {
+        return system::set_right(merged, offset, false);
+    }
+
     struct record
       : public schema::transaction
     {
         inline bool from_data(reader& source) NOEXCEPT
         {
-            coinbase   = to_bool(source.read_byte());
-            light      = source.read_little_endian<bytes::integer, bytes::size>();
+            const auto merged = source.read_little_endian<bytes::integer, bytes::size>();
+            coinbase   = is_coinbase(merged);
+            light      = to_light(merged);
             heavy      = source.read_little_endian<bytes::integer, bytes::size>();
             locktime   = source.read_little_endian<uint32_t>();
             version    = source.read_little_endian<uint32_t>();
@@ -76,8 +96,7 @@ struct transaction
 
         inline bool to_data(finalizer& sink) const NOEXCEPT
         {
-            sink.write_byte(to_int<uint8_t>(coinbase));
-            sink.write_little_endian<bytes::integer, bytes::size>(light);
+            sink.write_little_endian<bytes::integer, bytes::size>(merge(coinbase, light));
             sink.write_little_endian<bytes::integer, bytes::size>(heavy);
             sink.write_little_endian<uint32_t>(locktime);
             sink.write_little_endian<uint32_t>(version);
@@ -103,8 +122,8 @@ struct transaction
         }
 
         bool coinbase{};
-        bytes::integer light{}; // tx.serialized_size(false)
-        bytes::integer heavy{}; // tx.serialized_size(true)
+        bytes::integer light{};
+        bytes::integer heavy{};
         uint32_t locktime{};
         uint32_t version{};
         ix::integer ins_count{};
@@ -118,12 +137,7 @@ struct transaction
     {
         inline bool from_data(reader& source) NOEXCEPT
         {
-            static constexpr size_t skip_size =
-                schema::bit +
-                bytes::size +
-                bytes::size;
-
-            source.skip_bytes(skip_size);
+            source.skip_bytes(skip_to_locktime);
             locktime   = source.read_little_endian<uint32_t>();
             version    = source.read_little_endian<uint32_t>();
             ins_count  = source.read_little_endian<ix::integer, ix::size>();
@@ -148,13 +162,12 @@ struct transaction
         inline bool to_data(finalizer& sink) const NOEXCEPT
         {
             using namespace system;
-            const auto light = possible_narrow_cast<bytes::integer>(
-                tx.serialized_size(false));
-            const auto heavy = possible_narrow_cast<bytes::integer>
-                (tx.serialized_size(true));
-
-            sink.write_byte(to_int<uint8_t>(tx.is_coinbase()));
-            sink.write_little_endian<bytes::integer, bytes::size>(light);
+            const auto coinbase = tx.is_coinbase();
+            const auto light_ = tx.serialized_size(false);
+            const auto heavy_ = tx.serialized_size(true);
+            const auto light = possible_narrow_cast<bytes::integer>(light_);
+            const auto heavy = possible_narrow_cast<bytes::integer>(heavy_);
+            sink.write_little_endian<bytes::integer, bytes::size>(merge(coinbase, light));
             sink.write_little_endian<bytes::integer, bytes::size>(heavy);
             sink.write_little_endian<uint32_t>(tx.locktime());
             sink.write_little_endian<uint32_t>(tx.version());
@@ -304,7 +317,7 @@ struct transaction
     {
         inline bool from_data(reader& source) NOEXCEPT
         {
-            coinbase = to_bool(source.read_byte());
+            coinbase = is_coinbase(source.read_little_endian<bytes::integer, bytes::size>());
             return source;
         }
 
@@ -316,8 +329,7 @@ struct transaction
     {
         inline bool from_data(reader& source) NOEXCEPT
         {
-            source.skip_byte();
-            light = source.read_little_endian<bytes::integer, bytes::size>();
+            light = to_light(source.read_little_endian<bytes::integer, bytes::size>());
             heavy = source.read_little_endian<bytes::integer, bytes::size>();
             return source;
         }

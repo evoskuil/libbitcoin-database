@@ -33,7 +33,51 @@ namespace table {
 struct header
   : public hash_map<schema::header>
 {
+    using head = schema::header::link;
     using hash_map<schema::header>::hashmap;
+    static constexpr auto offset = head::bits;
+    static_assert(offset < to_bits(head::size));
+
+    static constexpr size_t skip_to_height =
+        context::flag_t::size;
+
+    static constexpr size_t skip_to_mtp =
+        skip_to_height +
+        context::height_t::size;
+
+    static constexpr size_t skip_to_parent =
+        skip_to_mtp +
+        sizeof(uint32_t);
+
+    static constexpr size_t skip_to_version =
+        skip_to_parent +
+        link::size;
+
+    static constexpr size_t skip_to_timestamp =
+        skip_to_version +
+        sizeof(uint32_t);
+
+    static constexpr size_t skip_to_bits =
+        skip_to_timestamp +
+        sizeof(uint32_t);
+
+    static constexpr head::integer merge(bool milestone,
+        head::integer parent_fk) NOEXCEPT
+    {
+        using namespace system;
+        BC_ASSERT_MSG(!get_right(parent_fk, offset), "overflow");
+        return set_right(parent_fk, offset, milestone);
+    }
+
+    static constexpr bool is_milestone(link::integer merged) NOEXCEPT
+    {
+        return system::get_right(merged, offset);
+    }
+
+    static constexpr link::integer to_parent(link::integer merged) NOEXCEPT
+    {
+        return system::set_right(merged, offset, false);
+    }
 
     struct record
       : public schema::header
@@ -41,8 +85,9 @@ struct header
         inline bool from_data(reader& source) NOEXCEPT
         {
             context::from_data(source, ctx);
-            milestone   = to_bool(source.read_byte());
-            parent_fk   = source.read_little_endian<link::integer, link::size>();
+            const auto merged = source.read_little_endian<link::integer, link::size>();
+            milestone   = is_milestone(merged);
+            parent_fk   = to_parent(merged);
             version     = source.read_little_endian<uint32_t>();
             timestamp   = source.read_little_endian<uint32_t>();
             bits        = source.read_little_endian<uint32_t>();
@@ -55,8 +100,7 @@ struct header
         inline bool to_data(finalizer& sink) const NOEXCEPT
         {
             context::to_data(sink, ctx);
-            sink.write_byte(to_int<uint8_t>(milestone));
-            sink.write_little_endian<link::integer, link::size>(parent_fk);
+            sink.write_little_endian<link::integer, link::size>(merge(milestone, parent_fk));
             sink.write_little_endian<uint32_t>(version);
             sink.write_little_endian<uint32_t>(timestamp);
             sink.write_little_endian<uint32_t>(bits);
@@ -96,8 +140,7 @@ struct header
         inline bool to_data(finalizer& sink) const NOEXCEPT
         {
             context::to_data(sink, ctx);
-            sink.write_byte(to_int<uint8_t>(milestone));
-            sink.write_little_endian<link::integer, link::size>(parent_fk);
+            sink.write_little_endian<link::integer, link::size>(merge(milestone, parent_fk));
             sink.write_little_endian<uint32_t>(header.version());
             sink.write_little_endian<uint32_t>(header.timestamp());
             sink.write_little_endian<uint32_t>(header.bits());
@@ -144,65 +187,22 @@ struct header
         key key{};
     };
 
-    struct get_version
+    struct record_context
       : public schema::header
     {
         inline bool from_data(reader& source) NOEXCEPT
         {
-            source.skip_bytes(context::size + schema::bit + link::size);
-            version = source.read_little_endian<uint32_t>();
+            context::from_data(source, ctx);
             return source;
         }
 
-        uint32_t version{};
-    };
-
-    struct get_timestamp
-      : public schema::header
-    {
-        inline bool from_data(reader& source) NOEXCEPT
-        {
-            source.skip_bytes(context::size + schema::bit + link::size +
-                sizeof(uint32_t));
-            timestamp = source.read_little_endian<uint32_t>();
-            return source;
-        }
-
-        uint32_t timestamp{};
-    };
-
-    struct get_bits
-      : public schema::header
-    {
-        inline bool from_data(reader& source) NOEXCEPT
-        {
-            source.skip_bytes(context::size + schema::bit + link::size +
-                sizeof(uint32_t) + sizeof(uint32_t));
-            bits = source.read_little_endian<uint32_t>();
-            return source;
-        }
-
-        uint32_t bits{};
-    };
-
-    struct get_parent_fk
-      : public schema::header
-    {        
-        inline bool from_data(reader& source) NOEXCEPT
-        {
-            source.skip_bytes(context::size + schema::bit);
-            parent_fk = source.read_little_endian<link::integer, link::size>();
-            return source;
-        }
-
-        link::integer parent_fk{};
+        context ctx{};
     };
 
     struct get_flags
       : public schema::header
     {
         using flag_t = context::flag_t;
-
         inline bool from_data(reader& source) NOEXCEPT
         {
             flags = source.read_little_endian<flag_t::integer, flag_t::size>();
@@ -216,10 +216,9 @@ struct header
       : public schema::header
     {
         using height_t = context::height_t;
-
         inline bool from_data(reader& source) NOEXCEPT
         {
-            source.skip_bytes(context::flag_t::size);
+            source.skip_bytes(skip_to_height);
             height = source.read_little_endian<height_t::integer, height_t::size>();
             return source;
         }
@@ -232,7 +231,7 @@ struct header
     {
         inline bool from_data(reader& source) NOEXCEPT
         {
-            source.skip_bytes(context::flag_t::size + context::height_t::size);
+            source.skip_bytes(skip_to_mtp);
             mtp = source.read_little_endian<uint32_t>();
             return source;
         }
@@ -240,13 +239,65 @@ struct header
         context::mtp_t mtp{};
     };
 
+    struct get_parent_fk
+      : public schema::header
+    {        
+        inline bool from_data(reader& source) NOEXCEPT
+        {
+            source.skip_bytes(skip_to_parent);
+            parent_fk = to_parent(source.read_little_endian<link::integer, link::size>());
+            return source;
+        }
+
+        link::integer parent_fk{};
+    };
+
+    struct get_version
+      : public schema::header
+    {
+        inline bool from_data(reader& source) NOEXCEPT
+        {
+            source.skip_bytes(skip_to_version);
+            version = source.read_little_endian<uint32_t>();
+            return source;
+        }
+
+        uint32_t version{};
+    };
+
+    struct get_timestamp
+      : public schema::header
+    {
+        inline bool from_data(reader& source) NOEXCEPT
+        {
+            source.skip_bytes(skip_to_timestamp);
+            timestamp = source.read_little_endian<uint32_t>();
+            return source;
+        }
+
+        uint32_t timestamp{};
+    };
+
+    struct get_bits
+      : public schema::header
+    {
+        inline bool from_data(reader& source) NOEXCEPT
+        {
+            source.skip_bytes(skip_to_bits);
+            bits = source.read_little_endian<uint32_t>();
+            return source;
+        }
+
+        uint32_t bits{};
+    };
+
     struct get_milestone
       : public schema::header
     {
         inline bool from_data(reader& source) NOEXCEPT
         {
-            source.skip_bytes(context::size);
-            milestone = to_bool(source.read_byte());
+            source.skip_bytes(skip_to_parent);
+            milestone = is_milestone(source.read_little_endian<link::integer, link::size>());
             return source;
         }
 
@@ -261,7 +312,7 @@ struct header
             source.rewind_bytes(sk);
             key = source.read_hash();
             context::from_data(source, ctx);
-            source.skip_bytes(schema::bit + link::size + sizeof(uint32_t));
+            source.skip_bytes(skip_to_timestamp - skip_to_parent);
             timestamp = source.read_little_endian<uint32_t>();
             return source;
         }
@@ -269,18 +320,6 @@ struct header
         key key{};
         context ctx{};
         uint32_t timestamp{};
-    };
-
-    struct record_context
-      : public schema::header
-    {
-        inline bool from_data(reader& source) NOEXCEPT
-        {
-            context::from_data(source, ctx);
-            return source;
-        }
-
-        context ctx{};
     };
 };
 
