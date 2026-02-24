@@ -121,8 +121,8 @@ struct input
     static constexpr size_t pk = schema::put;
     using link = linkage<pk, to_bits(pk)>;
     static constexpr size_t minsize =
-        1u +                    // variable_size (minimum 1, average 1)
-        1u;                     // variable_size (minimum 1, average 1)
+        one +                   // script size (variable)
+        one;                    // witness size (variable)
     static constexpr size_t minrow = minsize;
     static constexpr size_t size = max_size_t;
     static_assert(minsize == 2u);
@@ -138,12 +138,12 @@ struct output
     using link = linkage<pk, to_bits(pk)>;
     static constexpr size_t minsize =
         schema::transaction::pk +   // parent->tx (address navigation)
-        5u +                    // variable_size (minimum 1, average 5)
-        1u;                     // variable_size (minimum 1, average 1)
+        one +                       // value (variable)
+        one;                        // script size (variable)
     static constexpr size_t minrow = minsize;
     static constexpr size_t size = max_size_t;
-    static_assert(minsize == 10u);
-    static_assert(minrow == 10u);
+    static_assert(minsize == 6u);
+    static_assert(minrow == 6u);
     static_assert(link::size == 5u);
 };
 
@@ -209,8 +209,8 @@ struct txs
         schema::size +          // heavy
         count_ +                // txs
         schema::transaction::pk;// coinbase tx
-        ////schema::bit +       // is interval [merged into light]
-        ////0 | schema::hash +  // interval hash [each 2048th block]
+        ////schema::bit +       // is interval (merged into light)
+        ////0 | schema::hash +  // interval hash (each 2048th block)
     static constexpr size_t minrow = minsize;
     static constexpr size_t size = max_size_t;
     static_assert(minsize == 12u);
@@ -244,7 +244,7 @@ struct strong_tx
     using link = linkage<pk, to_bits(pk)>;
     using key = system::data_array<sk>;
     static constexpr size_t minsize =
-        ////schema::bit +           // merged bit into header::pk.
+        ////schema::bit +     // positive (merged bit into header::pk)
         schema::header::pk;
     static constexpr size_t minrow = pk + sk + minsize;
     static constexpr size_t size = minsize;
@@ -286,10 +286,10 @@ struct prevout
     static constexpr size_t pk = schema::prevout_;
     using link = linkage<pk, to_bits(pk)>;
     static constexpr size_t minsize =
-        ////schema::bit +           // merged bit into transaction::pk.
-        one +                       // varint(conflict-count)
-        schema::transaction::pk +   // prevout_tx
-        one;                        // varint(sequence)
+        ////schema::bit +         // coinbase (merged into transaction::pk).
+        one +                     // conflict-count (variable)
+        schema::transaction::pk + // prevout_tx
+        one;                      // sequence (variable)
     static constexpr size_t minrow = minsize;
     static constexpr size_t size = max_size_t;
     static_assert(minsize == 6u);
@@ -324,9 +324,9 @@ struct validated_tx
         schema::flags +
         schema::header::pk +
         sizeof(uint32_t) +
-        schema::code +  // TODO: change code to variable.
-        one +           // variable: fee
-        one;            // variable: sigops
+        schema::code +  // TODO: change to variable.
+        one +           // fee (variable)
+        one;            // sigops (variable)
     static constexpr size_t minrow = pk + sk + minsize;
     static constexpr size_t size = max_size_t;
     static constexpr size_t cell = link::size;

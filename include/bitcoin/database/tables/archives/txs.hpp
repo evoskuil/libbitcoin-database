@@ -31,7 +31,7 @@ namespace libbitcoin {
 namespace database {
 namespace table {
 
-// TODO: make heavy field variable size.
+// TODO: interval could move to count and sizes made variable.
 // TODO: fks can instead be stored as a count and coinbase fk,
 // TODO: but will need to be disambiguated from compact blocks.
 
