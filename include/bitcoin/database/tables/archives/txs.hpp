@@ -173,8 +173,6 @@ struct txs
 
         inline bool to_data(finalizer& sink) const NOEXCEPT
         {
-            BC_ASSERT(number < system::power2<uint64_t>(to_bits(ct::size)));
-
             // tx sizes
             const auto merged = merge(interval.has_value(), light);
             sink.write_little_endian<bytes::integer, bytes::size>(merged);
