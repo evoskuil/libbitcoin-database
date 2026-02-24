@@ -64,13 +64,13 @@ struct header
 {
     static constexpr size_t sk = schema::hash;
     static constexpr size_t pk = schema::block;
-    using link = linkage<pk, sub1(to_bits(pk))>; // reduced for strong_tx merge.
-    using key = system::data_array<sk>;
+    using link = linkage<pk, sub1(to_bits(pk))>; // reduced for milestone
+    using key = system::data_array<sk>;          // ...and strong_tx merges.
     static constexpr size_t minsize =
         schema::flags +         // context.flags
         schema::height_ +       // context.height
         sizeof(uint32_t) +      // context.mtp
-        schema::bit +           // milestone [TODO: merge into parent pk]
+        ///schema::bit +        // milestone (merged into parent pk)
         pk +                    // parent.pk
         sizeof(uint32_t) +      // version
         sizeof(uint32_t) +      // timestamp
@@ -81,8 +81,8 @@ struct header
     static constexpr size_t size = minsize;
     static constexpr size_t cell = sizeof(unsigned_type<link::size>);
     static constexpr link count() NOEXCEPT { return 1; }
-    static_assert(minsize == 63u);
-    static_assert(minrow == 98u);
+    static_assert(minsize == 62u);
+    static_assert(minrow == 97u);
     static_assert(link::size == 3u);
     static_assert(cell == 4u);
 };

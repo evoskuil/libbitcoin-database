@@ -125,7 +125,7 @@ BOOST_AUTO_TEST_CASE(query_archive_read__get_header__invalid_parent__expected)
         "14131211" // flags
         "040302"   // height
         "24232221" // mtp
-        "424242"   // previous_block_hash (header_fk - invalid)
+        "424242"   // previous_block_hash (header_fk - invalid) (milestone false)
         "34333231" // version
         "44434241" // timestamp
         "54535251" // bits
@@ -187,8 +187,7 @@ BOOST_AUTO_TEST_CASE(query_archive_read__get_header__default__expected)
         "14131211" // flags
         "040302"   // height
         "24232221" // mtp
-        "01"       // milestone
-        "ffff7f"   // previous_block_hash (header_fk - terminal)
+        "ffffff"   // previous_block_hash (header_fk - terminal) (milestone true)
         "34333231" // version
         "44434241" // timestamp
         "54535251" // bits
