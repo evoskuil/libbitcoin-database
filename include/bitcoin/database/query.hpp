@@ -326,6 +326,8 @@ public:
     inline bool is_block(const hash_digest& key) const NOEXCEPT;
     inline bool is_tx(const hash_digest& key) const NOEXCEPT;
     inline bool is_coinbase(const tx_link& link) const NOEXCEPT;
+    inline bool is_tx_segregated(const tx_link& link) const NOEXCEPT;
+    inline bool is_block_segregated(const header_link& link) const NOEXCEPT;
     inline bool is_milestone(const header_link& link) const NOEXCEPT;
     inline bool is_associated(const header_link& link) const NOEXCEPT;
     inline bool is_confirmable(const header_link& link) const NOEXCEPT;
@@ -791,7 +793,6 @@ private:
     template <typename Functor>
     static inline code parallel_address_transform(std::atomic_bool& cancel,
         outpoints& out, const output_links& links, Functor&& functor) NOEXCEPT;
-    static constexpr size_t virtual_size(size_t light, size_t heavy) NOEXCEPT;
 
     // Not thread safe.
     size_t get_fork_() const NOEXCEPT;
