@@ -105,6 +105,34 @@ associations CLASS::get_unassociated_above(size_t height,
     return out;
 }
 
+// protected
+TEMPLATE
+bool CLASS::get_unassociated(association& out,
+    const header_link& link) const NOEXCEPT
+{
+    if (is_associated(link))
+        return false;
+
+    table::header::get_check_context context{};
+    if (!store_.header.get(link, context))
+        return false;
+
+    out =
+    {
+        link,
+        context.key,
+        system::chain::context
+        {
+            context.ctx.flags,
+            context.timestamp,
+            context.ctx.mtp,
+            system::possible_wide_cast<size_t>(context.ctx.height)
+        }
+    };
+
+    return true;
+}
+
 TEMPLATE
 size_t CLASS::get_unassociated_count() const NOEXCEPT
 {

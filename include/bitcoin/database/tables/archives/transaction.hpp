@@ -216,23 +216,26 @@ struct transaction
         ix::integer outs_count{};
     };
 
-    struct get_outs
+    struct get_puts
       : public schema::transaction
     {
         inline bool from_data(reader& source) NOEXCEPT
         {
-            source.skip_bytes(skip_to_ins);
+            const auto merged = source.read_little_endian<bytes::integer, bytes::size>();
+            coinbase = is_coinbase(merged);
+            source.skip_bytes(skip_to_ins - bytes::size);
             ins_count  = source.read_little_endian<ix::integer, ix::size>();
             outs_count = source.read_little_endian<ix::integer, ix::size>();
-            point_fk   = source.read_little_endian<ins::integer, ins::size>();
+            points_fk  = source.read_little_endian<ins::integer, ins::size>();
             outs_fk    = source.read_little_endian<outs::integer, outs::size>();
             return source;
         }
 
         ix::integer ins_count{};
         ix::integer outs_count{};
-        ins::integer point_fk{};
+        ins::integer points_fk{};
         outs::integer outs_fk{};
+        bool coinbase{};
     };
 
     struct get_version
@@ -272,18 +275,18 @@ struct transaction
 
             if (index >= number)
             {
-                point_fk = ins::terminal;
+                points_fk = ins::terminal;
                 return source;
             }
 
             source.skip_bytes(ix::size);
-            point_fk = source.read_little_endian<ins::integer, ins::size>() + index;
+            points_fk = source.read_little_endian<ins::integer, ins::size>() + index;
             return source;
         }
 
-        // Index provides optional offset for point_fk, number is absolute.
+        // Index provides optional offset for points_fk, number is absolute.
         const ins::integer index{};
-        ins::integer point_fk{};
+        ins::integer points_fk{};
         ix::integer number{};
     };
 

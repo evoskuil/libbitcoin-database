@@ -19,8 +19,8 @@
 #ifndef LIBBITCOIN_DATABASE_QUERY_ARCHIVE_READ_IPP
 #define LIBBITCOIN_DATABASE_QUERY_ARCHIVE_READ_IPP
 
-#include <algorithm>
-#include <ranges>
+#include <atomic>
+#include <numeric>
 #include <utility>
 #include <bitcoin/database/define.hpp>
 #include <bitcoin/database/tables/tables.hpp>
@@ -149,7 +149,7 @@ inline hash_digest CLASS::get_point_hash(const point_link& link) const NOEXCEPT
     return point.hash;
 }
 
-// False implies not confirmed.
+// Position.
 // ----------------------------------------------------------------------------
 
 TEMPLATE
@@ -175,13 +175,31 @@ bool CLASS::get_tx_position(size_t& out, const tx_link& link) const NOEXCEPT
     return true;
 }
 
+// Sizes.
+// ----------------------------------------------------------------------------
+
 TEMPLATE
-size_t CLASS::get_tx_size(const tx_link& link,
+bool CLASS::get_tx_size(size_t& out, const tx_link& link,
     bool witness) const NOEXCEPT
 {
     size_t light{}, heavy{};
-    return get_tx_sizes(light, heavy, link) ? (witness ? heavy : light) :
-        max_uint64;
+    if (!get_tx_sizes(light, heavy, link))
+        return false;
+    
+    out = witness ? heavy : light;
+    return true;
+}
+
+TEMPLATE
+bool CLASS::get_block_size(size_t& out, const header_link& link,
+    bool witness) const NOEXCEPT
+{
+    size_t light{}, heavy{};
+    if (!get_block_sizes(light, heavy, link))
+        return false;
+
+    out = witness ? heavy : light;
+    return true;
 }
 
 TEMPLATE
@@ -197,18 +215,6 @@ bool CLASS::get_tx_sizes(size_t& light, size_t& heavy,
     return true;
 }
 
-// Terminal implies not found, false implies fault.
-// ----------------------------------------------------------------------------
-
-TEMPLATE
-size_t CLASS::get_block_size(const header_link& link,
-    bool witness) const NOEXCEPT
-{
-    size_t light{}, heavy{};
-    return get_block_sizes(light, heavy, link) ? (witness ? heavy : light) :
-        max_uint64;
-}
-
 TEMPLATE
 bool CLASS::get_block_sizes(size_t& light, size_t& heavy,
     const header_link& link) const NOEXCEPT
@@ -221,6 +227,9 @@ bool CLASS::get_block_sizes(size_t& light, size_t& heavy,
     heavy = sizes.heavy;
     return true;
 }
+
+// Heights.
+// ----------------------------------------------------------------------------
 
 TEMPLATE
 height_link CLASS::get_height(const hash_digest& key) const NOEXCEPT
@@ -265,6 +274,9 @@ bool CLASS::get_height(size_t& out, const header_link& link) const NOEXCEPT
     return true;
 }
 
+// Values (value, spend, fees).
+// ----------------------------------------------------------------------------
+
 TEMPLATE
 bool CLASS::get_value(uint64_t& out, const output_link& link) const NOEXCEPT
 {
@@ -276,31 +288,237 @@ bool CLASS::get_value(uint64_t& out, const output_link& link) const NOEXCEPT
     return true;
 }
 
+// protected
 TEMPLATE
-bool CLASS::get_unassociated(association& out,
-    const header_link& link) const NOEXCEPT
+bool CLASS::get_outputs_total_value(uint64_t& out,
+    const output_links& links) const NOEXCEPT
 {
-    if (is_associated(link))
-        return false;
-
-    table::header::get_check_context context{};
-    if (!store_.header.get(link, context))
-        return false;
-
-    out =
+    out = zero;
+    for (const auto& output_fk: links)
     {
-        link,
-        context.key,
-        system::chain::context
-        {
-            context.ctx.flags,
-            context.timestamp,
-            context.ctx.mtp,
-            system::possible_wide_cast<size_t>(context.ctx.height)
-        }
-    };
+        uint64_t value{};
+        if (!get_value(value, output_fk)) return false;
+        out = system::ceilinged_add(out, value);
+    }
 
     return true;
+}
+
+TEMPLATE
+bool CLASS::get_tx_value(uint64_t& out, const tx_link& link) const NOEXCEPT
+{
+    table::transaction::get_coinbase tx{};
+    if (!store_.tx.get(link, tx))
+        return false;
+
+    // Shortcircuit coinbase prevout read.
+    if (tx.coinbase)
+    {
+        out = zero;
+        return true;
+    }
+
+    // Optimizable due to sequential tx input links.
+    const auto links = to_prevouts(link);
+    return !links.empty() && get_outputs_total_value(out, links);
+}
+
+TEMPLATE
+bool CLASS::get_tx_spend(uint64_t& out, const tx_link& link) const NOEXCEPT
+{
+    const auto links = to_outputs(link);
+    return !links.empty() && get_outputs_total_value(out, links);
+}
+
+TEMPLATE
+bool CLASS::get_tx_fee(uint64_t& out, const tx_link& link) const NOEXCEPT
+{
+#if defined(SLOW_FEES)
+    const auto tx = get_transaction(link, false);
+    if (!tx)
+        return false;
+
+    // Prevent coinbase populate failure.
+    if (tx->is_coinbase())
+    {
+        out = zero;
+        return true;
+    }
+
+    if (!populate_without_metadata(*tx))
+        return false;
+
+    out = tx->fee();
+    return true;
+#elif defined(FAST_FEES)
+    table::transaction::get_coinbase tx{};
+    if (!store_.tx.get(link, tx))
+        return false;
+
+    // Prevent coinbase overspend failure.
+    if (tx.coinbase)
+    {
+        out = zero;
+        return true;
+    }
+
+    uint64_t value{}, spend{};
+    if (!get_tx_value(value, link) || !get_tx_spend(spend, link) ||
+        spend > value)
+        return false;
+
+    out = value - spend;
+    return true;
+#else // FASTER_FEES
+    table::transaction::get_puts tx{};
+    if (!store_.tx.get(link, tx))
+        return false;
+
+    // Shortcircuit coinbase prevout read.
+    if (tx.coinbase)
+    {
+        out = zero;
+        return true;
+    }
+
+    uint64_t value{};
+    auto point_fk = tx.points_fk;
+    for (size_t index{}; index < tx.ins_count; ++index)
+    {
+        table::point::get_composed point{};
+        if (!store_.point.get(point_fk++, point))
+            return false;
+
+        uint64_t one_value{};
+        if (!get_value(one_value, to_output(point.key))) return false;
+        value = system::ceilinged_add(value, one_value);
+    }
+
+    table::outs::record outs{};
+    outs.out_fks.resize(tx.outs_count);
+    if (!store_.outs.get(tx.outs_fk, outs))
+        return false;
+
+    uint64_t spend{};
+    for (const auto& output_fk: outs.out_fks)
+    {
+        uint64_t one_spend{};
+        if (!get_value(one_spend, output_fk)) return false;
+        spend = system::ceilinged_add(spend, one_spend);
+    }
+
+    if (spend > value)
+        return false;
+
+    out = value - spend;
+    return true;
+#endif // SLOW_FEES
+}
+
+TEMPLATE
+bool CLASS::get_block_value(uint64_t& out,
+    const header_link& link) const NOEXCEPT
+{
+    table::txs::get_txs txs{};
+    if (!store_.txs.at(to_txs(link), txs) || (txs.tx_fks.size() < one))
+        return false;
+
+    std::atomic_bool fail{};
+    const auto begin = std::next(txs.tx_fks.begin());
+    constexpr auto parallel = poolstl::execution::par;
+    constexpr auto relaxed = std::memory_order_relaxed;
+
+    out = std::transform_reduce(parallel, begin, txs.tx_fks.end(), 0_u64,
+        [](uint64_t left, uint64_t right) NOEXCEPT
+        {
+            return system::ceilinged_add(left, right);
+        },
+        [&](const auto& tx_fk) NOEXCEPT
+        {
+            uint64_t value{};
+            if (!fail.load(relaxed) && !get_tx_value(value, tx_fk))
+                fail.store(true, relaxed);
+
+            return value;
+        });
+
+    return !fail.load(relaxed);
+}
+
+TEMPLATE
+bool CLASS::get_block_spend(uint64_t& out,
+    const header_link& link) const NOEXCEPT
+{
+    table::txs::get_txs txs{};
+    if (!store_.txs.at(to_txs(link), txs) || (txs.tx_fks.size() < one))
+        return false;
+
+    std::atomic_bool fail{};
+    const auto begin = std::next(txs.tx_fks.begin());
+    constexpr auto parallel = poolstl::execution::par;
+    constexpr auto relaxed = std::memory_order_relaxed;
+
+    out = std::transform_reduce(parallel, begin, txs.tx_fks.end(), 0_u64,
+        [](uint64_t left, uint64_t right) NOEXCEPT
+        {
+            return system::ceilinged_add(left, right);
+        },
+        [&](const auto& tx_fk) NOEXCEPT
+        {
+            uint64_t spend{};
+            if (!fail.load(relaxed) && !get_tx_spend(spend, tx_fk))
+                fail.store(true, relaxed);
+
+            return spend;
+        });
+
+    return !fail.load(relaxed);
+}
+
+TEMPLATE
+bool CLASS::get_block_fee(uint64_t& out, const header_link& link) const NOEXCEPT
+{
+#if defined(SLOW_FEES)
+    const auto block = get_block(link, false);
+    if (!block || !populate_without_metadata(*block))
+        return false;
+    
+    out = block->fees();
+    return true;
+#elif defined(FAST_FEES)
+    uint64_t value{}, spend{};
+    if (!get_block_value(value, link) || !get_block_spend(spend, link) ||
+        spend > value)
+        return false;
+
+    out = value - spend;
+    return true;
+#else // FASTER_FEES
+    table::txs::get_txs txs{};
+    if (!store_.txs.at(to_txs(link), txs) || (txs.tx_fks.size() < one))
+        return false;
+
+    std::atomic_bool fail{};
+    const auto begin = std::next(txs.tx_fks.begin());
+    constexpr auto parallel = poolstl::execution::par;
+    constexpr auto relaxed = std::memory_order_relaxed;
+
+    out = std::transform_reduce(parallel, begin, txs.tx_fks.end(), 0_u64,
+        [](uint64_t left, uint64_t right) NOEXCEPT
+        {
+            return system::ceilinged_add(left, right);
+        },
+        [&](const auto& tx_fk) NOEXCEPT
+        {
+            uint64_t fee{};
+            if (!fail.load(relaxed) && !get_tx_fee(fee, tx_fk))
+                fail.store(true, relaxed);
+
+            return fee;
+        });
+
+    return !fail.load(relaxed);
+#endif // SLOW_FEES
 }
 
 } // namespace database

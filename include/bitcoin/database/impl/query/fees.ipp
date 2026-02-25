@@ -27,12 +27,13 @@
 #include <utility>
 #include <bitcoin/database/define.hpp>
 
-#define SLOW_FEES
+// virtual_size
+// ----------------------------------------------------------------------------
 
 namespace libbitcoin {
 namespace database {
 
-// private
+// static/private
 TEMPLATE
 constexpr size_t CLASS::virtual_size(size_t light, size_t heavy) NOEXCEPT
 {
@@ -49,7 +50,7 @@ constexpr size_t CLASS::virtual_size(size_t light, size_t heavy) NOEXCEPT
 }
 
 TEMPLATE
-bool CLASS::get_tx_virtual_size(uint64_t& out,
+bool CLASS::get_tx_virtual_size(size_t& out,
     const tx_link& link) const NOEXCEPT
 {
     size_t light{}, heavy{};
@@ -61,7 +62,7 @@ bool CLASS::get_tx_virtual_size(uint64_t& out,
 }
 
 TEMPLATE
-bool CLASS::get_block_virtual_size(uint64_t& out,
+bool CLASS::get_block_virtual_size(size_t& out,
     const header_link& link) const NOEXCEPT
 {
     size_t light{}, heavy{};
@@ -72,37 +73,13 @@ bool CLASS::get_block_virtual_size(uint64_t& out,
     return true;
 }
 
-TEMPLATE
-uint64_t CLASS::get_tx_fee(const tx_link& link) const NOEXCEPT
-{
-#if defined(SLOW_FEES)
-    const auto tx = get_transaction(link, false);
-    if (!tx)
-        return max_uint64;
-
-    if (tx->is_coinbase())
-        return zero;
-
-    return populate_without_metadata(*tx) ? tx->fee() : max_uint64;
-#else
-    // Get heavy and light sizes for the tx link and compute virtual size.
-    // Get and total value for each output of the tx link.
-    // Get all outputs links spent by the tx link (spends).
-    // Get and total value for each spend (todo: move value to outs).
-#endif
-}
-
-TEMPLATE
-uint64_t CLASS::get_block_fee(const header_link& link) const NOEXCEPT
-{
-    const auto block = get_block(link, false);
-    return block && populate_without_metadata(*block) ? block->fees() :
-        max_uint64;
-}
+// tx/block/branch fee rates
+// ----------------------------------------------------------------------------
 
 TEMPLATE
 bool CLASS::get_tx_fees(fee_rate& out, const tx_link& link) const NOEXCEPT
 {
+#if defined(SLOW_FEES)
     const auto tx = get_transaction(link, false);
     if (!tx || tx->is_coinbase() || !populate_without_metadata(*tx))
         return false;
@@ -110,12 +87,20 @@ bool CLASS::get_tx_fees(fee_rate& out, const tx_link& link) const NOEXCEPT
     out.bytes = tx->virtual_size();
     out.fee = tx->fee();
     return true;
+#else
+    table::transaction::get_coinbase tx{};
+    if (!store_.tx.get(link, tx) || tx.coinbase)
+        return false;
+
+    return get_tx_virtual_size(out.bytes, link) && get_tx_fee(out.fee, link);
+#endif // SLOW_FEES
 }
     
 TEMPLATE
 bool CLASS::get_block_fees(fee_rates& out,
     const header_link& link) const NOEXCEPT
 {
+#if defined(SLOW_FEES)
     out.clear();
     const auto block = get_block(link, false);
     if (!block)
@@ -134,6 +119,30 @@ bool CLASS::get_block_fees(fee_rates& out,
         out.emplace_back((*tx)->virtual_size(), (*tx)->fee());
 
     return true;
+#else // FAST_FEES|FASTER_FEES
+    out.clear();
+    table::txs::get_txs txs{};
+    if (!store_.txs.at(to_txs(link), txs) || (txs.tx_fks.size() < one))
+        return false;
+
+    std::atomic_bool fail{};
+    out.resize(sub1(txs.tx_fks.size()));
+    const auto begin = std::next(txs.tx_fks.begin());
+    constexpr auto parallel = poolstl::execution::par;
+    constexpr auto relaxed = std::memory_order_relaxed;
+
+    std::transform(parallel, begin, txs.tx_fks.end(), out.begin(),
+        [&](const auto& tx_fk) NOEXCEPT
+        {
+            fee_rate rate{};
+            if (!fail.load(relaxed) && !get_tx_fees(rate, tx_fk))
+                fail.store(true, relaxed);
+
+            return rate;
+        });
+
+    return !fail.load(relaxed);
+#endif // SLOW_FEES
 }
 
 TEMPLATE
