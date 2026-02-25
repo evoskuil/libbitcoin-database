@@ -28,10 +28,6 @@ static_assert(is_same_type<database::context::flag_t::integer, decltype(system::
 // nop event handler.
 const auto events_handler = [](auto, auto) {};
 
-// ----------------------------------------------------------------------------
-
-// archive_write (foreign-keyed)
-
 BOOST_AUTO_TEST_CASE(query_archive_read__is_coinbase__coinbase__true)
 {
     settings settings{};
@@ -252,17 +248,17 @@ BOOST_AUTO_TEST_CASE(query_archive_read__get_point_key__always__expected)
     // tx4/5 prevouts are all block1a.tx1.
     BOOST_REQUIRE(query.set(test::tx4));
     BOOST_REQUIRE(query.set(test::tx5));
-////    BOOST_REQUIRE_EQUAL(query.get_point_hash(0), test::block1a.transactions_ptr()->front()->hash(false));
+    ////BOOST_REQUIRE_EQUAL(query.get_point_hash(0), test::block1a.transactions_ptr()->front()->hash(false));
     BOOST_REQUIRE_EQUAL(query.get_point_hash(1), test::block1a.transactions_ptr()->front()->hash(false));
     BOOST_REQUIRE_EQUAL(query.get_point_hash(2), test::block1a.transactions_ptr()->front()->hash(false));
-////    BOOST_REQUIRE_EQUAL(query.get_point_hash(3), system::null_hash);
+    ////BOOST_REQUIRE_EQUAL(query.get_point_hash(3), system::null_hash);
 
     // block1a adds three prevouts of two txs.
     BOOST_REQUIRE(query.set(test::block1a, context{}, false, false));
-////    BOOST_REQUIRE_EQUAL(query.get_point_hash(3), system::one_hash);
+    ////BOOST_REQUIRE_EQUAL(query.get_point_hash(3), system::one_hash);
     BOOST_REQUIRE_EQUAL(query.get_point_hash(4), system::one_hash);
-////    BOOST_REQUIRE_EQUAL(query.get_point_hash(5), test::two_hash);
-////    BOOST_REQUIRE_EQUAL(query.get_point_hash(6), system::null_hash);
+    ////BOOST_REQUIRE_EQUAL(query.get_point_hash(5), test::two_hash);
+    ////BOOST_REQUIRE_EQUAL(query.get_point_hash(6), system::null_hash);
 }
 
 BOOST_AUTO_TEST_CASE(query_archive_read__get_tx_key__always__expected)
@@ -656,28 +652,28 @@ BOOST_AUTO_TEST_CASE(query_archive_read__get_spenders__unspent_or_not_found__exp
 
     // Caller should always test for nullptr.
     BOOST_REQUIRE(query.get_spenders(output_link::terminal, true)->empty());
-    //BOOST_REQUIRE(query.get_spenders_index(tx_link::terminal, 0, true)->empty());
-    //BOOST_REQUIRE(query.get_spenders_index(tx_link::terminal, 1, true)->empty());
+    ////BOOST_REQUIRE(query.get_spenders_index(tx_link::terminal, 0, true)->empty());
+    ////BOOST_REQUIRE(query.get_spenders_index(tx_link::terminal, 1, true)->empty());
 
     BOOST_REQUIRE(query.get_spenders(query.to_output(0, 0), true)->empty());
     BOOST_REQUIRE(query.get_spenders(query.to_output(0, 1), true)->empty());
-    //BOOST_REQUIRE(query.get_spenders_index(0, 0, true)->empty());
-    //BOOST_REQUIRE(query.get_spenders_index(0, 1, true)->empty());
+    ///BOOST_REQUIRE(query.get_spenders_index(0, 0, true)->empty());
+    ////BOOST_REQUIRE(query.get_spenders_index(0, 1, true)->empty());
 
     BOOST_REQUIRE(query.get_spenders(query.to_output(1, 0), true)->empty());
     BOOST_REQUIRE(query.get_spenders(query.to_output(1, 1), true)->empty());
-    //BOOST_REQUIRE(query.get_spenders_index(1, 0, true)->empty());
-    //BOOST_REQUIRE(query.get_spenders_index(1, 1, true)->empty());
+    ////BOOST_REQUIRE(query.get_spenders_index(1, 0, true)->empty());
+    ////BOOST_REQUIRE(query.get_spenders_index(1, 1, true)->empty());
 
     BOOST_REQUIRE(query.get_spenders(query.to_output(2, 0), true)->empty());
     BOOST_REQUIRE(query.get_spenders(query.to_output(2, 1), true)->empty());
-    //BOOST_REQUIRE(query.get_spenders_index(2, 0, true)->empty());
-    //BOOST_REQUIRE(query.get_spenders_index(2, 1, true)->empty());
+    ////BOOST_REQUIRE(query.get_spenders_index(2, 0, true)->empty());
+    ////BOOST_REQUIRE(query.get_spenders_index(2, 1, true)->empty());
 
     BOOST_REQUIRE(query.get_spenders(query.to_output(3, 0), true)->empty());
     BOOST_REQUIRE(query.get_spenders(query.to_output(3, 1), true)->empty());
-    //BOOST_REQUIRE(query.get_spenders_index(3, 0, true)->empty());
-    //BOOST_REQUIRE(query.get_spenders_index(3, 1, true)->empty());
+    ////BOOST_REQUIRE(query.get_spenders_index(3, 0, true)->empty());
+    ////BOOST_REQUIRE(query.get_spenders_index(3, 1, true)->empty());
 }
 
 ////BOOST_AUTO_TEST_CASE(query_archive_read__get_spenders__found_and_spent__expected)

@@ -28,8 +28,6 @@ static_assert(is_same_type<database::context::flag_t::integer, decltype(system::
 // nop event handler.
 const auto events_handler = [](auto, auto) {};
 
-// archive_write (natural-keyed)
-
 // slow test (mmap)
 BOOST_AUTO_TEST_CASE(query_archive_write__set_header__mmap_get_header__expected)
 {
@@ -1145,17 +1143,17 @@ BOOST_AUTO_TEST_CASE(query_archive_write__get_point_key__always__expected)
     // tx4/5 prevouts are all block1a.tx1.
     BOOST_CHECK(query.set(test::tx4));
     BOOST_CHECK(query.set(test::tx5));
-////    BOOST_CHECK_EQUAL(query.get_point_hash(0), test::block1a.transactions_ptr()->front()->hash(false));
+    ////BOOST_CHECK_EQUAL(query.get_point_hash(0), test::block1a.transactions_ptr()->front()->hash(false));
     BOOST_CHECK_EQUAL(query.get_point_hash(1), test::block1a.transactions_ptr()->front()->hash(false));
     BOOST_CHECK_EQUAL(query.get_point_hash(2), test::block1a.transactions_ptr()->front()->hash(false));
-////    BOOST_CHECK_EQUAL(query.get_point_hash(3), system::null_hash);
+    ////BOOST_CHECK_EQUAL(query.get_point_hash(3), system::null_hash);
 
     // block1a adds three prevouts of two txs.
     BOOST_CHECK(query.set(test::block1a, context{}, false, false));
-////    BOOST_CHECK_EQUAL(query.get_point_hash(3), system::one_hash);
+    ////BOOST_CHECK_EQUAL(query.get_point_hash(3), system::one_hash);
     BOOST_CHECK_EQUAL(query.get_point_hash(4), system::one_hash);
-////    BOOST_CHECK_EQUAL(query.get_point_hash(5), test::two_hash);
-////    BOOST_CHECK_EQUAL(query.get_point_hash(6), system::null_hash);
+    ////BOOST_CHECK_EQUAL(query.get_point_hash(5), test::two_hash);
+    ////BOOST_CHECK_EQUAL(query.get_point_hash(6), system::null_hash);
 }
 
 BOOST_AUTO_TEST_CASE(query_archive_write__get_tx_key__always__expected)
