@@ -28,6 +28,8 @@ static_assert(is_same_type<database::context::flag_t::integer, decltype(system::
 // nop event handler.
 const auto events_handler = [](auto, auto) {};
 
+// is_coinbase
+
 BOOST_AUTO_TEST_CASE(query_archive_read__is_coinbase__coinbase__true)
 {
     settings settings{};
@@ -62,6 +64,40 @@ BOOST_AUTO_TEST_CASE(query_archive_read__is_coinbase__non_coinbase__false)
     BOOST_REQUIRE(!query.is_coinbase(5));
     BOOST_REQUIRE(!query.is_coinbase(42));
 }
+
+// is_tx_segregated
+
+BOOST_AUTO_TEST_CASE(query_archive_read__is_tx_segregated__always__expected)
+{
+    settings settings{};
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BOOST_REQUIRE_EQUAL(store.create(events_handler), error::success);
+    BOOST_REQUIRE(query.initialize(test::genesis));
+    BOOST_REQUIRE(query.set(test::block1a, context{}, false, false));
+    BOOST_REQUIRE(!query.is_tx_segregated(0));
+    BOOST_REQUIRE( query.is_tx_segregated(1));
+    BOOST_REQUIRE(!query.is_tx_segregated(2));
+}
+
+// is_block_segregated
+
+BOOST_AUTO_TEST_CASE(query_archive_read__is_block_segregated__always__expected)
+{
+    settings settings{};
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BOOST_REQUIRE_EQUAL(store.create(events_handler), error::success);
+    BOOST_REQUIRE(query.initialize(test::genesis));
+    BOOST_REQUIRE(query.set(test::block1a, context{}, false, false));
+    BOOST_REQUIRE(!query.is_block_segregated(0));
+    BOOST_REQUIRE( query.is_block_segregated(1));
+    BOOST_REQUIRE(!query.is_block_segregated(2));
+}
+
+// is_milestone
 
 BOOST_AUTO_TEST_CASE(query_archive_read__is_milestone__genesis__false)
 {

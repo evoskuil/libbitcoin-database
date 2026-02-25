@@ -326,6 +326,8 @@ public:
     inline bool is_block(const hash_digest& key) const NOEXCEPT;
     inline bool is_tx(const hash_digest& key) const NOEXCEPT;
     inline bool is_coinbase(const tx_link& link) const NOEXCEPT;
+    inline bool is_tx_segregated(const tx_link& link) const NOEXCEPT;
+    inline bool is_block_segregated(const header_link& link) const NOEXCEPT;
     inline bool is_milestone(const header_link& link) const NOEXCEPT;
     inline bool is_associated(const header_link& link) const NOEXCEPT;
     inline bool is_confirmable(const header_link& link) const NOEXCEPT;

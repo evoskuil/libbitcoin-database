@@ -57,6 +57,20 @@ inline bool CLASS::is_coinbase(const tx_link& link) const NOEXCEPT
 }
 
 TEMPLATE
+inline bool CLASS::is_tx_segregated(const tx_link& link) const NOEXCEPT
+{
+    size_t light{}, heavy{};
+    return get_tx_sizes(light, heavy, link) && heavy != light;
+}
+
+TEMPLATE
+inline bool CLASS::is_block_segregated(const header_link& link) const NOEXCEPT
+{
+    size_t light{}, heavy{};
+    return get_block_sizes(light, heavy, link) && heavy != light;
+}
+
+TEMPLATE
 inline bool CLASS::is_milestone(const header_link& link) const NOEXCEPT
 {
     table::header::get_milestone header{};
