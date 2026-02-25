@@ -105,7 +105,7 @@ BOOST_AUTO_TEST_CASE(transaction__put__get_key__expected)
     BOOST_REQUIRE_EQUAL(instance.get_key(1), key);
 }
 
-BOOST_AUTO_TEST_CASE(transaction__put__get_outs__expected)
+BOOST_AUTO_TEST_CASE(transaction__put__get_puts__expected)
 {
     test::chunk_storage head_store{};
     test::chunk_storage body_store{};
@@ -115,11 +115,11 @@ BOOST_AUTO_TEST_CASE(transaction__put__get_outs__expected)
     BOOST_REQUIRE(!instance.put_link(key, expected).is_terminal());
     BOOST_REQUIRE_EQUAL(body_store.buffer(), expected_file);
 
-    table::transaction::get_outs element{};
+    table::transaction::get_puts element{};
     BOOST_REQUIRE(instance.get(1, element));
     BOOST_REQUIRE_EQUAL(element.ins_count, 0x00341205_u32);
     BOOST_REQUIRE_EQUAL(element.outs_count, 0x00341206_u32);
-    BOOST_REQUIRE_EQUAL(element.point_fk, 0x56341207_u32);
+    BOOST_REQUIRE_EQUAL(element.points_fk, 0x56341207_u32);
     BOOST_REQUIRE_EQUAL(element.outs_fk, 0x56341208_u32);
     BOOST_REQUIRE(!is_multiply_overflow<uint64_t>(element.ins_count, schema::put));
     BOOST_REQUIRE(!is_add_overflow<uint64_t>(element.outs_fk, element.ins_count * schema::put));

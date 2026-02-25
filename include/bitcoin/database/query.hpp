@@ -259,7 +259,7 @@ public:
         uint32_t input_index) const NOEXCEPT;
     output_link to_output(const tx_link& link,
         uint32_t output_index) const NOEXCEPT;
-    output_link to_prevout(const point_link& link) const NOEXCEPT;
+    output_link to_previous_output(const point_link& link) const NOEXCEPT;
 
     /// block/tx to block (reverse navigation)
     tx_link to_strong_tx(const tx_link& link) const NOEXCEPT;
@@ -346,21 +346,29 @@ public:
     bool get_tx_height(size_t& out, const tx_link& link) const NOEXCEPT;
 
     /// Sizes.
-    size_t get_tx_size(const tx_link& link, bool witness) const NOEXCEPT;
-    size_t get_block_size(const header_link& link, bool witness) const NOEXCEPT;
+    bool get_tx_size(size_t& out, const tx_link& link,
+        bool witness) const NOEXCEPT;
+    bool get_block_size(size_t& out, const header_link& link,
+        bool witness) const NOEXCEPT;
     bool get_block_sizes(size_t& light, size_t& heavy,
         const header_link& link) const NOEXCEPT;
     bool get_tx_sizes(size_t& light, size_t& heavy,
         const tx_link& link) const NOEXCEPT;
 
-    /// Terminal implies not found, false implies fault.
+    /// Heights.
     height_link get_height(const hash_digest& key) const NOEXCEPT;
     height_link get_height(const header_link& link) const NOEXCEPT;
     bool get_height(size_t& out, const hash_digest& key) const NOEXCEPT;
     bool get_height(size_t& out, const header_link& link) const NOEXCEPT;
+
+    /// Values (value, spend, fees).
     bool get_value(uint64_t& out, const output_link& link) const NOEXCEPT;
-    bool get_unassociated(association& out,
-        const header_link& link) const NOEXCEPT;
+    bool get_tx_value(uint64_t& out, const tx_link& link) const NOEXCEPT;
+    bool get_tx_spend(uint64_t& out, const tx_link& link) const NOEXCEPT;
+    bool get_tx_fee(uint64_t& out, const tx_link& link) const NOEXCEPT;
+    bool get_block_value(uint64_t& out, const header_link& link) const NOEXCEPT;
+    bool get_block_spend(uint64_t& out, const header_link& link) const NOEXCEPT;
+    bool get_block_fee(uint64_t& out, const header_link& link) const NOEXCEPT;
 
     /// Objects.
     /// -----------------------------------------------------------------------
@@ -407,14 +415,8 @@ public:
     /// -----------------------------------------------------------------------
 
     /// Virtual size incorporates witnesses if archived.
-    bool get_tx_virtual_size(uint64_t& out,
-        const tx_link& link) const NOEXCEPT;
-    bool get_block_virtual_size(uint64_t& out,
-        const header_link& link) const NOEXCEPT;
-
-    /// Total fee value by tx or block.
-    uint64_t get_tx_fee(const tx_link& link) const NOEXCEPT;
-    uint64_t get_block_fee(const header_link& link) const NOEXCEPT;
+    bool get_tx_virtual_size(size_t& out, const tx_link& link) const NOEXCEPT;
+    bool get_block_virtual_size(size_t& out, const header_link& link) const NOEXCEPT;
 
     /// Fee rate tuples by tx, block or branch.
     bool get_tx_fees(fee_rate& out, const tx_link& link) const NOEXCEPT;
@@ -641,6 +643,10 @@ protected:
     span get_locator_span(const hashes& locator, const hash_digest& stop,
         size_t limit) const NOEXCEPT;
 
+    /// Support unassociated gathering.
+    bool get_unassociated(association& out,
+        const header_link& link) const NOEXCEPT;
+
     /// Translate.
     /// -----------------------------------------------------------------------
     header_link to_block(const tx_link& link) const NOEXCEPT;
@@ -653,6 +659,9 @@ protected:
     /// -----------------------------------------------------------------------
     static inline point::cptr make_point(hash_digest&& hash,
         uint32_t index) NOEXCEPT;
+
+    bool get_outputs_total_value(uint64_t& out,
+        const output_links& links) const NOEXCEPT;
 
     /// Validate.
     /// -----------------------------------------------------------------------

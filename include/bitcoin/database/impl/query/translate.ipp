@@ -133,7 +133,7 @@ point_link CLASS::to_point(const tx_link& link,
     if (!store_.tx.get(link, tx))
         return {};
 
-    return tx.point_fk;
+    return tx.points_fk;
 }
 
 TEMPLATE
@@ -152,13 +152,13 @@ output_link CLASS::to_output(const tx_link& link,
 }
 
 TEMPLATE
-output_link CLASS::to_prevout(const point_link& link) const NOEXCEPT
+output_link CLASS::to_previous_output(const point_link& link) const NOEXCEPT
 {
-    table::point::record point{};
+    table::point::get_composed point{};
     if (!store_.point.get(link, point))
         return {};
 
-    return to_output(to_tx(point.hash), point.index);
+    return to_output(point.key);
 }
 
 // block/tx to block (reverse navigation)
@@ -343,7 +343,7 @@ point_links CLASS::to_points(const tx_link& link) const NOEXCEPT
     // Transaction points are stored in a contiguous array of records.
     point_links points(tx.number);
     for (auto& point: points)
-        point = tx.point_fk++;
+        point = tx.points_fk++;
 
     return points;
 }
@@ -370,11 +370,10 @@ output_links CLASS::to_prevouts(const tx_link& link) const NOEXCEPT
     if (points.empty())
         return {};
 
-    // TODO: to_prevout()
     output_links prevouts{};
     prevouts.reserve(points.size());
     for (const auto& point: points)
-        prevouts.push_back(to_prevout(point));
+        prevouts.push_back(to_previous_output(point));
 
     return prevouts;
 }
@@ -412,13 +411,15 @@ output_links CLASS::to_outputs(const tx_links& txs) const NOEXCEPT
 TEMPLATE
 output_links CLASS::to_prevouts(const tx_links& txs) const NOEXCEPT
 {
-    constexpr auto parallel = poolstl::execution::par;
-
-    // to_prevout()
     const auto ins = to_points(txs);
     output_links outs(ins.size());
-    const auto fn = [this](auto spend) NOEXCEPT{ return to_prevout(spend); };
-    std::transform(parallel, ins.begin(), ins.end(), outs.begin(), fn);
+    constexpr auto parallel = poolstl::execution::par;
+
+    std::transform(parallel, ins.begin(), ins.end(), outs.begin(),
+    [&](const auto& spend) NOEXCEPT
+    {
+        return to_previous_output(spend);
+    });
     return outs;
 }
 

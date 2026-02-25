@@ -86,7 +86,7 @@ const block block1a
     transactions
     {
         // This first transaction is *not* a coinbase.
-        transaction
+        transaction     // tx#1
         {
             0x2a,           // version
             inputs
@@ -144,7 +144,7 @@ const block block2a
     transactions
     {
         // This first transaction is *not* a coinbase.
-        transaction
+        transaction     // tx#2
         {
             0xa2,           // version
             inputs
@@ -176,7 +176,7 @@ const block block2a
             },
             0x81            // locktime
         },
-        transaction
+        transaction     // tx#3
         {
             0xa2,           // version
             inputs
@@ -379,7 +379,7 @@ const block block1b
     transactions
     {
         // This first transaction is a coinbase.
-        transaction
+        transaction     // tx#1
         {
             0xb1,
             inputs
@@ -423,7 +423,7 @@ const block block2b
     transactions
     {
         // This first transaction is a coinbase.
-        transaction
+        transaction     // tx#2
         {
             0xb2,
             inputs
@@ -495,8 +495,8 @@ const block block_spend_internal_2b
     },
     transactions
     {
-        tx2b,
-        transaction
+        tx2b,           // tx#2
+        transaction     // tx#3
         {
             0xb2,
             inputs
@@ -535,8 +535,8 @@ const block block_missing_prevout_2b
     },
     transactions
     {
-        tx2b,
-        transaction
+        tx2b,           // tx#2
+        transaction     // tx#3
         {
             0xb2,
             inputs
@@ -575,8 +575,8 @@ const block block_valid_spend_internal_2b
     },
     transactions
     {
-        tx2b,
-        transaction
+        tx2b,           // tx#2
+        transaction     // tx#3
         {
             0xb2,
             inputs
@@ -599,7 +599,7 @@ const block block_valid_spend_internal_2b
             },
             0xb2
         },
-        transaction
+        transaction     // tx#4
         {
             0xb2,
             inputs
