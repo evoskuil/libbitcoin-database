@@ -793,7 +793,6 @@ private:
     template <typename Functor>
     static inline code parallel_address_transform(std::atomic_bool& cancel,
         outpoints& out, const output_links& links, Functor&& functor) NOEXCEPT;
-    static constexpr size_t virtual_size(size_t light, size_t heavy) NOEXCEPT;
 
     // Not thread safe.
     size_t get_fork_() const NOEXCEPT;

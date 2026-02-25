@@ -33,22 +33,6 @@
 namespace libbitcoin {
 namespace database {
 
-// static/private
-TEMPLATE
-constexpr size_t CLASS::virtual_size(size_t light, size_t heavy) NOEXCEPT
-{
-    using namespace system;
-    using namespace system::chain;
-    constexpr auto scale = base_size_contribution + total_size_contribution;
-
-    const auto weight = ceilinged_add(
-        ceilinged_multiply(base_size_contribution, light),
-        ceilinged_multiply(total_size_contribution, heavy));
-
-    // Block weight is 3 * nominal size * + 1 * witness size [bip141].
-    return ceilinged_divide(weight, scale);
-}
-
 TEMPLATE
 bool CLASS::get_tx_virtual_size(size_t& out,
     const tx_link& link) const NOEXCEPT
@@ -57,7 +41,7 @@ bool CLASS::get_tx_virtual_size(size_t& out,
     if (!get_tx_sizes(light, heavy, link))
         return false;
 
-    out = virtual_size(light, heavy);
+    out = system::chain::virtual_size(light, heavy);
     return true;
 }
 
@@ -69,7 +53,7 @@ bool CLASS::get_block_virtual_size(size_t& out,
     if (!get_block_sizes(light, heavy, link))
         return false;
 
-    out = virtual_size(light, heavy);
+    out = system::chain::virtual_size(light, heavy);
     return true;
 }
 
