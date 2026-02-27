@@ -279,7 +279,6 @@ bool CLASS::get_height(size_t& out, const hash_digest& key) const NOEXCEPT
 TEMPLATE
 bool CLASS::get_height(size_t& out, const header_link& link) const NOEXCEPT
 {
-    // Use get_height(..., key) in place of get(to_header(key)).
     const auto height = get_height(link);
     if (height >= height_link::terminal)
         return false;
@@ -347,86 +346,20 @@ bool CLASS::get_tx_spend(uint64_t& out, const tx_link& link) const NOEXCEPT
 TEMPLATE
 bool CLASS::get_tx_fee(uint64_t& out, const tx_link& link) const NOEXCEPT
 {
-#if defined(SLOW_FEES)
-    const auto tx = get_transaction(link, false);
-    if (!tx)
-        return false;
-
-    // Prevent coinbase populate failure.
-    if (tx->is_coinbase())
-    {
-        out = zero;
-        return true;
-    }
-
-    if (!populate_without_metadata(*tx))
-        return false;
-
-    out = tx->fee();
-    return true;
-#elif defined(FAST_FEES)
-    table::transaction::get_coinbase tx{};
-    if (!store_.tx.get(link, tx))
-        return false;
-
-    // Prevent coinbase overspend failure.
-    if (tx.coinbase)
-    {
-        out = zero;
-        return true;
-    }
-
-    uint64_t value{}, spend{};
-    if (!get_tx_value(value, link) || !get_tx_spend(spend, link) ||
-        spend > value)
-        return false;
-
-    out = value - spend;
-    return true;
-#else // FASTER_FEES
-    table::transaction::get_puts tx{};
-    if (!store_.tx.get(link, tx))
-        return false;
-
-    // Shortcircuit coinbase prevout read.
-    if (tx.coinbase)
-    {
-        out = zero;
-        return true;
-    }
-
     uint64_t value{};
-    auto point_fk = tx.points_fk;
-    for (size_t index{}; index < tx.ins_count; ++index)
-    {
-        table::point::get_composed point{};
-        if (!store_.point.get(point_fk++, point))
-            return false;
-
-        uint64_t one_value{};
-        if (!get_value(one_value, to_output(point.key))) return false;
-        value = system::ceilinged_add(value, one_value);
-    }
-
-    table::outs::record outs{};
-    outs.out_fks.resize(tx.outs_count);
-    if (!store_.outs.get(tx.outs_fk, outs))
+    if (!get_tx_value(value, link))
         return false;
+
+    // Zero input implies either zero output or coinbase (both zero).
+    if (is_zero(value))
+        return true;
 
     uint64_t spend{};
-    for (const auto& output_fk: outs.out_fks)
-    {
-        uint64_t one_spend{};
-        if (!get_value(one_spend, output_fk)) return false;
-        spend = system::ceilinged_add(spend, one_spend);
-    }
-
-    if (spend > value)
+    if (!get_tx_spend(spend, link) || spend > value)
         return false;
 
     out = value - spend;
     return true;
-#endif // SLOW_FEES
 }
 
 TEMPLATE
@@ -490,16 +423,9 @@ bool CLASS::get_block_spend(uint64_t& out,
 }
 
 TEMPLATE
-bool CLASS::get_block_fee(uint64_t& out, const header_link& link) const NOEXCEPT
+bool CLASS::get_block_fee(uint64_t& out,
+    const header_link& link) const NOEXCEPT
 {
-#if defined(SLOW_FEES)
-    const auto block = get_block(link, false);
-    if (!block || !populate_without_metadata(*block))
-        return false;
-    
-    out = block->fees();
-    return true;
-#elif defined(FAST_FEES)
     uint64_t value{}, spend{};
     if (!get_block_value(value, link) || !get_block_spend(spend, link) ||
         spend > value)
@@ -507,32 +433,6 @@ bool CLASS::get_block_fee(uint64_t& out, const header_link& link) const NOEXCEPT
 
     out = value - spend;
     return true;
-#else // FASTER_FEES
-    table::txs::get_txs txs{};
-    if (!store_.txs.at(to_txs(link), txs) || (txs.tx_fks.size() < one))
-        return false;
-
-    std::atomic_bool fail{};
-    const auto begin = std::next(txs.tx_fks.begin());
-    constexpr auto parallel = poolstl::execution::par;
-    constexpr auto relaxed = std::memory_order_relaxed;
-
-    out = std::transform_reduce(parallel, begin, txs.tx_fks.end(), 0_u64,
-        [](uint64_t left, uint64_t right) NOEXCEPT
-        {
-            return system::ceilinged_add(left, right);
-        },
-        [&](const auto& tx_fk) NOEXCEPT
-        {
-            uint64_t fee{};
-            if (!fail.load(relaxed) && !get_tx_fee(fee, tx_fk))
-                fail.store(true, relaxed);
-
-            return fee;
-        });
-
-    return !fail.load(relaxed);
-#endif // SLOW_FEES
 }
 
 } // namespace database
