@@ -22,16 +22,15 @@
 #include <atomic>
 #include <algorithm>
 #include <iterator>
-#include <memory>
 #include <numeric>
 #include <utility>
 #include <bitcoin/database/define.hpp>
 
-// virtual_size
-// ----------------------------------------------------------------------------
-
 namespace libbitcoin {
 namespace database {
+
+// virtual_size
+// ----------------------------------------------------------------------------
 
 TEMPLATE
 bool CLASS::get_tx_virtual_size(size_t& out,
@@ -63,7 +62,8 @@ bool CLASS::get_block_virtual_size(size_t& out,
 TEMPLATE
 bool CLASS::get_tx_fees(fee_rate& out, const tx_link& link) const NOEXCEPT
 {
-#if defined(SLOW_FEES)
+    // This is somehow ~15-20% less efficient.
+    ////return get_tx_virtual_size(out.bytes, link) && get_tx_fee(out.fee, link);
     const auto tx = get_transaction(link, false);
     if (!tx || tx->is_coinbase() || !populate_without_metadata(*tx))
         return false;
@@ -71,62 +71,27 @@ bool CLASS::get_tx_fees(fee_rate& out, const tx_link& link) const NOEXCEPT
     out.bytes = tx->virtual_size();
     out.fee = tx->fee();
     return true;
-#else
-    table::transaction::get_coinbase tx{};
-    if (!store_.tx.get(link, tx) || tx.coinbase)
-        return false;
-
-    return get_tx_virtual_size(out.bytes, link) && get_tx_fee(out.fee, link);
-#endif // SLOW_FEES
 }
-    
+
 TEMPLATE
 bool CLASS::get_block_fees(fee_rates& out,
     const header_link& link) const NOEXCEPT
 {
-#if defined(SLOW_FEES)
-    out.clear();
-    const auto block = get_block(link, false);
-    if (!block)
-        return false;
-
-    block->populate();
-    if (!populate_without_metadata(*block))
-        return false;
-
-    const auto& txs = *block->transactions_ptr();
-    if (txs.empty())
-        return false;
-
-    out.reserve(txs.size());
-    for (auto tx = std::next(txs.begin()); tx != txs.end(); ++tx)
-        out.emplace_back((*tx)->virtual_size(), (*tx)->fee());
-
-    return true;
-#else // FAST_FEES|FASTER_FEES
     out.clear();
     table::txs::get_txs txs{};
     if (!store_.txs.at(to_txs(link), txs) || (txs.tx_fks.size() < one))
         return false;
 
-    std::atomic_bool fail{};
     out.resize(sub1(txs.tx_fks.size()));
-    const auto begin = std::next(txs.tx_fks.begin());
-    constexpr auto parallel = poolstl::execution::par;
-    constexpr auto relaxed = std::memory_order_relaxed;
+    const auto end = txs.tx_fks.end();
+    auto rate = out.begin();
 
-    std::transform(parallel, begin, txs.tx_fks.end(), out.begin(),
-        [&](const auto& tx_fk) NOEXCEPT
-        {
-            fee_rate rate{};
-            if (!fail.load(relaxed) && !get_tx_fees(rate, tx_fk))
-                fail.store(true, relaxed);
+    // Skip coinbase.
+    for (auto tx = std::next(txs.tx_fks.begin()); tx != end; ++tx)
+        if (!get_tx_fees(*rate++, *tx))
+            return false;
 
-            return rate;
-        });
-
-    return !fail.load(relaxed);
-#endif // SLOW_FEES
+    return true;
 }
 
 TEMPLATE
@@ -137,20 +102,19 @@ bool CLASS::get_branch_fees(std::atomic_bool& cancel, fee_rate_sets& out,
     if (is_zero(count))
         return true;
 
-    if (system::is_add_overflow(start, sub1(count)))
-        return false;
-
-    const auto last = start + sub1(count);
-    if (last > get_top_confirmed())
+    if (system::is_add_overflow(start, sub1(count)) ||
+        (start + sub1(count) > get_top_confirmed()))
         return false;
 
     out.resize(count);
+    std::atomic_bool fail{};
     std::vector<size_t> offsets(count);
     std::iota(offsets.begin(), offsets.end(), zero);
-
-    std::atomic_bool fail{};
+    constexpr auto parallel = poolstl::execution::par;
     constexpr auto relaxed = std::memory_order_relaxed;
-    std::for_each(poolstl::execution::par, offsets.begin(), offsets.end(),
+
+    // Parallel execution saves ~50%.
+    std::for_each(parallel, offsets.begin(), offsets.end(),
         [&](const size_t& offset) NOEXCEPT
         {
             if (fail.load(relaxed))

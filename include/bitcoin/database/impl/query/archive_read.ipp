@@ -346,86 +346,20 @@ bool CLASS::get_tx_spend(uint64_t& out, const tx_link& link) const NOEXCEPT
 TEMPLATE
 bool CLASS::get_tx_fee(uint64_t& out, const tx_link& link) const NOEXCEPT
 {
-#if defined(SLOW_FEES)
-    const auto tx = get_transaction(link, false);
-    if (!tx)
-        return false;
-
-    // Prevent coinbase populate failure.
-    if (tx->is_coinbase())
-    {
-        out = zero;
-        return true;
-    }
-
-    if (!populate_without_metadata(*tx))
-        return false;
-
-    out = tx->fee();
-    return true;
-#elif defined(FAST_FEES)
-    table::transaction::get_coinbase tx{};
-    if (!store_.tx.get(link, tx))
-        return false;
-
-    // Prevent coinbase overspend failure.
-    if (tx.coinbase)
-    {
-        out = zero;
-        return true;
-    }
-
-    uint64_t value{}, spend{};
-    if (!get_tx_value(value, link) || !get_tx_spend(spend, link) ||
-        spend > value)
-        return false;
-
-    out = value - spend;
-    return true;
-#else // FASTER_FEES
-    table::transaction::get_puts tx{};
-    if (!store_.tx.get(link, tx))
-        return false;
-
-    // Shortcircuit coinbase prevout read.
-    if (tx.coinbase)
-    {
-        out = zero;
-        return true;
-    }
-
     uint64_t value{};
-    auto point_fk = tx.points_fk;
-    for (size_t index{}; index < tx.ins_count; ++index)
-    {
-        table::point::get_composed point{};
-        if (!store_.point.get(point_fk++, point))
-            return false;
-
-        uint64_t one_value{};
-        if (!get_value(one_value, to_output(point.key))) return false;
-        value = system::ceilinged_add(value, one_value);
-    }
-
-    table::outs::record outs{};
-    outs.out_fks.resize(tx.outs_count);
-    if (!store_.outs.get(tx.outs_fk, outs))
+    if (!get_tx_value(value, link))
         return false;
+
+    // Zero input implies either zero output or coinbase (both zero).
+    if (is_zero(value))
+        return true;
 
     uint64_t spend{};
-    for (const auto& output_fk: outs.out_fks)
-    {
-        uint64_t one_spend{};
-        if (!get_value(one_spend, output_fk)) return false;
-        spend = system::ceilinged_add(spend, one_spend);
-    }
-
-    if (spend > value)
+    if (!get_tx_spend(spend, link) || spend > value)
         return false;
 
     out = value - spend;
     return true;
-#endif // SLOW_FEES
 }
 
 TEMPLATE
