@@ -186,6 +186,7 @@ typename CLASS::transaction::cptr CLASS::get_transaction(const tx_link& link,
         tx.locktime
     );
 
+    // TODO: store caches sizes so these could be forwarded.
     // Witness hash is not retained by the store.
     ptr->set_nominal_hash(std::move(tx.key));
     return ptr;

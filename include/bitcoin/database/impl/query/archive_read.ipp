@@ -279,7 +279,6 @@ bool CLASS::get_height(size_t& out, const hash_digest& key) const NOEXCEPT
 TEMPLATE
 bool CLASS::get_height(size_t& out, const header_link& link) const NOEXCEPT
 {
-    // Use get_height(..., key) in place of get(to_header(key)).
     const auto height = get_height(link);
     if (height >= height_link::terminal)
         return false;
@@ -490,16 +489,9 @@ bool CLASS::get_block_spend(uint64_t& out,
 }
 
 TEMPLATE
-bool CLASS::get_block_fee(uint64_t& out, const header_link& link) const NOEXCEPT
+bool CLASS::get_block_fee(uint64_t& out,
+    const header_link& link) const NOEXCEPT
 {
-#if defined(SLOW_FEES)
-    const auto block = get_block(link, false);
-    if (!block || !populate_without_metadata(*block))
-        return false;
-    
-    out = block->fees();
-    return true;
-#elif defined(FAST_FEES)
     uint64_t value{}, spend{};
     if (!get_block_value(value, link) || !get_block_spend(spend, link) ||
         spend > value)
@@ -507,32 +499,6 @@ bool CLASS::get_block_fee(uint64_t& out, const header_link& link) const NOEXCEPT
 
     out = value - spend;
     return true;
-#else // FASTER_FEES
-    table::txs::get_txs txs{};
-    if (!store_.txs.at(to_txs(link), txs) || (txs.tx_fks.size() < one))
-        return false;
-
-    std::atomic_bool fail{};
-    const auto begin = std::next(txs.tx_fks.begin());
-    constexpr auto parallel = poolstl::execution::par;
-    constexpr auto relaxed = std::memory_order_relaxed;
-
-    out = std::transform_reduce(parallel, begin, txs.tx_fks.end(), 0_u64,
-        [](uint64_t left, uint64_t right) NOEXCEPT
-        {
-            return system::ceilinged_add(left, right);
-        },
-        [&](const auto& tx_fk) NOEXCEPT
-        {
-            uint64_t fee{};
-            if (!fail.load(relaxed) && !get_tx_fee(fee, tx_fk))
-                fail.store(true, relaxed);
-
-            return fee;
-        });
-
-    return !fail.load(relaxed);
-#endif // SLOW_FEES
 }
 
 } // namespace database
