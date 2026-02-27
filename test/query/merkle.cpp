@@ -25,14 +25,23 @@ BOOST_FIXTURE_TEST_SUITE(query_merkle_tests, test::directory_setup_fixture)
 // nop event handler.
 const auto events_handler = [](auto, auto) {};
 
-// Merkle root of test blocks [0..1]
-constexpr auto root01 = system::base16_hash("abdc2227d02d114b77be15085c1257709252a7a103f9ac0ab3c85d67e12bc0b8");
+constexpr auto root01 = system::sha256::double_hash(test::block0_hash, test::block1_hash);
+constexpr auto root23 = system::sha256::double_hash(test::block2_hash, test::block3_hash);
+constexpr auto root03 = system::sha256::double_hash(root01, root23);
+constexpr auto root45 = system::sha256::double_hash(test::block4_hash, test::block5_hash);
+constexpr auto root67 = system::sha256::double_hash(test::block6_hash, test::block7_hash);
+constexpr auto root47 = system::sha256::double_hash(root45, root67);
+constexpr auto root07 = system::sha256::double_hash(root03, root47);
 
-// Merkle root of test blocks [2..4]
-constexpr auto root02 = system::base16_hash("f2a2a2907abb326726a2d6500fe494f63772a941b414236c302e920bc1aa9caf");
+constexpr auto root82 = system::sha256::double_hash(test::block8_hash, test::block8_hash);
+constexpr auto root84 = system::sha256::double_hash(root82, root82);
+constexpr auto root88 = system::sha256::double_hash(root84, root84);
 
-// Merkle root of test blocks [0..4]
-constexpr auto root04 = system::sha256::double_hash(root01, root02);
+constexpr auto root08 = system::sha256::double_hash(root07, root88);
+
+// electrumx.readthedocs.io/en/latest/protocol-methods.html#cp-height-example
+constexpr auto root_electrumx_cp8 = system::base16_hash("e347b1c43fd9b5415bf0d92708db8284b78daf4d0e24f9c3405f45feb85e25db");
+static_assert(root08 == root_electrumx_cp8);
 
 class merkle_accessor
   : public test::query_accessor
@@ -144,7 +153,7 @@ BOOST_AUTO_TEST_CASE(query_merkle__create_interval__depth_1__expected)
     BOOST_REQUIRE(!query.create_interval(header2, 2).has_value());
     BOOST_REQUIRE( query.create_interval(header3, 3).has_value());
     BOOST_REQUIRE_EQUAL(query.create_interval(header1, 1).value(), root01);
-    BOOST_REQUIRE_EQUAL(query.create_interval(header3, 3).value(), root02);
+    BOOST_REQUIRE_EQUAL(query.create_interval(header3, 3).value(), root23);
 }
 
 BOOST_AUTO_TEST_CASE(query_merkle__create_interval__depth_2__expected)
@@ -163,7 +172,7 @@ BOOST_AUTO_TEST_CASE(query_merkle__create_interval__depth_2__expected)
     const auto header3 = query.to_header(test::block3.hash());
     BOOST_REQUIRE(!header3.is_terminal());
     BOOST_REQUIRE(query.create_interval(header3, 3).has_value());
-    BOOST_REQUIRE_EQUAL(query.create_interval(header3, 3).value(), root04);
+    BOOST_REQUIRE_EQUAL(query.create_interval(header3, 3).value(), root03);
 }
 
 // get_confirmed_interval
