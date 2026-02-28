@@ -767,6 +767,8 @@ protected:
     /// merkle
     /// -----------------------------------------------------------------------
 
+    // merkle related utilities
+    static hash_digest merkle_subroot(hashes&& tree, size_t span) NOEXCEPT;
     static void merge_merkle(hashes& branch, hashes&& hashes,
         size_t first) NOEXCEPT;
 
@@ -776,7 +778,7 @@ protected:
 
     hash_option get_confirmed_interval(size_t height) const NOEXCEPT;
     hash_option create_interval(header_link link, size_t height) const NOEXCEPT;
-    code get_merkle_tree(hashes& roots, size_t waypoint) const NOEXCEPT;
+    code get_merkle_subroots(hashes& roots, size_t waypoint) const NOEXCEPT;
     code get_merkle_proof(hashes& proof, hashes roots, size_t target,
         size_t waypoint) const NOEXCEPT;
 
