@@ -225,7 +225,7 @@ TEMPLATE
 hashes CLASS::get_confirmed_hashes(size_t first, size_t count) const NOEXCEPT
 {
     using namespace system;
-    const auto size = is_odd(count) && count > one ? add1(count) : count;
+    const auto size = count + to_int<size_t>(!is_one(count) && is_odd(count));
     if (is_zero(count) ||
         is_add_overflow(count, one) ||
         is_add_overflow(first, size))

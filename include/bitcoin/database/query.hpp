@@ -768,8 +768,8 @@ protected:
     /// -----------------------------------------------------------------------
 
     // merkle related utilities
-    static hash_digest merkle_subroot(hashes&& tree, size_t span) NOEXCEPT;
-    static void merge_merkle(hashes& branch, hashes&& hashes,
+    static hash_digest partial_subroot(hashes&& tree, size_t span) NOEXCEPT;
+    static void merge_merkle(hashes& to, hashes&& from,
         size_t first) NOEXCEPT;
 
     // merkle related configuration

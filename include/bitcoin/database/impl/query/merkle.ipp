@@ -20,6 +20,7 @@
 #define LIBBITCOIN_DATABASE_QUERY_MERKLE_IPP
 
 #include <algorithm>
+#include <iterator>
 #include <ranges>
 #include <utility>
 #include <bitcoin/database/define.hpp>
@@ -45,15 +46,15 @@ CLASS::hash_option CLASS::create_interval(header_link link,
         return {};
 
     // Generate the leaf nodes for the span.
-    hashes leaves(span);
-    for (auto& leaf: std::views::reverse(leaves))
+    hashes leafs(span);
+    for (auto& leaf: std::views::reverse(leafs))
     {
         leaf = get_header_key(link);
         link = to_parent(link);
     }
 
     // Generate the merkle root of the interval ending on link header.
-    return system::merkle_root(std::move(leaves));
+    return system::merkle_root(std::move(leafs));
 }
 
 // protected
@@ -77,17 +78,18 @@ CLASS::hash_option CLASS::get_confirmed_interval(size_t height) const NOEXCEPT
 TEMPLATE
 void CLASS::merge_merkle(hashes& to, hashes&& from, size_t first) NOEXCEPT
 {
-    // from is either even or has one additional element of reserved space.
+    // From is either even or has one additional element of reserved space.
     if (!is_one(from.size()) && is_odd(from.size()))
         from.push_back(from.back());
 
-    using namespace system;
     for (const auto& row: block::merkle_branch(first, from.size()))
     {
-        BC_ASSERT(add1(row.sibling) * row.width <= from.size());
-        const auto it = std::next(from.begin(), row.sibling * row.width);
-        const auto mover = std::make_move_iterator(it);
-        to.push_back(merkle_root({ mover, std::next(mover, row.width) }));
+        if (const auto start = row.sibling * row.width; start < from.size())
+        {
+            const auto count = std::min(row.width, from.size() - start);
+            auto it = std::make_move_iterator(std::next(from.begin(), start));
+            to.push_back(partial_subroot({ it, std::next(it, count) }, row.width));
+        }
     }
 }
 
@@ -114,36 +116,32 @@ code CLASS::get_merkle_proof(hashes& proof, hashes roots, size_t target,
 
 // static/private
 TEMPLATE
-hash_digest CLASS::merkle_subroot(hashes&& tree, size_t span) NOEXCEPT
+hash_digest CLASS::partial_subroot(hashes&& tree, size_t span) NOEXCEPT
 {
-    using namespace system;
-
-    // Tree cannot be empty or exceed span (span is power of two).
+    // Tree cannot be empty or exceed span (a power of 2).
     if (tree.empty() || tree.size() > span)
         return {};
 
-    // zero depth implies single tree element, which is the root.
+    // Zero depth implies single tree element, which is the root.
+    using namespace system;
     const auto depth = ceilinged_log2(span);
     if (is_zero(depth))
         return tree.front();
 
-    // Merkle root treats a single hash as top/complete, but for a non-zero
-    // depth subtree, any odd leaf requires duplication including a single.
+    // merkle_root() treats a single hash as top/complete, but for a partial
+    // depth subtree, an odd leaf (including a single) requires duplication.
     if (is_odd(tree.size()))
         tree.push_back(tree.back());
 
     // Log2 of the evened breadth gives the elevation by merkle_root.
-    const auto partial = ceilinged_log2(tree.size());
-
     // Partial cannot exceed depth, since tree.size() <= span (a power of 2).
+    auto partial = ceilinged_log2(tree.size());
     if (is_subtract_overflow(depth, partial))
         return {};
 
-    // Elevate hashes to partial level.
+    // Elevate hashes to partial level, and then from partial to depth.
     auto hash = merkle_root(std::move(tree));
-
-    // Elevate hashes from partial to depth level.
-    for (size_t level{}; level < (depth - partial); ++level)
+    for (; partial < depth; ++partial)
         hash = sha256::double_hash(hash, hash);
 
     return hash;
@@ -156,9 +154,16 @@ code CLASS::get_merkle_subroots(hashes& roots, size_t waypoint) const NOEXCEPT
     const auto span = interval_span();
     BC_ASSERT(!is_zero(span));
 
-    const auto range = add1(waypoint);
-    roots.reserve(system::ceilinged_divide(range, span));
-    for (size_t first{}; first < range; first += span)
+    using namespace system;
+    const auto leafs = add1(waypoint);
+    const auto limit = ceilinged_divide(leafs, span);
+    const auto count = limit + to_int<size_t>(!is_one(limit) && is_odd(limit));
+
+    // Roots is even-size-except-one-reserved for merkle root push.
+    roots.reserve(count);
+
+    // Either all subroots elevated to same level, or there is a single root.
+    for (size_t first{}; first < leafs; first += span)
     {
         const auto last = std::min(sub1(first + span), waypoint);
         const auto size = add1(last - first);
@@ -169,11 +174,18 @@ code CLASS::get_merkle_subroots(hashes& roots, size_t waypoint) const NOEXCEPT
             if (!interval.has_value()) return error::merkle_interval;
             roots.push_back(std::move(interval.value()));
         }
+        else if (is_zero(first))
+        {
+            // Single hash, is the complete merkle root.
+            auto complete = get_confirmed_hashes(zero, size);
+            roots.push_back(merkle_root(std::move(complete)));
+        }
         else
         {
+            // Roots is even-size-except-one-reserved for merkle root push.
             auto partial = get_confirmed_hashes(first, size);
             if (partial.empty()) return error::merkle_hashes;
-            roots.push_back(merkle_subroot(std::move(partial), span));
+            roots.push_back(partial_subroot(std::move(partial), span));
         }
     }
 
@@ -190,26 +202,26 @@ code CLASS::get_merkle_root_and_proof(hash_digest& root, hashes& proof,
     if (waypoint > get_top_confirmed())
         return error::not_found;
 
-    hashes tree{};
-    if (const auto ec = get_merkle_subroots(tree, waypoint))
+    hashes roots{};
+    if (const auto ec = get_merkle_subroots(roots, waypoint))
         return ec;
 
     proof.clear();
-    if (const auto ec = get_merkle_proof(proof, tree, target, waypoint))
+    if (const auto ec = get_merkle_proof(proof, roots, target, waypoint))
         return ec;
 
-    root = system::merkle_root(std::move(tree));
+    root = system::merkle_root(std::move(roots));
     return {};
 }
 
 TEMPLATE
 hash_digest CLASS::get_merkle_root(size_t height) const NOEXCEPT
 {
-    hashes tree{};
-    if (const auto ec = get_merkle_subroots(tree, height))
+    hashes roots{};
+    if (const auto ec = get_merkle_subroots(roots, height))
         return {};
 
-    return system::merkle_root(std::move(tree));
+    return system::merkle_root(std::move(roots));
 }
 
 } // namespace database
