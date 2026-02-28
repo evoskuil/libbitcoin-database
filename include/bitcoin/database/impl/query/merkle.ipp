@@ -114,37 +114,45 @@ code CLASS::get_merkle_proof(hashes& proof, hashes roots, size_t target,
 
 // static/private
 TEMPLATE
-hash_digest CLASS::merkle_subroot(hashes&& tree, size_t span) NOEXCEPT
+hash_digest CLASS::partial_subroot(hashes&& tree, size_t span) NOEXCEPT
 {
-    using namespace system;
-
-    // Tree cannot be empty or exceed span (span is power of two).
+    // Tree cannot be empty or exceed span (a power of 2).
     if (tree.empty() || tree.size() > span)
         return {};
 
-    // zero depth implies single tree element, which is the root.
+    using namespace system;
     const auto depth = ceilinged_log2(span);
+    ////std::cout << "depth    : " << depth << std::endl;
+
+    // Zero depth implies single tree element, which is the root.
     if (is_zero(depth))
         return tree.front();
 
-    // Merkle root treats a single hash as top/complete, but for a non-zero
-    // depth subtree, any odd leaf requires duplication including a single.
+    // merkle_root() treats a single hash as top/complete, but for a partial
+    // depth subtree, an odd leaf (including a single) requires duplication.
     if (is_odd(tree.size()))
+    {
         tree.push_back(tree.back());
+        ////std::cout << "evened   : " << tree.size() << std::endl;
+    }
 
     // Log2 of the evened breadth gives the elevation by merkle_root.
-    const auto partial = ceilinged_log2(tree.size());
+    auto partial = ceilinged_log2(tree.size());
 
     // Partial cannot exceed depth, since tree.size() <= span (a power of 2).
     if (is_subtract_overflow(depth, partial))
         return {};
 
     // Elevate hashes to partial level.
+    ////std::cout << "merkled  : " << tree.size() << std::endl;
     auto hash = merkle_root(std::move(tree));
 
-    // Elevate hashes from partial to depth level.
-    for (size_t level{}; level < (depth - partial); ++level)
+    // Elevate hashes from partial to depth.
+    for (; partial < depth; ++partial)
+    {
         hash = sha256::double_hash(hash, hash);
+        ////std::cout << "hashed   : " << partial << std::endl;
+    }
 
     return hash;
 }
@@ -156,9 +164,22 @@ code CLASS::get_merkle_subroots(hashes& roots, size_t waypoint) const NOEXCEPT
     const auto span = interval_span();
     BC_ASSERT(!is_zero(span));
 
-    const auto range = add1(waypoint);
-    roots.reserve(system::ceilinged_divide(range, span));
-    for (size_t first{}; first < range; first += span)
+    // Roots is even-size-except-one-reserved for merkle root push.
+    const auto leaves = add1(waypoint);
+    const auto limit = system::ceilinged_divide(leaves, span);
+    const auto reserve = limit + to_int<size_t>(!is_one(limit) && is_odd(limit));
+    roots.reserve(reserve);
+
+    //// const auto config = system::ceilinged_log2(span);
+    ////std::cout << "==================================" << std::endl;
+    ////std::cout << "config   : " << config << std::endl;
+    ////std::cout << "span     : " << span << std::endl;
+    ////std::cout << "leaves   : " << leaves << std::endl;
+    ////std::cout << "waypoint : " << waypoint << std::endl;
+    ////std::cout << "reserve  : " << reserve << std::endl;
+
+    // Either all subroots elevated to same level, or there is a single root.
+    for (size_t first{}; first < leaves; first += span)
     {
         const auto last = std::min(sub1(first + span), waypoint);
         const auto size = add1(last - first);
@@ -168,13 +189,26 @@ code CLASS::get_merkle_subroots(hashes& roots, size_t waypoint) const NOEXCEPT
             auto interval = get_confirmed_interval(last);
             if (!interval.has_value()) return error::merkle_interval;
             roots.push_back(std::move(interval.value()));
+            ////std::cout << "A cached subroot : ";
+        }
+        else if (is_zero(first))
+        {
+            // Single hash, is the complete merkle root.
+            auto complete = get_confirmed_hashes(zero, size);
+            roots.push_back(system::merkle_root(std::move(complete)));
+            ////std::cout << "The merkle root  : ";
         }
         else
         {
+            // Roots is even-size-except-one-reserved for merkle root push.
             auto partial = get_confirmed_hashes(first, size);
             if (partial.empty()) return error::merkle_hashes;
-            roots.push_back(merkle_subroot(std::move(partial), span));
+            roots.push_back(partial_subroot(std::move(partial), span));
+            ////std::cout << "Computed subroot : ";
         }
+
+        ////std::cout << first << " - " << last
+        ////    << " [" << system::encode_hash(roots.back()) << "]" << std::endl;
     }
 
     return error::success;
@@ -190,26 +224,26 @@ code CLASS::get_merkle_root_and_proof(hash_digest& root, hashes& proof,
     if (waypoint > get_top_confirmed())
         return error::not_found;
 
-    hashes tree{};
-    if (const auto ec = get_merkle_subroots(tree, waypoint))
+    hashes roots{};
+    if (const auto ec = get_merkle_subroots(roots, waypoint))
         return ec;
 
     proof.clear();
-    if (const auto ec = get_merkle_proof(proof, tree, target, waypoint))
+    if (const auto ec = get_merkle_proof(proof, roots, target, waypoint))
         return ec;
 
-    root = system::merkle_root(std::move(tree));
+    root = system::merkle_root(std::move(roots));
     return {};
 }
 
 TEMPLATE
 hash_digest CLASS::get_merkle_root(size_t height) const NOEXCEPT
 {
-    hashes tree{};
-    if (const auto ec = get_merkle_subroots(tree, height))
+    hashes roots{};
+    if (const auto ec = get_merkle_subroots(roots, height))
         return {};
 
-    return system::merkle_root(std::move(tree));
+    return system::merkle_root(std::move(roots));
 }
 
 } // namespace database
