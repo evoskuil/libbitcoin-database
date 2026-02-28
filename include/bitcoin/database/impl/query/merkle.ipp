@@ -45,15 +45,15 @@ CLASS::hash_option CLASS::create_interval(header_link link,
         return {};
 
     // Generate the leaf nodes for the span.
-    hashes leaves(span);
-    for (auto& leaf: std::views::reverse(leaves))
+    hashes leafs(span);
+    for (auto& leaf: std::views::reverse(leafs))
     {
         leaf = get_header_key(link);
         link = to_parent(link);
     }
 
     // Generate the merkle root of the interval ending on link header.
-    return system::merkle_root(std::move(leaves));
+    return system::merkle_root(std::move(leafs));
 }
 
 // protected
@@ -165,8 +165,8 @@ code CLASS::get_merkle_subroots(hashes& roots, size_t waypoint) const NOEXCEPT
     BC_ASSERT(!is_zero(span));
 
     // Roots is even-size-except-one-reserved for merkle root push.
-    const auto leaves = add1(waypoint);
-    const auto limit = system::ceilinged_divide(leaves, span);
+    const auto leafs = add1(waypoint);
+    const auto limit = system::ceilinged_divide(leafs, span);
     const auto count = limit + to_int<size_t>(!is_one(limit) && is_odd(limit));
     roots.reserve(count);
 
@@ -179,7 +179,7 @@ code CLASS::get_merkle_subroots(hashes& roots, size_t waypoint) const NOEXCEPT
     ////std::cout << "reserve  : " << count << std::endl;
 
     // Either all subroots elevated to same level, or there is a single root.
-    for (size_t first{}; first < leaves; first += span)
+    for (size_t first{}; first < leafs; first += span)
     {
         const auto last = std::min(sub1(first + span), waypoint);
         const auto size = add1(last - first);
