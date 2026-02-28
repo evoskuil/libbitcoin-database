@@ -167,8 +167,8 @@ code CLASS::get_merkle_subroots(hashes& roots, size_t waypoint) const NOEXCEPT
     // Roots is even-size-except-one-reserved for merkle root push.
     const auto leaves = add1(waypoint);
     const auto limit = system::ceilinged_divide(leaves, span);
-    const auto reserve = limit + to_int<size_t>(!is_one(limit) && is_odd(limit));
-    roots.reserve(reserve);
+    const auto count = limit + to_int<size_t>(!is_one(limit) && is_odd(limit));
+    roots.reserve(count);
 
     //// const auto config = system::ceilinged_log2(span);
     ////std::cout << "==================================" << std::endl;
@@ -176,7 +176,7 @@ code CLASS::get_merkle_subroots(hashes& roots, size_t waypoint) const NOEXCEPT
     ////std::cout << "span     : " << span << std::endl;
     ////std::cout << "leaves   : " << leaves << std::endl;
     ////std::cout << "waypoint : " << waypoint << std::endl;
-    ////std::cout << "reserve  : " << reserve << std::endl;
+    ////std::cout << "reserve  : " << count << std::endl;
 
     // Either all subroots elevated to same level, or there is a single root.
     for (size_t first{}; first < leaves; first += span)
