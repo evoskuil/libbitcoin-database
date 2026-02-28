@@ -77,10 +77,14 @@ CLASS::hash_option CLASS::get_confirmed_interval(size_t height) const NOEXCEPT
 TEMPLATE
 void CLASS::merge_merkle(hashes& to, hashes&& from, size_t first) NOEXCEPT
 {
+    // from is either even or has one additional element of reserved space.
+    if (!is_one(from.size()) && is_odd(from.size()))
+        from.push_back(from.back());
+
     using namespace system;
     for (const auto& row: block::merkle_branch(first, from.size()))
     {
-        BC_ASSERT(row.sibling * add1(row.width) <= from.size());
+        BC_ASSERT(add1(row.sibling) * row.width <= from.size());
         const auto it = std::next(from.begin(), row.sibling * row.width);
         const auto mover = std::make_move_iterator(it);
         to.push_back(merkle_root({ mover, std::next(mover, row.width) }));
@@ -108,15 +112,52 @@ code CLASS::get_merkle_proof(hashes& proof, hashes roots, size_t target,
     return error::success;
 }
 
+// static/private
+TEMPLATE
+hash_digest CLASS::merkle_subroot(hashes&& tree, size_t span) NOEXCEPT
+{
+    using namespace system;
+
+    // Tree cannot be empty or exceed span (span is power of two).
+    if (tree.empty() || tree.size() > span)
+        return {};
+
+    // zero depth implies single tree element, which is the root.
+    const auto depth = ceilinged_log2(span);
+    if (is_zero(depth))
+        return tree.front();
+
+    // Merkle root treats a single hash as top/complete, but for a non-zero
+    // depth subtree, any odd leaf requires duplication including a single.
+    if (is_odd(tree.size()))
+        tree.push_back(tree.back());
+
+    // Log2 of the evened breadth gives the elevation by merkle_root.
+    const auto partial = ceilinged_log2(tree.size());
+
+    // Partial cannot exceed depth, since tree.size() <= span (a power of 2).
+    if (is_subtract_overflow(depth, partial))
+        return {};
+
+    // Elevate hashes to partial level.
+    auto hash = merkle_root(std::move(tree));
+
+    // Elevate hashes from partial to depth level.
+    for (size_t level{}; level < (depth - partial); ++level)
+        hash = sha256::double_hash(hash, hash);
+
+    return hash;
+}
+
 // protected
 TEMPLATE
-code CLASS::get_merkle_tree(hashes& tree, size_t waypoint) const NOEXCEPT
+code CLASS::get_merkle_subroots(hashes& roots, size_t waypoint) const NOEXCEPT
 {
     const auto span = interval_span();
     BC_ASSERT(!is_zero(span));
 
     const auto range = add1(waypoint);
-    tree.reserve(system::ceilinged_divide(range, span));
+    roots.reserve(system::ceilinged_divide(range, span));
     for (size_t first{}; first < range; first += span)
     {
         const auto last = std::min(sub1(first + span), waypoint);
@@ -126,13 +167,13 @@ code CLASS::get_merkle_tree(hashes& tree, size_t waypoint) const NOEXCEPT
         {
             auto interval = get_confirmed_interval(last);
             if (!interval.has_value()) return error::merkle_interval;
-            tree.push_back(std::move(interval.value()));
+            roots.push_back(std::move(interval.value()));
         }
         else
         {
-            auto confirmed = get_confirmed_hashes(first, size);
-            if (confirmed.empty()) return error::merkle_hashes;
-            tree.push_back(system::merkle_root(std::move(confirmed)));
+            auto partial = get_confirmed_hashes(first, size);
+            if (partial.empty()) return error::merkle_hashes;
+            roots.push_back(merkle_subroot(std::move(partial), span));
         }
     }
 
@@ -150,7 +191,7 @@ code CLASS::get_merkle_root_and_proof(hash_digest& root, hashes& proof,
         return error::not_found;
 
     hashes tree{};
-    if (const auto ec = get_merkle_tree(tree, waypoint))
+    if (const auto ec = get_merkle_subroots(tree, waypoint))
         return ec;
 
     proof.clear();
@@ -165,7 +206,7 @@ TEMPLATE
 hash_digest CLASS::get_merkle_root(size_t height) const NOEXCEPT
 {
     hashes tree{};
-    if (const auto ec = get_merkle_tree(tree, height))
+    if (const auto ec = get_merkle_subroots(tree, height))
         return {};
 
     return system::merkle_root(std::move(tree));
