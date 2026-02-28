@@ -20,6 +20,7 @@
 #define LIBBITCOIN_DATABASE_QUERY_MERKLE_IPP
 
 #include <algorithm>
+#include <iterator>
 #include <ranges>
 #include <utility>
 #include <bitcoin/database/define.hpp>
@@ -77,17 +78,18 @@ CLASS::hash_option CLASS::get_confirmed_interval(size_t height) const NOEXCEPT
 TEMPLATE
 void CLASS::merge_merkle(hashes& to, hashes&& from, size_t first) NOEXCEPT
 {
-    // from is either even or has one additional element of reserved space.
+    // From is either even or has one additional element of reserved space.
     if (!is_one(from.size()) && is_odd(from.size()))
         from.push_back(from.back());
 
-    using namespace system;
     for (const auto& row: block::merkle_branch(first, from.size()))
     {
-        BC_ASSERT(add1(row.sibling) * row.width <= from.size());
-        const auto it = std::next(from.begin(), row.sibling * row.width);
-        const auto mover = std::make_move_iterator(it);
-        to.push_back(merkle_root({ mover, std::next(mover, row.width) }));
+        if (const auto start = row.sibling * row.width; start < from.size())
+        {
+            const auto count = std::min(row.width, from.size() - start);
+            auto it = std::make_move_iterator(std::next(from.begin(), start));
+            to.push_back(partial_subroot({ it, std::next(it, count) }, row.width));
+        }
     }
 }
 

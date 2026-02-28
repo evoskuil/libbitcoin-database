@@ -408,10 +408,8 @@ BOOST_AUTO_TEST_CASE(query_merkle__get_merkle_subroots__waypoint_zero__genesis)
     BOOST_CHECK_EQUAL(query.get_merkle_subroots(roots, 0), error::success);
     BOOST_CHECK_EQUAL(roots.size(), 1u);
 
-    // At depth 2, 1 hash must be elevated twice, and paired twice.
-    constexpr auto root00 = system::sha256::double_hash(test::block0_hash, test::block0_hash);
-    constexpr auto root0000 = system::sha256::double_hash(root00, root00);
-    BOOST_CHECK_EQUAL(roots[0], root0000);
+    // At depth 2, the 1st position (block 0) the hash is the root.
+    BOOST_CHECK_EQUAL(roots[0], test::block0_hash);
 }
 
 BOOST_AUTO_TEST_CASE(query_merkle__get_merkle_subroots__one_full_interval__expected_root)
@@ -434,7 +432,7 @@ BOOST_AUTO_TEST_CASE(query_merkle__get_merkle_subroots__one_full_interval__expec
     BOOST_CHECK_EQUAL(query.get_merkle_subroots(roots, 3), error::success);
     BOOST_CHECK_EQUAL(roots.size(), 1u);
 
-    // At depth 2, the 4th position (block 3) results in a simple root.
+    // At depth 2, the 4th position (block 3) results in an interval subroot as the root.
     BOOST_CHECK_EQUAL(roots[0], root03);
 }
 
@@ -573,7 +571,7 @@ BOOST_AUTO_TEST_CASE(query_merkle__get_merkle_root_and_proof__electrumx_example_
     BOOST_CHECK_EQUAL(proof[0], test::block4_hash);
     BOOST_CHECK_EQUAL(proof[1], sub67);
     BOOST_CHECK_EQUAL(proof[2], sub03);
-    BOOST_CHECK_EQUAL(proof[3], sub88);
+    BOOST_CHECK_EQUAL(proof[3], sub88); // << FAIL
 }
 
 BOOST_AUTO_TEST_CASE(query_merkle__get_merkle_root_and_proof__electrumx_example_depth_1__success)
@@ -621,7 +619,7 @@ BOOST_AUTO_TEST_CASE(query_merkle__get_merkle_root_and_proof__electrumx_example_
     BOOST_CHECK_EQUAL(proof[0], test::block4_hash);
     BOOST_CHECK_EQUAL(proof[1], sub67);
     BOOST_CHECK_EQUAL(proof[2], sub03);
-    BOOST_CHECK_EQUAL(proof[3], sub88);
+    BOOST_CHECK_EQUAL(proof[3], sub88); // << FAIL
 }
 
 BOOST_AUTO_TEST_CASE(query_merkle__get_merkle_root_and_proof__electrumx_example_depth_2__success)
@@ -756,7 +754,7 @@ BOOST_AUTO_TEST_CASE(query_merkle__get_merkle_root_and_proof__electrumx_example_
     BOOST_CHECK_EQUAL(proof[0], test::block4_hash);
     BOOST_CHECK_EQUAL(proof[1], sub67);
     BOOST_CHECK_EQUAL(proof[2], sub03);
-    BOOST_CHECK_EQUAL(proof[3], sub88);
+    BOOST_CHECK_EQUAL(proof[3], sub88); // << FAIL
 }
 
 BOOST_AUTO_TEST_CASE(query_merkle__get_merkle_root_and_proof__electrumx_example_depth_11__success)
@@ -800,7 +798,7 @@ BOOST_AUTO_TEST_CASE(query_merkle__get_merkle_root_and_proof__electrumx_example_
     BOOST_CHECK_EQUAL(proof[0], test::block4_hash);
     BOOST_CHECK_EQUAL(proof[1], sub67);
     BOOST_CHECK_EQUAL(proof[2], sub03);
-    BOOST_CHECK_EQUAL(proof[3], sub88);
+    BOOST_CHECK_EQUAL(proof[3], sub88); // << FAIL
 }
 
 BOOST_AUTO_TEST_CASE(query_merkle__get_merkle_root_and_proof__target_greater_than_waypoint__error_invalid_argument)
