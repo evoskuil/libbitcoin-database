@@ -34,29 +34,35 @@
     <Filter Include="src\query\archive">
       <UniqueIdentifier>{5C4DA53A-8C06-4DA6-0000-000000000008}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\query\consensus">
+    <Filter Include="src\query\batch">
       <UniqueIdentifier>{5C4DA53A-8C06-4DA6-0000-000000000009}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\query\navigate">
+    <Filter Include="src\query\consensus">
       <UniqueIdentifier>{5C4DA53A-8C06-4DA6-0000-00000000000A}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\tables">
+    <Filter Include="src\query\navigate">
       <UniqueIdentifier>{5C4DA53A-8C06-4DA6-0000-00000000000B}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\tables\archives">
+    <Filter Include="src\store">
       <UniqueIdentifier>{5C4DA53A-8C06-4DA6-0000-00000000000C}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\tables\caches">
+    <Filter Include="src\tables">
       <UniqueIdentifier>{5C4DA53A-8C06-4DA6-0000-00000000000D}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\tables\indexes">
+    <Filter Include="src\tables\archives">
       <UniqueIdentifier>{5C4DA53A-8C06-4DA6-0000-00000000000E}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\tables\optional">
+    <Filter Include="src\tables\caches">
       <UniqueIdentifier>{5C4DA53A-8C06-4DA6-0000-00000000000F}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\types">
+    <Filter Include="src\tables\indexes">
       <UniqueIdentifier>{5C4DA53A-8C06-4DA6-0000-000000000001}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\tables\optional">
+      <UniqueIdentifier>{5C4DA53A-8C06-4DA6-0000-000000000002}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\types">
+      <UniqueIdentifier>{5C4DA53A-8C06-4DA6-0000-000000000003}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -120,6 +126,9 @@
     <ClCompile Include="..\..\..\..\test\primitives\manager.cpp">
       <Filter>src\primitives</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\test\primitives\nohead.cpp">
+      <Filter>src\primitives</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\..\test\primitives\nomap.cpp">
       <Filter>src\primitives</Filter>
     </ClCompile>
@@ -149,6 +158,9 @@
     </ClCompile>
     <ClCompile Include="..\..\..\..\test\query\archive\wire_writer.cpp">
       <Filter>src\query\archive</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\test\query\batch\prevalid.cpp">
+      <Filter>src\query\batch</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\test\query\confirmed.cpp">
       <Filter>src\query</Filter>
@@ -237,8 +249,50 @@
     <ClCompile Include="..\..\..\..\test\settings.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\test\store.cpp">
-      <Filter>src</Filter>
+    <ClCompile Include="..\..\..\..\test\store\store.cpp">
+      <Filter>src\store</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\test\store\store_backup.cpp">
+      <Filter>src\store</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\test\store\store_close.cpp">
+      <Filter>src\store</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\test\store\store_create.cpp">
+      <Filter>src\store</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\test\store\store_dump.cpp">
+      <Filter>src\store</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\test\store\store_events.cpp">
+      <Filter>src\store</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\test\store\store_open.cpp">
+      <Filter>src\store</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\test\store\store_open_load.cpp">
+      <Filter>src\store</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\test\store\store_prune.cpp">
+      <Filter>src\store</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\test\store\store_reload.cpp">
+      <Filter>src\store</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\test\store\store_report.cpp">
+      <Filter>src\store</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\test\store\store_restore.cpp">
+      <Filter>src\store</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\test\store\store_snapshot.cpp">
+      <Filter>src\store</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\test\store\store_tables.cpp">
+      <Filter>src\store</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\test\store\store_unload_close.cpp">
+      <Filter>src\store</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\test\tables\archives\header.cpp">
       <Filter>src\tables\archives</Filter>
@@ -268,6 +322,9 @@
       <Filter>src\tables\caches</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\test\tables\caches\ecdsa.cpp">
+      <Filter>src\tables\caches</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\test\tables\caches\prevalid.cpp">
       <Filter>src\tables\caches</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\test\tables\caches\prevout.cpp">

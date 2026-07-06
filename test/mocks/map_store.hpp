@@ -19,9 +19,21 @@
 #ifndef LIBBITCOIN_DATABASE_TEST_MOCKS_MAP_STORE_HPP
 #define LIBBITCOIN_DATABASE_TEST_MOCKS_MAP_STORE_HPP
 
+#include <filesystem>
 #include "../test.hpp"
 
 namespace test {
+
+// nop event handler.
+const auto events = [](auto, auto){};
+
+// flush lock file path from directory.
+inline std::filesystem::path flush_lock_file(std::filesystem::path path)
+{
+    path /= schema::locks::flush;
+    path += schema::ext::lock;
+    return path;
+}
 
 // store<map> test accessor.
 class map_store
@@ -189,6 +201,16 @@ public:
         return schnorr_body_.file();
     }
 
+    inline const path& silent_head_file() const NOEXCEPT
+    {
+        return silent_head_.file();
+    }
+
+    inline const path& silent_body_file() const NOEXCEPT
+    {
+        return silent_body_.file();
+    }
+
     inline const path& duplicate_head_file() const NOEXCEPT
     {
         return duplicate_head_.file();
@@ -197,6 +219,16 @@ public:
     inline const path& duplicate_body_file() const NOEXCEPT
     {
         return duplicate_body_.file();
+    }
+
+    inline const path& prevalid_head_file() const NOEXCEPT
+    {
+        return prevalid_head_.file();
+    }
+
+    inline const path& prevalid_body_file() const NOEXCEPT
+    {
+        return prevalid_body_.file();
     }
 
     inline const path& prevout_head_file() const NOEXCEPT

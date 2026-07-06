@@ -45,8 +45,11 @@ code CLASS::prune(const event_handler& handler) NOEXCEPT
     }
     else
     {
-        // nullify table head, set reference body count to zero.
         handler(event_t::prune_table, table_t::prevout_head);
+
+        // nullify table head, set reference body count to zero.
+        // If snapshot from this state fails previous snapshot remains valid.
+        // Batch tables drop at start and under lock after verify (not here).
         if (!prevout.clear())
         {
             ec = error::prune_table;
@@ -60,7 +63,7 @@ code CLASS::prune(const event_handler& handler) NOEXCEPT
             // If the pruning fails here the snapshot remains valid.
             if (!ec)
             {
-                // zeroize table body, set logical body count to zero.
+                // Reclaim logical extent.
                 handler(event_t::prune_table, table_t::prevout_body);
                 if (!prevout_body_.truncate(0))
                 {
@@ -68,16 +71,18 @@ code CLASS::prune(const event_handler& handler) NOEXCEPT
                 }
                 else
                 {
-                    // unmap body, setting mapped size to logical size (zero).
+                    // Reclaim disk space to logical extent.
                     handler(event_t::unload_file, table_t::prevout_body);
-                    ec = prevout_body_.unload();
+                    if (!ec) ec = prevout_body_.shrink();
+                    handler(event_t::load_file, table_t::prevout_body);
 
-                    if (!ec)
-                    {
-                        // map body, making table usable again.
-                        handler(event_t::load_file, table_t::prevout_body);
-                        ec = prevout_body_.load();
-                    }
+                    handler(event_t::unload_file, table_t::ecdsa_body);
+                    if (!ec) ec = ecdsa_body_.shrink();
+                    handler(event_t::load_file, table_t::ecdsa_body);
+
+                    handler(event_t::unload_file, table_t::schnorr_body);
+                    if (!ec) ec = schnorr_body_.shrink();
+                    handler(event_t::load_file, table_t::schnorr_body);
                 }
             }
         }

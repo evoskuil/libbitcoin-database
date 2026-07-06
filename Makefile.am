@@ -64,7 +64,6 @@ test_libbitcoin_database_test_SOURCES = \
     test/error.cpp \
     test/main.cpp \
     test/settings.cpp \
-    test/store.cpp \
     test/test.cpp \
     test/test.hpp \
     test/file/rotator.cpp \
@@ -89,6 +88,7 @@ test_libbitcoin_database_test_SOURCES = \
     test/primitives/keys.cpp \
     test/primitives/linkage.cpp \
     test/primitives/manager.cpp \
+    test/primitives/nohead.cpp \
     test/primitives/nomap.cpp \
     test/query/amounts.cpp \
     test/query/confirmed.cpp \
@@ -112,6 +112,7 @@ test_libbitcoin_database_test_SOURCES = \
     test/query/archive/chain_writer.cpp \
     test/query/archive/wire_reader.cpp \
     test/query/archive/wire_writer.cpp \
+    test/query/batch/prevalid.cpp \
     test/query/consensus/consensus_block.cpp \
     test/query/consensus/consensus_chain_state.cpp \
     test/query/consensus/consensus_compact.cpp \
@@ -127,6 +128,21 @@ test_libbitcoin_database_test_SOURCES = \
     test/query/navigate/navigate_hashmap.cpp \
     test/query/navigate/navigate_natural.cpp \
     test/query/navigate/navigate_reverse.cpp \
+    test/store/store.cpp \
+    test/store/store_backup.cpp \
+    test/store/store_close.cpp \
+    test/store/store_create.cpp \
+    test/store/store_dump.cpp \
+    test/store/store_events.cpp \
+    test/store/store_open.cpp \
+    test/store/store_open_load.cpp \
+    test/store/store_prune.cpp \
+    test/store/store_reload.cpp \
+    test/store/store_report.cpp \
+    test/store/store_restore.cpp \
+    test/store/store_snapshot.cpp \
+    test/store/store_tables.cpp \
+    test/store/store_unload_close.cpp \
     test/tables/archives/header.cpp \
     test/tables/archives/input.cpp \
     test/tables/archives/ins.cpp \
@@ -137,6 +153,7 @@ test_libbitcoin_database_test_SOURCES = \
     test/tables/archives/txs.cpp \
     test/tables/caches/duplicate.cpp \
     test/tables/caches/ecdsa.cpp \
+    test/tables/caches/prevalid.cpp \
     test/tables/caches/prevout.cpp \
     test/tables/caches/schnorr.cpp \
     test/tables/caches/silent.cpp \
@@ -201,6 +218,7 @@ include_bitcoin_database_impl_primitives_HEADERS = \
     include/bitcoin/database/impl/primitives/keys.ipp \
     include/bitcoin/database/impl/primitives/linkage.ipp \
     include/bitcoin/database/impl/primitives/manager.ipp \
+    include/bitcoin/database/impl/primitives/nohead.ipp \
     include/bitcoin/database/impl/primitives/nomap.ipp
 
 include_bitcoin_database_impl_querydir = ${includedir}/bitcoin/database/impl/query
@@ -235,6 +253,13 @@ include_bitcoin_database_impl_query_archive_HEADERS = \
     include/bitcoin/database/impl/query/archive/wire_reader.ipp \
     include/bitcoin/database/impl/query/archive/wire_writer.ipp
 
+include_bitcoin_database_impl_query_batchdir = ${includedir}/bitcoin/database/impl/query/batch
+include_bitcoin_database_impl_query_batch_HEADERS = \
+    include/bitcoin/database/impl/query/batch/ecdsa.ipp \
+    include/bitcoin/database/impl/query/batch/prevalid.ipp \
+    include/bitcoin/database/impl/query/batch/schnorr.ipp \
+    include/bitcoin/database/impl/query/batch/silent.ipp
+
 include_bitcoin_database_impl_query_consensusdir = ${includedir}/bitcoin/database/impl/query/consensus
 include_bitcoin_database_impl_query_consensus_HEADERS = \
     include/bitcoin/database/impl/query/consensus/consensus_block.ipp \
@@ -263,6 +288,7 @@ include_bitcoin_database_impl_store_HEADERS = \
     include/bitcoin/database/impl/store/store_close.ipp \
     include/bitcoin/database/impl/store/store_create.ipp \
     include/bitcoin/database/impl/store/store_dump.ipp \
+    include/bitcoin/database/impl/store/store_events.ipp \
     include/bitcoin/database/impl/store/store_open.ipp \
     include/bitcoin/database/impl/store/store_open_load.ipp \
     include/bitcoin/database/impl/store/store_prune.ipp \
@@ -270,6 +296,7 @@ include_bitcoin_database_impl_store_HEADERS = \
     include/bitcoin/database/impl/store/store_report.ipp \
     include/bitcoin/database/impl/store/store_restore.ipp \
     include/bitcoin/database/impl/store/store_snapshot.ipp \
+    include/bitcoin/database/impl/store/store_tables.ipp \
     include/bitcoin/database/impl/store/store_unload_close.ipp
 
 include_bitcoin_database_locksdir = ${includedir}/bitcoin/database/locks
@@ -304,6 +331,7 @@ include_bitcoin_database_primitives_HEADERS = \
     include/bitcoin/database/primitives/keys.hpp \
     include/bitcoin/database/primitives/linkage.hpp \
     include/bitcoin/database/primitives/manager.hpp \
+    include/bitcoin/database/primitives/nohead.hpp \
     include/bitcoin/database/primitives/nomap.hpp \
     include/bitcoin/database/primitives/primitives.hpp
 
@@ -331,6 +359,7 @@ include_bitcoin_database_tables_cachesdir = ${includedir}/bitcoin/database/table
 include_bitcoin_database_tables_caches_HEADERS = \
     include/bitcoin/database/tables/caches/duplicate.hpp \
     include/bitcoin/database/tables/caches/ecdsa.hpp \
+    include/bitcoin/database/tables/caches/prevalid.hpp \
     include/bitcoin/database/tables/caches/prevout.hpp \
     include/bitcoin/database/tables/caches/schnorr.hpp \
     include/bitcoin/database/tables/caches/silent.hpp \

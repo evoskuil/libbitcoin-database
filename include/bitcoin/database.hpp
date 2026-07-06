@@ -46,6 +46,7 @@
 #include <bitcoin/database/primitives/keys.hpp>
 #include <bitcoin/database/primitives/linkage.hpp>
 #include <bitcoin/database/primitives/manager.hpp>
+#include <bitcoin/database/primitives/nohead.hpp>
 #include <bitcoin/database/primitives/nomap.hpp>
 #include <bitcoin/database/primitives/primitives.hpp>
 #include <bitcoin/database/tables/context.hpp>
@@ -64,6 +65,7 @@
 #include <bitcoin/database/tables/archives/txs.hpp>
 #include <bitcoin/database/tables/caches/duplicate.hpp>
 #include <bitcoin/database/tables/caches/ecdsa.hpp>
+#include <bitcoin/database/tables/caches/prevalid.hpp>
 #include <bitcoin/database/tables/caches/prevout.hpp>
 #include <bitcoin/database/tables/caches/schnorr.hpp>
 #include <bitcoin/database/tables/caches/silent.hpp>

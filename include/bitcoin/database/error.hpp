@@ -44,6 +44,7 @@ enum error_t : uint8_t
     integrity_block_confirmable2,
 
     /// memory map
+    create_open,
     open_open,
     size_failure,
     close_loaded,
@@ -56,6 +57,10 @@ enum error_t : uint8_t
     flush_failure,
     unload_locked,
     unload_failure,
+    shrink_unloaded,
+    shrink_unload_failure,
+    shrink_load_failure,
+    shrink_locked,
 
     /// mmap
     disk_full,

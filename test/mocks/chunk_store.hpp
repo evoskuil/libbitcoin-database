@@ -168,6 +168,16 @@ public:
         return schnorr_body_.buffer();
     }
 
+    system::data_chunk& silent_head() NOEXCEPT
+    {
+        return silent_head_.buffer();
+    }
+
+    system::data_chunk& silent_body() NOEXCEPT
+    {
+        return silent_body_.buffer();
+    }
+
     system::data_chunk& duplicate_head() NOEXCEPT
     {
         return duplicate_head_.buffer();
@@ -176,6 +186,16 @@ public:
     system::data_chunk& duplicate_body() NOEXCEPT
     {
         return duplicate_body_.buffer();
+    }
+
+    system::data_chunk& prevalid_head() NOEXCEPT
+    {
+        return prevalid_head_.buffer();
+    }
+
+    system::data_chunk& prevalid_body() NOEXCEPT
+    {
+        return prevalid_body_.buffer();
     }
 
     system::data_chunk& prevout_head() NOEXCEPT

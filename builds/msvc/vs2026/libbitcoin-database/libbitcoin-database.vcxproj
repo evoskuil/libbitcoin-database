@@ -169,6 +169,7 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\database\primitives\keys.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\primitives\linkage.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\primitives\manager.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\primitives\nohead.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\primitives\nomap.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\primitives\primitives.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\query.hpp" />
@@ -184,6 +185,7 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\archives\txs.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\caches\duplicate.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\caches\ecdsa.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\caches\prevalid.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\caches\prevout.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\caches\schnorr.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\caches\silent.hpp" />
@@ -227,6 +229,7 @@
     <None Include="..\..\..\..\include\bitcoin\database\impl\primitives\keys.ipp" />
     <None Include="..\..\..\..\include\bitcoin\database\impl\primitives\linkage.ipp" />
     <None Include="..\..\..\..\include\bitcoin\database\impl\primitives\manager.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\database\impl\primitives\nohead.ipp" />
     <None Include="..\..\..\..\include\bitcoin\database\impl\primitives\nomap.ipp" />
     <None Include="..\..\..\..\include\bitcoin\database\impl\query\address\address_balance.ipp" />
     <None Include="..\..\..\..\include\bitcoin\database\impl\query\address\address_history.ipp" />
@@ -237,6 +240,10 @@
     <None Include="..\..\..\..\include\bitcoin\database\impl\query\archive\chain_writer.ipp" />
     <None Include="..\..\..\..\include\bitcoin\database\impl\query\archive\wire_reader.ipp" />
     <None Include="..\..\..\..\include\bitcoin\database\impl\query\archive\wire_writer.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\database\impl\query\batch\ecdsa.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\database\impl\query\batch\prevalid.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\database\impl\query\batch\schnorr.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\database\impl\query\batch\silent.ipp" />
     <None Include="..\..\..\..\include\bitcoin\database\impl\query\confirmed.ipp" />
     <None Include="..\..\..\..\include\bitcoin\database\impl\query\consensus\consensus_block.ipp" />
     <None Include="..\..\..\..\include\bitcoin\database\impl\query\consensus\consensus_chain_state.ipp" />
@@ -271,6 +278,7 @@
     <None Include="..\..\..\..\include\bitcoin\database\impl\store\store_close.ipp" />
     <None Include="..\..\..\..\include\bitcoin\database\impl\store\store_create.ipp" />
     <None Include="..\..\..\..\include\bitcoin\database\impl\store\store_dump.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\database\impl\store\store_events.ipp" />
     <None Include="..\..\..\..\include\bitcoin\database\impl\store\store_open.ipp" />
     <None Include="..\..\..\..\include\bitcoin\database\impl\store\store_open_load.ipp" />
     <None Include="..\..\..\..\include\bitcoin\database\impl\store\store_prune.ipp" />
@@ -278,6 +286,7 @@
     <None Include="..\..\..\..\include\bitcoin\database\impl\store\store_report.ipp" />
     <None Include="..\..\..\..\include\bitcoin\database\impl\store\store_restore.ipp" />
     <None Include="..\..\..\..\include\bitcoin\database\impl\store\store_snapshot.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\database\impl\store\store_tables.ipp" />
     <None Include="..\..\..\..\include\bitcoin\database\impl\store\store_unload_close.ipp" />
     <None Include="packages.config" />
   </ItemGroup>

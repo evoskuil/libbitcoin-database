@@ -38,6 +38,7 @@ DEFINE_ERROR_T_MESSAGE_MAP(error)
     { integrity_block_confirmable2, "store corrupted, block_confirmable2" },
 
     // memory map
+    { create_open, "creating open file" },
     { open_open, "opening open file" },
     { size_failure, "filure obtaining file size" },
     { close_loaded, "closing loaded file" },
@@ -50,6 +51,10 @@ DEFINE_ERROR_T_MESSAGE_MAP(error)
     { flush_failure, "file failed to flush" },
     { unload_locked, "unloading locked file" },
     { unload_failure, "file failed to unload" },
+    { shrink_unloaded, "shrinking unloaded file" },
+    { shrink_unload_failure, "shrink failed to unload file" },
+    { shrink_load_failure, "shrink failed to load file" },
+    { shrink_locked, "shrinking locked file" },
 
     // mmap
     { disk_full, "disk full" },

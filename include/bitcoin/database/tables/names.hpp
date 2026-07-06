@@ -59,8 +59,10 @@ namespace caches
 {
     constexpr auto ecdsa = "batch_ecdsa";
     constexpr auto schnorr = "batch_schnorr";
-    constexpr auto duplicate = "cache_duplicate";
+    constexpr auto silent = "batch_silent";
     constexpr auto prevout = "cache_prevout";
+    constexpr auto prevalid = "cache_prevalid";
+    constexpr auto duplicate = "cache_duplicate";
     constexpr auto validated_bk = "validated_bk";
     constexpr auto validated_tx = "validated_tx";
 }

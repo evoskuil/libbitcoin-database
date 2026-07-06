@@ -32,10 +32,10 @@ namespace database {
 TEMPLATE
 void CLASS::report(const error_handler& handler) const NOEXCEPT
 {
-    const auto report = [&handler](const auto& storage, table_t table) NOEXCEPT
+    const auto report = [&handler](const auto& file, table_t table) NOEXCEPT
     {
-        auto ec = storage.get_fault();
-        if (!ec && to_bool(storage.get_space()))
+        auto ec = file.get_fault();
+        if (!ec && to_bool(file.get_space()))
             ec = error::disk_full;
 
         handler(ec, table);
@@ -54,7 +54,9 @@ void CLASS::report(const error_handler& handler) const NOEXCEPT
     report(strong_tx_body_, table_t::strong_tx_body);
     report(ecdsa_body_, table_t::ecdsa_body);
     report(schnorr_body_, table_t::schnorr_body);
+    report(silent_body_, table_t::silent_body);
     report(duplicate_body_, table_t::duplicate_body);
+    report(prevalid_body_, table_t::prevalid_body);
     report(prevout_body_, table_t::prevout_body);
     report(validated_bk_body_, table_t::validated_bk_body);
     report(validated_tx_body_, table_t::validated_tx_body);
@@ -81,7 +83,9 @@ code CLASS::get_fault() const NOEXCEPT
     if ((ec = strong_tx_body_.get_fault())) return ec;
     if ((ec = ecdsa_body_.get_fault())) return ec;
     if ((ec = schnorr_body_.get_fault())) return ec;
+    if ((ec = silent_body_.get_fault())) return ec;
     if ((ec = duplicate_body_.get_fault())) return ec;
+    if ((ec = prevalid_body_.get_fault())) return ec;
     if ((ec = prevout_body_.get_fault())) return ec;
     if ((ec = validated_bk_body_.get_fault())) return ec;
     if ((ec = validated_tx_body_.get_fault())) return ec;
@@ -114,7 +118,9 @@ size_t CLASS::get_space() const NOEXCEPT
     space(strong_tx_body_);
     space(ecdsa_body_);
     space(schnorr_body_);
+    space(silent_body_);
     space(duplicate_body_);
+    space(prevalid_body_);
     space(prevout_body_);
     space(validated_bk_body_);
     space(validated_tx_body_);

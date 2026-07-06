@@ -31,13 +31,13 @@ TEMPLATE
 code CLASS::backup(const event_handler& handler, bool prune) NOEXCEPT
 {
     code ec{ error::success };
-    const auto backup = [&handler](code& ec, auto& storage,
+    const auto backup = [&handler](code& ec, auto& logical,
         table_t table, bool prune=false) NOEXCEPT
     {
         if (!ec)
         {
             handler(event_t::backup_table, table);
-            if (!storage.backup(prune))
+            if (!logical.backup(prune))
                 ec = error::backup_table;
         }
     };
@@ -57,7 +57,9 @@ code CLASS::backup(const event_handler& handler, bool prune) NOEXCEPT
 
     backup(ec, ecdsa, table_t::ecdsa_table);
     backup(ec, schnorr, table_t::schnorr_table);
+    backup(ec, silent, table_t::silent_table);
     backup(ec, duplicate, table_t::duplicate_table);
+    backup(ec, prevalid, table_t::prevalid_table, prune);
     backup(ec, prevout, table_t::prevout_table, prune);
     backup(ec, validated_bk, table_t::validated_bk_table);
     backup(ec, validated_tx, table_t::validated_tx_table);

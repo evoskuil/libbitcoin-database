@@ -35,12 +35,12 @@ code CLASS::snapshot(const event_handler& handler, bool prune) NOEXCEPT
     }
 
     code ec{ error::success };
-    const auto flush = [&handler](code& ec, auto& storage, table_t table) NOEXCEPT
+    const auto flush = [&handler](code& ec, auto& file, table_t table) NOEXCEPT
     {
         if (!ec)
         {
             handler(event_t::flush_body, table);
-            ec = storage.flush();
+            ec = file.flush();
         }
     };
 
@@ -60,7 +60,9 @@ code CLASS::snapshot(const event_handler& handler, bool prune) NOEXCEPT
 
     flush(ec, ecdsa_body_, table_t::ecdsa_body);
     flush(ec, schnorr_body_, table_t::schnorr_body);
+    flush(ec, silent_body_, table_t::silent_body);
     flush(ec, duplicate_body_, table_t::duplicate_body);
+    flush(ec, prevalid_body_, table_t::prevalid_body);
     if (!prune) flush(ec, prevout_body_, table_t::prevout_body);
     flush(ec, validated_bk_body_, table_t::validated_bk_body);
     flush(ec, validated_tx_body_, table_t::validated_tx_body);

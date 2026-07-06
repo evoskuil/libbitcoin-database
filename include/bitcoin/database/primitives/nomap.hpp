@@ -21,9 +21,9 @@
 
 #include <bitcoin/database/define.hpp>
 #include <bitcoin/database/memory/memory.hpp>
-#include <bitcoin/database/primitives/arrayhead.hpp>
 #include <bitcoin/database/primitives/linkage.hpp>
 #include <bitcoin/database/primitives/manager.hpp>
+#include <bitcoin/database/primitives/nohead.hpp>
 
 namespace libbitcoin {
 namespace database {
@@ -72,6 +72,9 @@ public:
 
     /// Increase count as necessary to specified.
     bool expand(const Link& count) NOEXCEPT;
+
+    /// Drop the table (truncate to zero and update head size).
+    bool drop() NOEXCEPT;
 
     /// Errors.
     /// -----------------------------------------------------------------------
@@ -130,7 +133,7 @@ public:
 private:
     static constexpr auto is_slab = (Size == max_size_t);
     using manager = database::manager<Link, system::data_array<zero>, Size>;
-    using head = database::arrayhead<Link, false>;
+    using head = database::nohead<Link>;
 
     // Thread safe (index/top/push).
     // Not thread safe (create/open/close/backup/restore).

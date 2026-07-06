@@ -35,16 +35,16 @@ code CLASS::reload(const event_handler& handler) NOEXCEPT
     }
 
     code ec{ error::success };
-    const auto reload = [&handler, this](code& ec, auto& storage,
+    const auto reload = [&handler, this](code& ec, auto& file,
         table_t table) NOEXCEPT
     {
         if (!ec)
         {
             // If any storage has a fault it will return as failure code.
-            if (to_bool(storage.get_space()))
+            if (to_bool(file.get_space()))
             {
                 handler(event_t::load_file, table);
-                ec = storage.reload();
+                ec = file.reload();
                 this->dirty_.store(true, std::memory_order_relaxed);
             }
         }
@@ -78,8 +78,12 @@ code CLASS::reload(const event_handler& handler) NOEXCEPT
     reload(ec, ecdsa_body_, table_t::ecdsa_body);
     reload(ec, schnorr_head_, table_t::schnorr_head);
     reload(ec, schnorr_body_, table_t::schnorr_body);
+    reload(ec, silent_head_, table_t::silent_head);
+    reload(ec, silent_body_, table_t::silent_body);
     reload(ec, duplicate_head_, table_t::duplicate_head);
     reload(ec, duplicate_body_, table_t::duplicate_body);
+    reload(ec, prevalid_head_, table_t::prevalid_head);
+    reload(ec, prevalid_body_, table_t::prevalid_body);
     reload(ec, prevout_head_, table_t::prevout_head);
     reload(ec, prevout_body_, table_t::prevout_body);
     reload(ec, validated_bk_head_, table_t::validated_bk_head);

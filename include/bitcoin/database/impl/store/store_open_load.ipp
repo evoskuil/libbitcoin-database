@@ -29,12 +29,12 @@ TEMPLATE
 code CLASS::open_load(const event_handler& handler) NOEXCEPT
 {
     code ec{ error::success };
-    const auto open = [&handler](code& ec, auto& storage, table_t table) NOEXCEPT
+    const auto open = [&handler](code& ec, auto& file, table_t table) NOEXCEPT
     {
         if (!ec)
         {
             handler(event_t::open_file, table);
-            ec = storage.open();
+            ec = file.open();
         }
     };
 
@@ -66,8 +66,12 @@ code CLASS::open_load(const event_handler& handler) NOEXCEPT
     open(ec, ecdsa_body_, table_t::ecdsa_body);
     open(ec, schnorr_head_, table_t::schnorr_head);
     open(ec, schnorr_body_, table_t::schnorr_body);
+    open(ec, silent_head_, table_t::silent_head);
+    open(ec, silent_body_, table_t::silent_body);
     open(ec, duplicate_head_, table_t::duplicate_head);
     open(ec, duplicate_body_, table_t::duplicate_body);
+    open(ec, prevalid_head_, table_t::prevalid_head);
+    open(ec, prevalid_body_, table_t::prevalid_body);
     open(ec, prevout_head_, table_t::prevout_head);
     open(ec, prevout_body_, table_t::prevout_body);
     open(ec, validated_bk_head_, table_t::validated_bk_head);
@@ -82,12 +86,12 @@ code CLASS::open_load(const event_handler& handler) NOEXCEPT
     open(ec, filter_tx_head_, table_t::filter_tx_head);
     open(ec, filter_tx_body_, table_t::filter_tx_body);
 
-    const auto load = [&handler](code& ec, auto& storage, table_t table) NOEXCEPT
+    const auto load = [&handler](code& ec, auto& file, table_t table) NOEXCEPT
     {
         if (!ec)
         {
             handler(event_t::load_file, table);
-            ec = storage.load();
+            ec = file.load();
         }
     };
 
@@ -119,8 +123,12 @@ code CLASS::open_load(const event_handler& handler) NOEXCEPT
     load(ec, ecdsa_body_, table_t::ecdsa_body);
     load(ec, schnorr_head_, table_t::schnorr_head);
     load(ec, schnorr_body_, table_t::schnorr_body);
+    load(ec, silent_head_, table_t::silent_head);
+    load(ec, silent_body_, table_t::silent_body);
     load(ec, duplicate_head_, table_t::duplicate_head);
     load(ec, duplicate_body_, table_t::duplicate_body);
+    load(ec, prevalid_head_, table_t::prevalid_head);
+    load(ec, prevalid_body_, table_t::prevalid_body);
     load(ec, prevout_head_, table_t::prevout_head);
     load(ec, prevout_body_, table_t::prevout_body);
     load(ec, validated_bk_head_, table_t::validated_bk_head);

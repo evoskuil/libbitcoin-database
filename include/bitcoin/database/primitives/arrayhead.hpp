@@ -32,7 +32,7 @@ template <class Link, bool Align>
 class arrayhead
 {
 public:
-    DEFAULT_COPY_MOVE_DESTRUCT(arrayhead);
+    DELETE_COPY_MOVE_DESTRUCT(arrayhead);
 
     using bytes = typename Link::bytes;
 

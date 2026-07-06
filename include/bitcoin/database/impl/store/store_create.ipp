@@ -44,13 +44,13 @@ code CLASS::create(const event_handler& handler) NOEXCEPT
         return error::flush_lock;
     }
 
-    const auto create = [&handler](code& ec, const auto& storage,
+    const auto create = [&handler](code& ec, const auto& file,
         table_t table) NOEXCEPT
     {
         if (!ec)
         {
             handler(event_t::create_file, table);
-            ec = file::create_file_ex(storage.file());
+            ec = file.create();
         }
     };
 
@@ -85,8 +85,12 @@ code CLASS::create(const event_handler& handler) NOEXCEPT
     create(ec, ecdsa_body_, table_t::ecdsa_body);
     create(ec, schnorr_head_, table_t::schnorr_head);
     create(ec, schnorr_body_, table_t::schnorr_body);
+    create(ec, silent_head_, table_t::silent_head);
+    create(ec, silent_body_, table_t::silent_body);
     create(ec, duplicate_head_, table_t::duplicate_head);
     create(ec, duplicate_body_, table_t::duplicate_body);
+    create(ec, prevalid_head_, table_t::prevalid_head);
+    create(ec, prevalid_body_, table_t::prevalid_body);
     create(ec, prevout_head_, table_t::prevout_head);
     create(ec, prevout_body_, table_t::prevout_body);
     create(ec, validated_bk_head_, table_t::validated_bk_head);
@@ -101,13 +105,13 @@ code CLASS::create(const event_handler& handler) NOEXCEPT
     create(ec, filter_tx_head_, table_t::filter_tx_head);
     create(ec, filter_tx_body_, table_t::filter_tx_body);
 
-    const auto populate = [&handler](code& ec, auto& storage,
+    const auto populate = [&handler](code& ec, auto& logical,
         table_t table) NOEXCEPT
     {
         if (!ec)
         {
             handler(event_t::create_table, table);
-            if (!storage.create())
+            if (!logical.create())
                 ec = error::create_table;
         }
     };
@@ -130,7 +134,9 @@ code CLASS::create(const event_handler& handler) NOEXCEPT
 
     populate(ec, ecdsa, table_t::ecdsa_table);
     populate(ec, schnorr, table_t::schnorr_table);
+    populate(ec, silent, table_t::silent_table);
     populate(ec, duplicate, table_t::duplicate_table);
+    populate(ec, prevalid, table_t::prevalid_table);
     populate(ec, prevout, table_t::prevout_table);
     populate(ec, validated_bk, table_t::validated_bk_table);
     populate(ec, validated_tx, table_t::validated_tx_table);
