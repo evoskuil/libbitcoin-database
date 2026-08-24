@@ -75,6 +75,12 @@ bool CLASS::verify() const NOEXCEPT
 // ----------------------------------------------------------------------------
 
 TEMPLATE
+size_t CLASS::head_size() const NOEXCEPT
+{
+    return head_.size();
+}
+
+TEMPLATE
 size_t CLASS::body_size() const NOEXCEPT
 {
     return body_.size();

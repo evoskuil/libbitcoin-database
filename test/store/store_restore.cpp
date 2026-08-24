@@ -231,4 +231,26 @@ BOOST_AUTO_TEST_CASE(store__restore__secondary_remnant__deleted)
     BOOST_REQUIRE(!instance.close(test::events));
 }
 
+BOOST_AUTO_TEST_CASE(store__restore__secondary_only__promoted_success)
+{
+    settings configuration{};
+    configuration.path = TEST_DIRECTORY;
+    const auto primary = configuration.path / schema::dir::primary;
+    const auto secondary = configuration.path / schema::dir::secondary;
+
+    test::map_store instance{ configuration };
+    BOOST_REQUIRE(!instance.create(test::events));
+    BOOST_REQUIRE(!instance.snapshot(test::events));
+    BOOST_REQUIRE(!instance.close(test::events));
+
+    // Simulate crash between backup rotation and /primary promotion.
+    BOOST_REQUIRE(file::rename(primary, secondary));
+    BOOST_REQUIRE(test::create(test::flush_lock_file(configuration.path)));
+    BOOST_REQUIRE(!instance.restore(test::events));
+    BOOST_REQUIRE(test::folder(primary));
+    BOOST_REQUIRE(!test::folder(secondary));
+    BOOST_REQUIRE(test::folder(configuration.path / schema::dir::heads));
+    BOOST_REQUIRE(!instance.close(test::events));
+}
+
 BOOST_AUTO_TEST_SUITE_END()

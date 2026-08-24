@@ -59,20 +59,21 @@ code CLASS::restore(const event_handler& handler) NOEXCEPT
 
     if (file::is_directory(primary))
     {
-        // Clear invalid /heads, recover from /primary, clone to /primary.
+        // Clear invalid /heads and clone /primary (retained) to /heads.
+        // The snapshot is never vacated, so no fault leaves /heads as the
+        // only copy (which the recreation below would otherwise clear).
         ec = file::clear_directory_ex(heads);
         if (!ec) ec = file::remove_ex(heads);
-        if (!ec) ec = file::rename_ex(primary, heads);
-        if (!ec) ec = file::copy_directory_ex(heads, primary);
+        if (!ec) ec = file::copy_directory_ex(primary, heads);
         if (!ec) ec = file::discharge_directory_ex(primary);
     }
     else if (file::is_directory(secondary))
     {
-        // Clear invalid /heads, recover from /secondary, clone to /primary.
+        // Clone /secondary to /heads and promote it to /primary (atomic).
         ec = file::clear_directory_ex(heads);
         if (!ec) ec = file::remove_ex(heads);
-        if (!ec) ec = file::rename_ex(secondary, heads);
-        if (!ec) ec = file::copy_directory_ex(heads, primary);
+        if (!ec) ec = file::copy_directory_ex(secondary, heads);
+        if (!ec) ec = file::rename_ex(secondary, primary);
         if (!ec) ec = file::discharge_directory_ex(primary);
     }
     else

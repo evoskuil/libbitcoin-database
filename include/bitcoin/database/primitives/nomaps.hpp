@@ -56,6 +56,7 @@ public:
     /// Sizing.
     /// -----------------------------------------------------------------------
 
+    size_t head_size() const NOEXCEPT;
     size_t body_size() const NOEXCEPT;
     Link count() const NOEXCEPT;
     Link allocate(const Link& count) NOEXCEPT;
