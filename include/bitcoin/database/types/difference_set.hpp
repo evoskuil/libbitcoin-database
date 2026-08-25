@@ -19,7 +19,6 @@
 #ifndef LIBBITCOIN_DATABASE_TYPES_DIFFERENCE_SET_HPP
 #define LIBBITCOIN_DATABASE_TYPES_DIFFERENCE_SET_HPP
 
-#include <array>
 #include <mutex>
 #include <utility>
 #include <boost/unordered/unordered_flat_map.hpp>
@@ -77,8 +76,8 @@ public:
 
 private:
     static constexpr auto shard_bits = 4_size;
-    static constexpr auto index_mask =
-        system::possible_narrow_cast<uint32_t>(sub1(mask_bits));
+    static constexpr auto index_mask = system::possible_narrow_cast<uint32_t>(
+        sub1(mask_bits));
 
     struct shard
     {
@@ -86,6 +85,7 @@ private:
         boost::unordered_flat_map<uint64_t, Mask> map{};
     };
 
+    // This is guarded by shard::mutex.
     std::array<shard, system::power2(shard_bits)> shards_{};
 };
 

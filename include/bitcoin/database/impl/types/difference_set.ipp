@@ -35,6 +35,7 @@ void CLASS::toggle(uint64_t id, uint32_t index) NOEXCEPT
     constexpr auto golden = 0x9e3779b97f4a7c15_u64;
     const auto key = to_key(id, index);
     auto& shard = shards_[shift_right(key * golden, key_bits - shard_bits)];
+
     const std::lock_guard<std::mutex> lock{ shard.mutex };
     auto& mask = shard.map[key];
     mask ^= bit_right<Mask>(bit_and(index, index_mask));
