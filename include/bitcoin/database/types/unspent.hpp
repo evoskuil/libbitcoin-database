@@ -45,7 +45,7 @@ struct BCD_API unspent
     /// Comparison operator based on Electrum unspent status sort.
     bool operator<(const unspent& other) const NOEXCEPT;
 
-    /// Equivalence: !LT && !GT (note that fee is never considered).
+    /// Equivalence: !LT && !GT.
     bool operator==(const unspent& other) const NOEXCEPT;
 
     /// Tx hash and index of output within the tx.

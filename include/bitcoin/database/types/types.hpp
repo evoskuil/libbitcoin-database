@@ -22,6 +22,7 @@
 #include <bitcoin/database/types/association.hpp>
 #include <bitcoin/database/types/associations.hpp>
 #include <bitcoin/database/types/block_state.hpp>
+#include <bitcoin/database/types/difference_set.hpp>
 #include <bitcoin/database/types/fee_rate.hpp>
 #include <bitcoin/database/types/header_state.hpp>
 #include <bitcoin/database/types/history.hpp>
@@ -32,5 +33,6 @@
 #include <bitcoin/database/types/tx_state.hpp>
 #include <bitcoin/database/types/type.hpp>
 #include <bitcoin/database/types/unspent.hpp>
+#include <bitcoin/database/types/unspent_totals.hpp>
 
 #endif

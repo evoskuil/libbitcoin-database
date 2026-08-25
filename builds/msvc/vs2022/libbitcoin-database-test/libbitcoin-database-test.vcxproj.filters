@@ -255,6 +255,9 @@
     <ClCompile Include="..\..\..\..\test\query\sizes.cpp">
       <Filter>src\query</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\test\query\unspent.cpp">
+      <Filter>src\query</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\..\test\settings.cpp">
       <Filter>src</Filter>
     </ClCompile>

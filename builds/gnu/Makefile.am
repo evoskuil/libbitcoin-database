@@ -134,7 +134,8 @@ include_bitcoin_database_impl_query_HEADERS = \
     ${srcdir}/../../include/bitcoin/database/impl/query/properties_tx.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/query/query.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/query/sequences.ipp \
-    ${srcdir}/../../include/bitcoin/database/impl/query/sizes.ipp
+    ${srcdir}/../../include/bitcoin/database/impl/query/sizes.ipp \
+    ${srcdir}/../../include/bitcoin/database/impl/query/unspent.ipp
 
 include_bitcoin_database_impl_query_addressdir = \
     ${includedir}/bitcoin/database/impl/query/address
@@ -207,6 +208,12 @@ include_bitcoin_database_impl_store_HEADERS = \
     ${srcdir}/../../include/bitcoin/database/impl/store/store_snapshot.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/store/store_tables.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/store/store_unload_close.ipp
+
+include_bitcoin_database_impl_typesdir = \
+    ${includedir}/bitcoin/database/impl/types
+
+include_bitcoin_database_impl_types_HEADERS = \
+    ${srcdir}/../../include/bitcoin/database/impl/types/difference_set.ipp
 
 include_bitcoin_database_locksdir = \
     ${includedir}/bitcoin/database/locks
@@ -317,6 +324,7 @@ include_bitcoin_database_types_HEADERS = \
     ${srcdir}/../../include/bitcoin/database/types/association.hpp \
     ${srcdir}/../../include/bitcoin/database/types/associations.hpp \
     ${srcdir}/../../include/bitcoin/database/types/block_state.hpp \
+    ${srcdir}/../../include/bitcoin/database/types/difference_set.hpp \
     ${srcdir}/../../include/bitcoin/database/types/fee_rate.hpp \
     ${srcdir}/../../include/bitcoin/database/types/header_state.hpp \
     ${srcdir}/../../include/bitcoin/database/types/history.hpp \
@@ -327,7 +335,8 @@ include_bitcoin_database_types_HEADERS = \
     ${srcdir}/../../include/bitcoin/database/types/tx_state.hpp \
     ${srcdir}/../../include/bitcoin/database/types/type.hpp \
     ${srcdir}/../../include/bitcoin/database/types/types.hpp \
-    ${srcdir}/../../include/bitcoin/database/types/unspent.hpp
+    ${srcdir}/../../include/bitcoin/database/types/unspent.hpp \
+    ${srcdir}/../../include/bitcoin/database/types/unspent_totals.hpp
 
 # Tests.
 #==============================================================================
@@ -392,6 +401,7 @@ test_libbitcoin_database_test_SOURCES = \
     ${srcdir}/../../test/query/properties_tx.cpp \
     ${srcdir}/../../test/query/sequences.cpp \
     ${srcdir}/../../test/query/sizes.cpp \
+    ${srcdir}/../../test/query/unspent.cpp \
     ${srcdir}/../../test/query/address/address_balance.cpp \
     ${srcdir}/../../test/query/address/address_history.cpp \
     ${srcdir}/../../test/query/address/address_outpoints.cpp \

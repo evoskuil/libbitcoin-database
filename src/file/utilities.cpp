@@ -34,11 +34,19 @@
     #define ADVISED_ONLY(name)
 #endif
 
+#if defined(POSIX_FADV_DONTNEED)
+    #define DONTNEED_ONLY(name) name
+#else
+    #define DONTNEED_ONLY(name)
+#endif
+
 namespace libbitcoin {
 namespace database {
 namespace file {
 
 using namespace system;
+using namespace std::filesystem;
+using errorno_t = system::error::errorno_t;
 
 // Many return values are redundant with return codes.
 // There is no reason to obtain the return value of these non-discardables.
@@ -61,8 +69,8 @@ inline path trim(const path& value) NOEXCEPT
 // differentiate from false with failure code (and never a code on success).
 bool is_directory(const path& directory) NOEXCEPT
 {
-    code ec{ system::error::errorno_t::no_error };
-    return std::filesystem::is_directory(system::extended_path(directory), ec);
+    code ec{ errorno_t::no_error };
+    return is_directory(system::extended_path(directory), ec);
 }
 
 bool clear_directory(const path& directory) NOEXCEPT
@@ -72,11 +80,11 @@ bool clear_directory(const path& directory) NOEXCEPT
 
 code clear_directory_ex(const path& directory) NOEXCEPT
 {
-    code ec{ system::error::errorno_t::no_error };
+    code ec{ errorno_t::no_error };
     const auto path = system::extended_path(directory);
-    std::filesystem::remove_all(path, ec);
+    remove_all(path, ec);
     if (ec) return ec;
-    std::filesystem::create_directories(path, ec);
+    create_directories(path, ec);
     return ec;
 }
 
@@ -87,19 +95,19 @@ bool create_directory(const path& directory) NOEXCEPT
 
 code create_directory_ex(const path& directory) NOEXCEPT
 {
-    code ec{ system::error::errorno_t::no_error };
+    code ec{ errorno_t::no_error };
     const auto path = system::extended_path(trim(directory));
-    const auto created = std::filesystem::create_directories(path, ec);
+    const auto created = create_directories(path, ec);
     if (ec || created) return ec;
-    return system::error::errorno_t::is_a_directory;
+    return errorno_t::is_a_directory;
 }
 
 // We don't use ec because it gets set (not found) when false, but no way to
 // differentiate from false with failure code (and never a code on success).
 bool is_file(const path& filename) NOEXCEPT
 {
-    code ec{ system::error::errorno_t::no_error };
-    return std::filesystem::is_regular_file(filename, ec);
+    code ec{ errorno_t::no_error };
+    return is_regular_file(filename, ec);
 }
 
 bool create_file(const path& filename) NOEXCEPT
@@ -120,15 +128,13 @@ code create_file_ex(const path& filename) NOEXCEPT
 
         // noexcept.
         if (!file.good())
-            return system::error::errorno_t::not_a_stream;
+            return errorno_t::not_a_stream;
 
         // Sets failbit (but not noexcept).
         file.close();
 
         // noexcept.
-        return file.good() ?
-            system::error::errorno_t::no_error :
-            system::error::errorno_t::not_a_stream;
+        return file.good() ? errorno_t::no_error : errorno_t::not_a_stream;
     }
     catch (const std::ios_base::failure& e)
     {
@@ -156,22 +162,20 @@ code create_file_ex(const path& to, const uint8_t* data, size_t size) NOEXCEPT
 
         // noexcept.
         if (!file.good())
-            return system::error::errorno_t::not_a_stream;
+            return errorno_t::not_a_stream;
 
         // May throw.
         file.write(pointer_cast<const char>(data), size);
 
         // noexcept.
         if (!file.good())
-            return system::error::errorno_t::not_a_stream;
+            return errorno_t::not_a_stream;
 
         // Sets failbit (but not noexcept).
         file.close();
 
         // noexcept.
-        return file.good() ?
-            system::error::errorno_t::no_error :
-            system::error::errorno_t::stream_timeout;
+        return file.good() ? errorno_t::no_error : errorno_t::stream_timeout;
     }
     catch (const std::ios_base::failure& e)
     {
@@ -190,8 +194,8 @@ bool remove(const path& name) NOEXCEPT
 // Error code is not set if file did not exist.
 code remove_ex(const path& name) NOEXCEPT
 {
-    code ec{ system::error::errorno_t::no_error };
-    std::filesystem::remove(system::extended_path(name), ec);
+    code ec{ errorno_t::no_error };
+    remove(system::extended_path(name), ec);
     return ec;
 }
 
@@ -204,10 +208,8 @@ bool rename(const path& from, const path& to) NOEXCEPT
 // directory|file
 code rename_ex(const path& from, const path& to) NOEXCEPT
 {
-    code ec{ system::error::errorno_t::no_error };
-    std::filesystem::rename(system::extended_path(from),
-        system::extended_path(to), ec);
-
+    code ec{ errorno_t::no_error };
+    rename(system::extended_path(from), system::extended_path(to), ec);
     return ec;
 }
 
@@ -220,10 +222,8 @@ bool copy(const path& from, const path& to) NOEXCEPT
 // file
 code copy_ex(const path& from, const path& to) NOEXCEPT
 {
-    code ec{ system::error::errorno_t::no_error };
-    std::filesystem::copy_file(system::extended_path(from),
-        system::extended_path(to), ec);
-
+    code ec{ errorno_t::no_error };
+    copy_file(system::extended_path(from), system::extended_path(to), ec);
     return ec;
 }
 
@@ -237,15 +237,13 @@ bool copy_directory(const path& from, const path& to) NOEXCEPT
 code copy_directory_ex(const path& from, const path& to) NOEXCEPT
 {
     if (file::is_directory(to))
-        return system::error::errorno_t::is_a_directory;
+        return errorno_t::is_a_directory;
 
     if (!file::is_directory(from))
-        return system::error::errorno_t::not_a_directory;
+        return errorno_t::not_a_directory;
 
-    code ec{ system::error::errorno_t::no_error };
-    std::filesystem::copy(system::extended_path(from),
-        system::extended_path(to), ec);
-
+    code ec{ errorno_t::no_error };
+    copy(system::extended_path(from), system::extended_path(to), ec);
     return ec;
 }
 
@@ -255,19 +253,16 @@ bool discharge_directory(const path& to) NOEXCEPT
     return !discharge_directory_ex(to);
 }
 
-// Discharge an archival clone from the page cache (posix): the clone is
-// written but not soon read, and its cached pages and pending writeback
-// otherwise stand while staging allocates, so the kernel preserves the cache
-// by displacing the fresh anonymous set to swap. Synchronize before advising,
-// as dirty pages do not discharge.
-#if defined(POSIX_FADV_DONTNEED)
 // directory
-code discharge_directory_ex(const path& to) NOEXCEPT
+// Remove an archival clone from the page cache. Synchronize before advising.
+code discharge_directory_ex(const path& DONTNEED_ONLY(to)) NOEXCEPT
 {
-    code ec{ system::error::errorno_t::no_error };
-    std::filesystem::directory_iterator it{ system::extended_path(to), ec };
+    code ec{ errorno_t::no_error };
 
-    for (const std::filesystem::directory_iterator end{}; !ec && (it != end);
+#if defined(POSIX_FADV_DONTNEED)
+    directory_iterator it{ system::extended_path(to), ec };
+
+    for (const directory_iterator end{}; !ec && (it != end);
         it.increment(ec))
     {
         if (!it->is_regular_file(ec) || ec)
@@ -297,34 +292,28 @@ code discharge_directory_ex(const path& to) NOEXCEPT
         if (!close(descriptor))
             return system::error::get_errno();
     }
+#endif // POSIX_FADV_DONTNEED
 
     return ec;
 }
-#else
-// directory
-code discharge_directory_ex(const path&) NOEXCEPT
-{
-    return system::error::errorno_t::no_error;
-}
-#endif // POSIX_FADV_DONTNEED
 
 // File sizing.
 // ----------------------------------------------------------------------------
 
-bool size(size_t& out, const std::filesystem::path& filename) NOEXCEPT
+bool size(size_t& out, const path& filename) NOEXCEPT
 {
     return !size_ex(out, filename);
 }
 
-code size_ex(size_t& out, const std::filesystem::path& filename) NOEXCEPT
+code size_ex(size_t& out, const path& filename) NOEXCEPT
 {
-    code ec{ system::error::errorno_t::no_error };
-    const auto size = std::filesystem::file_size(
-        system::extended_path(filename), ec);
+    code ec{ errorno_t::no_error };
+    const auto size = file_size(system::extended_path(filename), ec);
+    if (ec)
+        return ec;
 
-    if (ec) return ec;
     if (is_limited<size_t>(size))
-        return system::error::errorno_t::value_too_large;
+        return errorno_t::value_too_large;
 
     out = possible_narrow_cast<size_t>(size);
     return ec;
@@ -337,15 +326,15 @@ bool space(size_t& out, const path& filename) NOEXCEPT
 
 code space_ex(size_t& out, const path& filename) NOEXCEPT
 {
-    code ec{ system::error::errorno_t::no_error };
-    const auto space = std::filesystem::space(
-        system::extended_path(filename), ec);
+    code ec{ errorno_t::no_error };
+    const auto space_ = space( system::extended_path(filename), ec);
+    if (ec)
+        return ec;
 
-    if (ec) return ec;
-    if (is_limited<size_t>(space.available))
-        return system::error::errorno_t::value_too_large;
+    if (is_limited<size_t>(space_.available))
+        return errorno_t::value_too_large;
 
-    out = possible_narrow_cast<size_t>(space.available);
+    out = possible_narrow_cast<size_t>(space_.available);
     return ec;
 }
 
@@ -447,7 +436,7 @@ bool size(size_t& out, int file_descriptor) NOEXCEPT
 {
     if (file_descriptor == -1)
     {
-        system::error::set_errno(system::error::errorno_t::invalid_argument);
+        system::error::set_errno(errorno_t::invalid_argument);
         return false;
     }
 
@@ -472,7 +461,7 @@ bool size(size_t& out, int file_descriptor) NOEXCEPT
 #endif
     if (is_limited<size_t>(sbuf.st_size))
     {
-        system::error::set_errno(system::error::errorno_t::value_too_large);
+        system::error::set_errno(errorno_t::value_too_large);
         return false;
     }
 
