@@ -775,6 +775,14 @@ public:
     code get_unspent_totals(const stopper& cancel, unspent_totals& out,
         const header_links& branch, bool turbo=false) const NOEXCEPT;
 
+    /// Visit each unspent coin over the branch (administrative scan), in
+    /// canonical (txid, index) order as required for utxo set serialization,
+    /// otherwise unordered (ordering requires a full materialized sort).
+    template <typename Visitor>
+    code get_unspent_coins(const stopper& cancel, const Visitor& visit,
+        const header_links& branch, bool ordered,
+        bool turbo=false) const NOEXCEPT;
+
 protected:
     /// Network
     /// -----------------------------------------------------------------------
@@ -980,6 +988,9 @@ private:
     code scan_unspent(difference_set<>& set, const stopper& cancel,
         const header_links& branch, bool turbo) const NOEXCEPT;
     code count_unspent(unspent_totals& out, const stopper& cancel,
+        const difference_set<>::entries& survivors) const NOEXCEPT;
+    template <typename Visitor>
+    code visit_unspent(const Visitor& visit, const stopper& cancel,
         const difference_set<>::entries& survivors) const NOEXCEPT;
 
     // Not thread safe.

@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <utility>
 #include <bitcoin/database/define.hpp>
 
 namespace libbitcoin {
@@ -200,9 +201,75 @@ code CLASS::count_unspent(unspent_totals& out, const stopper& cancel,
                 !store_.output.get(puts[index], value))
                 return error::integrity;
 
+            // Coin serialization is outpoint, height code, value, script.
+            constexpr auto coin_overhead = hash_size + sizeof(uint32_t) +
+                sizeof(uint32_t) + sizeof(uint64_t);
+
             ++out.outputs;
             out.value += value.value;
             out.script_bytes += value.script_size;
+            out.coin_bytes += coin_overhead +
+                variable_size(value.script_size) + value.script_size;
+        }
+    }
+
+    return error::success;
+}
+
+TEMPLATE
+template <typename Visitor>
+code CLASS::visit_unspent(const Visitor& visit, const stopper& cancel,
+    const difference_set<>::entries& survivors) const NOEXCEPT
+{
+    using namespace system;
+
+    unspent_coin coin{};
+    output_links puts{};
+    auto previous = max_uint64;
+    const auto bip30 = store_.envelope().forks.bip30;
+    table::output::get_coin out{};
+    for (const auto& [key, mask]: survivors)
+    {
+        if (cancel)
+            return error::query_canceled;
+
+        const auto tx = difference_set<>::to_id(key);
+        coin.first = (tx != previous);
+        if (coin.first)
+        {
+            previous = tx;
+            const auto link = possible_narrow_cast<tx_link::integer>(tx);
+            const auto at = get_confirmed_height(find_strong(link));
+            coin.txid = get_tx_key(link);
+            if (at.is_terminal() || coin.txid == null_hash)
+                return error::integrity;
+
+            coin.height = at.value;
+            coin.coinbase = is_coinbase(link);
+
+            // bitcoind retains duplicated coinbases at the overwriting
+            // heights (bip30 exceptions), the store at the originals.
+            if (bip30 && coin.coinbase)
+                coin.height = (coin.height == 91812) ? 91842 :
+                    (coin.height == 91722) ? 91880 : coin.height;
+
+            puts = to_outputs(link);
+        }
+
+        const auto base = difference_set<>::to_index(key);
+        for (auto bits = mask; !is_zero(bits);
+            bits = bit_and(bits, sub1(bits)))
+        {
+            // A surviving spend with no create implies store inconsistency.
+            const auto index = base + right_zeros(bits);
+            if (index >= puts.size() || !store_.output.get(puts[index], out))
+                return error::integrity;
+
+            coin.index = possible_narrow_cast<uint32_t>(index);
+            coin.value = out.value;
+            std::swap(coin.script, out.script);
+            visit(coin);
+            coin.first = false;
         }
     }
 
@@ -216,6 +283,54 @@ code CLASS::get_unspent_totals(const stopper& cancel, unspent_totals& out,
     difference_set<> set{};
     const auto ec = scan_unspent(set, cancel, branch, turbo);
     return ec ? ec : count_unspent(out, cancel, set.drain());
+}
+
+TEMPLATE
+template <typename Visitor>
+code CLASS::get_unspent_coins(const stopper& cancel, const Visitor& visit,
+    const header_links& branch, bool ordered, bool turbo) const NOEXCEPT
+{
+    using namespace system;
+
+    difference_set<> set{};
+    if (const auto ec = scan_unspent(set, cancel, branch, turbo))
+        return ec;
+
+    auto survivors = set.drain();
+    if (ordered)
+    {
+        // Canonical order is (txid, index), as bitcoind's chainstate cursor.
+        // The txid sort requires full materialization (memory expensive).
+        using keyed_entry = std::pair<hash_digest, difference_set<>::entry>;
+        std_vector<keyed_entry> keyed{};
+        keyed.reserve(survivors.size());
+        for (const auto& item: survivors)
+        {
+            if (cancel)
+                return error::query_canceled;
+
+            const auto tx = difference_set<>::to_id(item.first);
+            auto txid = get_tx_key(possible_narrow_cast<tx_link::integer>(tx));
+            if (txid == null_hash)
+                return error::integrity;
+
+            keyed.emplace_back(std::move(txid), item);
+        }
+
+        // Key order preserves window order within a transaction.
+        std::sort(poolstl::execution::par_if(turbo), keyed.begin(),
+            keyed.end(), [](const auto& left, const auto& right) NOEXCEPT
+            {
+                return (left.first == right.first) ?
+                    (left.second.first < right.second.first) :
+                    (left.first < right.first);
+            });
+
+        std::transform(keyed.begin(), keyed.end(), survivors.begin(),
+            [](const auto& item) NOEXCEPT { return item.second; });
+    }
+
+    return visit_unspent(visit, cancel, survivors);
 }
 
 } // namespace database
