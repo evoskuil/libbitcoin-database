@@ -99,6 +99,7 @@ struct header
     static_assert(minrow == 97u);
     static_assert(link::size == 3u);
     static_assert(cell == 4u);
+    bool operator==(const header&) const NOEXCEPT = default;
 };
 
 // record hashmap
@@ -126,6 +127,7 @@ struct transaction
     static_assert(minrow == 64u);
     static_assert(link::size == 4u);
     static_assert(cell == 4u);
+    bool operator==(const transaction&) const NOEXCEPT = default;
 };
 
 // blob
@@ -143,6 +145,7 @@ struct input
     static_assert(minsize == 2u);
     static_assert(minrow == 2u);
     static_assert(link::size == 5u);
+    bool operator==(const input&) const NOEXCEPT = default;
 };
 
 // blob
@@ -161,6 +164,7 @@ struct output
     static_assert(minsize == 6u);
     static_assert(minrow == 6u);
     static_assert(link::size == 5u);
+    bool operator==(const output&) const NOEXCEPT = default;
 };
 
 // record multimap aggregate (point spine with sequence column)
@@ -180,6 +184,7 @@ struct ins
     static_assert(minrow == 39u);
     static_assert(link::size == 4u);
     static_assert(cell == 8u);
+    bool operator==(const ins&) const NOEXCEPT = default;
 };
 
 // ins sequence column
@@ -198,6 +203,7 @@ struct ins_sequence
     static_assert(minsize == 13u);
     static_assert(minrow == 13u);
     static_assert(link::size == 4u);
+    bool operator==(const ins_sequence&) const NOEXCEPT = default;
 };
 
 // record multimap spine (optional head, output script hash key)
@@ -217,6 +223,7 @@ struct address
     static_assert(minrow == 4u);
     static_assert(link::size == 4u);
     static_assert(cell == 4u);
+    bool operator==(const address&) const NOEXCEPT = default;
 };
 
 // address column (output fk)
@@ -232,6 +239,7 @@ struct outs
     static_assert(minsize == 5u);
     static_assert(minrow == 5u);
     static_assert(link::size == 4u);
+    bool operator==(const outs&) const NOEXCEPT = default;
 };
 
 // slab arraymap
@@ -252,6 +260,7 @@ struct txs
     static_assert(minsize == 12u);
     static_assert(minrow == 12u);
     static_assert(link::size == 5u);
+    bool operator==(const txs&) const NOEXCEPT = default;
 };
 
 /// Index tables.
@@ -272,6 +281,7 @@ struct height
     static_assert(minrow == 3u);
     static_assert(link::size == 3u);
     static_assert(cell == 4u);
+    bool operator==(const height&) const NOEXCEPT = default;
 };
 
 // record hashmap
@@ -369,6 +379,7 @@ struct validated_bk
     static_assert(minsize == 1u);
     static_assert(minrow == 1u);
     static_assert(link::size == 3u);
+    bool operator==(const validated_bk&) const NOEXCEPT = default;
 };
 
 // slab modest (sk:4) multimap, with low multiple rate.
@@ -392,6 +403,7 @@ struct validated_tx
     static_assert(minsize == 14u);
     static_assert(minrow == 23u);
     static_assert(link::size == 5u);
+    bool operator==(const validated_tx&) const NOEXCEPT = default;
 };
 
 /// Optional tables.

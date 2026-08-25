@@ -391,9 +391,6 @@ code CLASS::set_code(const block& block, const header_link& key,
     // Optional hash, only has value on height intervals.
     auto interval = create_interval(key, height);
 
-    // Depth is only set by writer for genesis (is_zero(tx_fks[0])).
-    const auto depth = store_.interval_depth();
-
     using bytes = linkage<schema::size>::integer;
     const auto light = possible_narrow_cast<bytes>(
         block.serialized_size(false));
@@ -418,7 +415,7 @@ code CLASS::set_code(const block& block, const header_link& key,
         count,
         tx_fks,
         std::move(interval),
-        depth
+        store_.envelope()
     }) ? error::success : error::txs_txs_put;
     // ========================================================================
 }

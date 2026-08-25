@@ -52,12 +52,7 @@ struct context
         return system::chain::script::is_enabled(flags, rule);
     }
 
-    inline bool operator==(const context& other) const NOEXCEPT
-    {
-        return flags  == other.flags
-            && height == other.height
-            && mtp    == other.mtp;
-    }
+    inline bool operator==(const context&) const NOEXCEPT = default;
 
     height_t::integer flags{};
     flag_t::integer height{};

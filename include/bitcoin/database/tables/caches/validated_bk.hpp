@@ -51,10 +51,7 @@ struct validated_bk
             return sink;
         }
 
-        inline bool operator==(const record& other) const NOEXCEPT
-        {
-            return code == other.code;
-        }
+        inline bool operator==(const record&) const NOEXCEPT = default;
 
         coding::integer code{};
     };

@@ -60,7 +60,7 @@ bool CLASS::is_bip30_exception(bool& out,
         return true;
 
     // With the rule unconfigured duplicates are unconstrained (no exception).
-    if (!script::is_enabled(initialized_forks(), chain::flags::bip30_rule))
+    if (!store_.envelope().forks.bip30)
         return true;
 
     const auto key = get_header_key(link);

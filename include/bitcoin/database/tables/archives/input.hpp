@@ -66,11 +66,7 @@ struct input
             return sink;
         }
 
-        inline bool operator==(const slab& other) const NOEXCEPT
-        {
-            return script == other.script
-                && witness == other.witness;
-        }
+        inline bool operator==(const slab&) const NOEXCEPT = default;
 
         system::chain::script script{};
         system::chain::witness witness{};

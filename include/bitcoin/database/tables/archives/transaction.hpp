@@ -116,18 +116,7 @@ struct transaction
             return sink;
         }
 
-        inline bool operator==(const record& other) const NOEXCEPT
-        {
-            return coinbase == other.coinbase
-                && light == other.light
-                && heavy == other.heavy
-                && locktime == other.locktime
-                && version == other.version
-                && ins_count == other.ins_count
-                && outs_count == other.outs_count
-                && point_fk == other.point_fk
-                && outs_fk == other.outs_fk;
-        }
+        inline bool operator==(const record&) const NOEXCEPT = default;
 
         bool coinbase{};
         bytes::integer light{};

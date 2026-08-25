@@ -540,7 +540,7 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_block__get_block__expected)
         "4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73" // script
         "00");         // witness
     const auto genesis_txs_head = system::base16_chunk(
-        "1100000000"   // slab size
+        "1301000000"   // slab size
         "0000000000"   // pk->
         "ffffffffff"
         "ffffffffff"
@@ -557,13 +557,25 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_block__get_block__expected)
         "ffffffffff"
         "ffffffffff"
         "ffffffffff");
-    const auto genesis_txs_body = system::base16_chunk(
-        "1d0100"       // size light (285)
-        "1d0100"       // size heavy (285)
-        "0100"         // txs count (1)
-        "00000000"     // transaction[0]
-        "ff"           // depth (255) - genesis only
-        "00000000");   // forks (0) - genesis only
+    const auto genesis_txs_body = system::build_chunk(
+    {
+        system::base16_chunk(
+            "1d0100"       // size light (285)
+            "1d0100"       // size heavy (285)
+            "0100"         // txs count (1)
+            "00000000"     // transaction[0]
+            "01"           // envelope version (1) - genesis only
+            "ff00"         // interval depth (255)
+            "08000000"     // header buckets (8)
+            "08000000"     // ins buckets (8)
+            "02000000"     // outs buckets (2)
+            "08000000"     // tx buckets (8)
+            "80000000"     // strong_tx buckets (128)
+            "80000000"     // duplicate buckets (128)
+            "80000000"     // validated_tx buckets (128)
+            "01"),         // filter (true)
+        system::data_chunk(231, 0x00)
+    });
 
     settings settings{};
     settings.header.buckets = 8;
@@ -693,7 +705,7 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_block_txs__get_block__expected)
         "4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73" // script
         "00");         // witness
     const auto genesis_txs_head = system::base16_chunk(
-        "1100000000"   // slab size
+        "1301000000"   // slab size
         "0000000000"   // pk->
         "ffffffffff"
         "ffffffffff"
@@ -710,13 +722,25 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_block_txs__get_block__expected)
         "ffffffffff"
         "ffffffffff"
         "ffffffffff");
-    const auto genesis_txs_body = system::base16_chunk(
-        "1d0100"       // size light (285)
-        "1d0100"       // size heavy (285)
-        "0100"         // txs count (1)
-        "00000000"     // transaction[0]
-        "ff"           // depth (255) - genesis only
-        "00000000");   // forks (0) - genesis only
+    const auto genesis_txs_body = system::build_chunk(
+    {
+        system::base16_chunk(
+            "1d0100"       // size light (285)
+            "1d0100"       // size heavy (285)
+            "0100"         // txs count (1)
+            "00000000"     // transaction[0]
+            "01"           // envelope version (1) - genesis only
+            "ff00"         // interval depth (255)
+            "08000000"     // header buckets (8)
+            "08000000"     // ins buckets (8)
+            "02000000"     // outs buckets (2)
+            "08000000"     // tx buckets (8)
+            "80000000"     // strong_tx buckets (128)
+            "80000000"     // duplicate buckets (128)
+            "80000000"     // validated_tx buckets (128)
+            "01"),         // filter (true)
+        system::data_chunk(231, 0x00)
+    });
 
     settings settings{};
     settings.header.buckets = 8;

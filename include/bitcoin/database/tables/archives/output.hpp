@@ -70,12 +70,7 @@ struct output
             return sink;
         }
 
-        inline bool operator==(const slab& other) const NOEXCEPT
-        {
-            return parent_fk == other.parent_fk
-                && value == other.value
-                && script == other.script;
-        }
+        inline bool operator==(const slab&) const NOEXCEPT = default;
 
         tx::integer parent_fk{};
         uint64_t value{};

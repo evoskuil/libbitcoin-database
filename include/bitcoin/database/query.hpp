@@ -103,8 +103,8 @@ public:
     /// Count of puts not resulting in table body search to detect duplication.
     size_t negative_search_count() const NOEXCEPT;
 
-    /// Forks configured at store creation.
-    uint32_t initialized_forks() const NOEXCEPT;
+    /// Settings envelope stored at store creation.
+    const database::envelope& envelope() const NOEXCEPT;
 
     /// Store extent.
     /// -----------------------------------------------------------------------

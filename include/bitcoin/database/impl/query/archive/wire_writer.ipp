@@ -238,10 +238,6 @@ code CLASS::set_code(const block_view& block, const header_link& key,
     // Optional hash, only has value on height intervals.
     auto interval = create_interval(key, height);
 
-    // Depth/forks only set by writer for genesis (is_zero(tx_fks[0])).
-    const auto depth = store_.interval_depth();
-    const auto forks = store_.fork_flags();
-
     using bytes = linkage<schema::size>::integer;
     const auto count = possible_narrow_cast<unsigned_type<schema::count_>>(txs);
     const auto light = possible_narrow_cast<bytes>(block.serialized_size(false));
@@ -343,8 +339,7 @@ code CLASS::set_code(const block_view& block, const header_link& key,
         count,
         tx_fks,
         std::move(interval),
-        depth,
-        forks
+        store_.envelope()
     }) ? error::success : error::txs_txs_put;
     // ========================================================================
 }

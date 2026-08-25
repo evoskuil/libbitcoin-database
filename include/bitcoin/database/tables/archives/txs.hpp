@@ -23,6 +23,7 @@
 #include <iterator>
 #include <optional>
 #include <bitcoin/database/define.hpp>
+#include <bitcoin/database/types/envelope.hpp>
 #include <bitcoin/database/memory/memory.hpp>
 #include <bitcoin/database/primitives/primitives.hpp>
 #include <bitcoin/database/tables/schema.hpp>
@@ -84,7 +85,7 @@ struct txs
             return system::possible_narrow_cast<link::integer>(
                 skip_sizes + ct::size + (tx_fks.size() * tx::size) +
                 (interval.has_value() ? schema::hash : zero) +
-                (is_genesis() ? one + flags::size : zero));
+                (is_genesis() ? envelope.serialized_size() : zero));
         }
 
         inline bool from_data(reader& source) NOEXCEPT
@@ -105,12 +106,9 @@ struct txs
             interval.reset();
             if (is_interval(merged)) interval = source.read_hash();
 
-            // depth/forks (genesis only)
+            // envelope (genesis only)
             if (is_genesis())
-            {
-                depth = source.read_byte();
-                forks = source.read_little_endian<flags::integer, flags::size>();
-            }
+                envelope.from_data(source);
 
             BC_ASSERT(!source || source.get_read_position() == count());
             return source;
@@ -137,33 +135,21 @@ struct txs
             // interval (when specified)
             if (interval.has_value()) sink.write_bytes(interval.value());
 
-            // depth/forks (genesis only)
+            // envelope (genesis only)
             if (is_genesis())
-            {
-                sink.write_byte(depth);
-                sink.write_little_endian<flags::integer, flags::size>(forks);
-            }
+                envelope.to_data(sink);
 
             BC_ASSERT(!sink || sink.get_write_position() == count());
             return sink;
         }
 
-        inline bool operator==(const slab& other) const NOEXCEPT
-        {
-            return light == other.light
-                && heavy == other.heavy
-                && tx_fks == other.tx_fks
-                && interval == other.interval
-                && depth == other.depth
-                && forks == other.forks;
-        }
+        inline bool operator==(const slab&) const NOEXCEPT = default;
 
         bytes::integer light{};
         bytes::integer heavy{};
         keys tx_fks{};
         hash interval{};
-        uint8_t depth{};
-        flags::integer forks{};
+        database::envelope envelope{};
     };
 
     // put a contiguous set of tx identifiers.
@@ -180,7 +166,7 @@ struct txs
             return system::possible_narrow_cast<link::integer>(
                 skip_sizes + ct::size + (number * tx::size) +
                 (interval.has_value() ? schema::hash : zero) +
-                (is_genesis() ? one + flags::size : zero));
+                (is_genesis() ? envelope.serialized_size() : zero));
         }
 
         inline bool to_data(finalizer& sink) const NOEXCEPT
@@ -198,12 +184,9 @@ struct txs
             // interval (when specified)
             if (interval.has_value()) sink.write_bytes(interval.value());
 
-            // depth/forks (genesis only)
+            // envelope (genesis only)
             if (is_genesis())
-            {
-                sink.write_byte(depth);
-                sink.write_little_endian<flags::integer, flags::size>(forks);
-            }
+                envelope.to_data(sink);
 
             BC_ASSERT(!sink || sink.get_write_position() == count());
             return sink;
@@ -214,8 +197,7 @@ struct txs
         ct::integer number{};
         tx::integer tx_fk{};
         hash interval{};
-        uint8_t depth{};
-        flags::integer forks{};
+        database::envelope envelope{};
     };
 
     struct get_interval
@@ -247,7 +229,7 @@ struct txs
     };
 
     // This reader is only applicable to the genesis block.
-    struct get_genesis_depth
+    struct get_envelope
       : public schema::txs
     {
         inline link count() const NOEXCEPT
@@ -270,47 +252,11 @@ struct txs
             // interval
             source.skip_bytes(is_interval(merged) ? schema::hash : zero);
 
-            // depth
-            depth = source.read_byte();
-            return source;
+            // envelope
+            return envelope.from_data(source);
         }
 
-        uint8_t depth{};
-    };
-
-    // This reader is only applicable to the genesis block.
-    struct get_genesis_forks
-      : public schema::txs
-    {
-        inline link count() const NOEXCEPT
-        {
-            BC_ASSERT(false);
-            return {};
-        }
-
-        // Stored at end since only read once (at startup).
-        inline bool from_data(reader& source) NOEXCEPT
-        {
-            // tx sizes
-            const auto merged = source.read_little_endian<bytes::integer, bytes::size>();
-            source.skip_bytes(bytes::size);
-
-            // tx fks
-            const auto number = source.read_little_endian<ct::integer, ct::size>();
-            source.skip_bytes(number * tx::size);
-
-            // interval
-            source.skip_bytes(is_interval(merged) ? schema::hash : zero);
-
-            // depth
-            source.skip_byte();
-
-            // forks
-            forks = source.read_little_endian<flags::integer, flags::size>();
-            return source;
-        }
-
-        flags::integer forks{};
+        database::envelope envelope{};
     };
 
     struct get_position

@@ -66,11 +66,7 @@ struct ins_point
             return index == system::chain::point::null_index;
         }
 
-        inline bool operator==(const record& other) const NOEXCEPT
-        {
-            return hash == other.hash
-                && index == other.index;
-        }
+        inline bool operator==(const record&) const NOEXCEPT = default;
 
         hash_digest hash{};
         ix::integer index{};
@@ -142,12 +138,7 @@ struct ins_sequence
             return sink;
         }
 
-        inline bool operator==(const record& other) const NOEXCEPT
-        {
-            return sequence == other.sequence
-                && input_fk == other.input_fk
-                && parent_fk == other.parent_fk;
-        }
+        inline bool operator==(const record&) const NOEXCEPT = default;
 
         uint32_t sequence{};
         in::integer input_fk{};

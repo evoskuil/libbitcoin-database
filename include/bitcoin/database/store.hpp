@@ -95,8 +95,8 @@ public:
     /// Depth of electrum merkle tree interval caching upon store creation.
     uint8_t interval_depth() const NOEXCEPT;
 
-    /// Fork flags upon store creation.
-    uint32_t fork_flags() const NOEXCEPT;
+    /// Settings envelope stored at store creation.
+    const database::envelope& envelope() const NOEXCEPT;
 
     /// Determine if the store is non-empty/initialized.
     bool is_dirty() const NOEXCEPT;
@@ -123,6 +123,9 @@ protected:
 
     // This is thread safe.
     const settings& configuration_;
+
+    // This is set at create/open and read-only thereafter.
+    database::envelope envelope_{};
 
     /// Archives.
     /// -----------------------------------------------------------------------

@@ -136,6 +136,7 @@
       <ObjectFileName>$(IntDir)src_memory_utilities.obj</ObjectFileName>
     </ClCompile>
     <ClCompile Include="..\..\..\..\src\settings.cpp" />
+    <ClCompile Include="..\..\..\..\src\types\envelope.cpp" />
     <ClCompile Include="..\..\..\..\src\types\history.cpp" />
     <ClCompile Include="..\..\..\..\src\types\multisig_view.cpp" />
     <ClCompile Include="..\..\..\..\src\types\unspent.cpp" />
@@ -212,6 +213,7 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\associations.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\block_state.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\difference_set.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\types\envelope.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\fee_rate.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\header_state.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\history.hpp" />

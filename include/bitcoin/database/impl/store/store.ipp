@@ -27,6 +27,7 @@ namespace database {
 TEMPLATE
 CLASS::store(const settings& config) NOEXCEPT
   : configuration_(config),
+    envelope_(config.envelope),
 
     // Archive.
     // ------------------------------------------------------------------------
@@ -132,6 +133,7 @@ CLASS::store(const settings& config) NOEXCEPT
     filter_bk(filter_bk_head_, filter_bk_body_, config.filter_bk.buckets),
     filter_tx(filter_tx_head_, filter_tx_body_, config.filter_tx.buckets)
 {
+    envelope_.set(config);
 }
 
 TEMPLATE
@@ -151,13 +153,13 @@ uint8_t CLASS::interval_depth() const NOEXCEPT
 {
     // Configuration uses uint16_t because of boost parser bug for single byte.
     // But 2^255 is sufficient given that interval is limited by chain length.
-    return system::limit<uint8_t>(configuration_.interval_depth);
+    return system::limit<uint8_t>(envelope_.interval_depth);
 }
 
 TEMPLATE
-uint32_t CLASS::fork_flags() const NOEXCEPT
+const database::envelope& CLASS::envelope() const NOEXCEPT
 {
-    return configuration_.fork_flags;
+    return envelope_;
 }
 
 TEMPLATE

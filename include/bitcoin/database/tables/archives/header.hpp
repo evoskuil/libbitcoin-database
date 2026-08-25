@@ -110,17 +110,7 @@ struct header
             return sink;
         }
 
-        inline bool operator==(const record& other) const NOEXCEPT
-        {
-            return ctx         == other.ctx
-                && milestone   == other.milestone
-                && parent_fk   == other.parent_fk
-                && version     == other.version
-                && timestamp   == other.timestamp
-                && bits        == other.bits
-                && nonce       == other.nonce
-                && merkle_root == other.merkle_root;
-        }
+        inline bool operator==(const record&) const NOEXCEPT = default;
 
         context ctx{};
         bool milestone{};
