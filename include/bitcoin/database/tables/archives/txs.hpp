@@ -143,14 +143,7 @@ struct txs
             return sink;
         }
 
-        inline bool operator==(const slab& other) const NOEXCEPT
-        {
-            return light == other.light
-                && heavy == other.heavy
-                && tx_fks == other.tx_fks
-                && interval == other.interval
-                && envelope == other.envelope;
-        }
+        inline bool operator==(const slab&) const NOEXCEPT = default;
 
         bytes::integer light{};
         bytes::integer heavy{};

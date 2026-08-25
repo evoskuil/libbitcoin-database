@@ -40,7 +40,7 @@ struct BCD_API envelope
     bool from_data(reader& source) NOEXCEPT;
     bool to_data(finalizer& sink) const NOEXCEPT;
     size_t serialized_size() const NOEXCEPT;
-    bool operator==(const envelope& other) const NOEXCEPT;
+    bool operator==(const envelope& other) const NOEXCEPT = default;
 
     /// Database settings.
     uint16_t interval_depth{};

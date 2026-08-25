@@ -71,13 +71,7 @@ struct validated_tx
             return sink;
         }
 
-        inline bool operator==(const slab& other) const NOEXCEPT
-        {
-            return ctx    == other.ctx
-                && code   == other.code
-                && fee    == other.fee
-                && sigops == other.sigops;
-        }
+        inline bool operator==(const slab&) const NOEXCEPT = default;
 
         context ctx{};
         coding::integer code{};

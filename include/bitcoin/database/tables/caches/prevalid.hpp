@@ -57,10 +57,7 @@ struct prevalid
             return sink;
         }
 
-        inline bool operator==(const record& other) const NOEXCEPT
-        {
-            return header_fk == other.header_fk;
-        }
+        inline bool operator==(const record&) const NOEXCEPT = default;
 
         header::integer header_fk{};
     };

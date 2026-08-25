@@ -93,10 +93,7 @@ struct outs_puts
             return sink;
         }
 
-        inline bool operator==(const record& other) const NOEXCEPT
-        {
-            return out_fks == other.out_fks;
-        }
+        inline bool operator==(const record&) const NOEXCEPT = default;
 
         output_links out_fks{};
     };
