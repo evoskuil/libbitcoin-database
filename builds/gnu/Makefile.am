@@ -338,6 +338,7 @@ include_bitcoin_database_types_HEADERS = \
     ${srcdir}/../../include/bitcoin/database/types/type.hpp \
     ${srcdir}/../../include/bitcoin/database/types/types.hpp \
     ${srcdir}/../../include/bitcoin/database/types/unspent.hpp \
+    ${srcdir}/../../include/bitcoin/database/types/unspent_coin.hpp \
     ${srcdir}/../../include/bitcoin/database/types/unspent_totals.hpp
 
 # Tests.

@@ -16,31 +16,38 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef LIBBITCOIN_DATABASE_TYPES_UNSPENT_TOTALS_HPP
-#define LIBBITCOIN_DATABASE_TYPES_UNSPENT_TOTALS_HPP
+#ifndef LIBBITCOIN_DATABASE_TYPES_UNSPENT_COIN_HPP
+#define LIBBITCOIN_DATABASE_TYPES_UNSPENT_COIN_HPP
 
 #include <bitcoin/database/define.hpp>
 
 namespace libbitcoin {
 namespace database {
 
-/// Spendable unspent output totals, accumulated over a branch scan.
-struct BCD_API unspent_totals
+/// A coin (unspent output) presented during a branch scan.
+/// The buffers are reused across visits, copy to retain.
+struct BCD_API unspent_coin
 {
-    /// Unspent outputs.
-    size_t outputs{};
+    /// First visited coin of the containing transaction.
+    bool first{};
 
-    /// Transactions with at least one unspent output.
-    size_t transactions{};
+    /// Hash of the containing transaction.
+    system::hash_digest txid{};
 
-    /// Total serialized script size of unspent outputs.
-    size_t script_bytes{};
+    /// Output index within the containing transaction.
+    uint32_t index{};
 
-    /// Total coin-serialized (bitcoind) size of unspent outputs.
-    size_t coin_bytes{};
+    /// Confirmed height of the containing transaction.
+    size_t height{};
 
-    /// Total value of unspent outputs.
+    /// The containing transaction is coinbase.
+    bool coinbase{};
+
+    /// Output value.
     uint64_t value{};
+
+    /// Serialized script.
+    system::data_chunk script{};
 };
 
 } // namespace database

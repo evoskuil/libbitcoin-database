@@ -225,6 +225,7 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\type.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\types.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\unspent.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\types\unspent_coin.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\unspent_totals.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\version.hpp" />
   </ItemGroup>

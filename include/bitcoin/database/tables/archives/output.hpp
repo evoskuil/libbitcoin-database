@@ -148,6 +148,31 @@ struct output
         bool match{};
     };
 
+    /// Reuse an instance across gets to amortize the script allocation.
+    struct get_coin
+      : public schema::output
+    {
+        inline link count() const NOEXCEPT
+        {
+            BC_ASSERT(false);
+            return {};
+        }
+
+        inline bool from_data(reader& source) NOEXCEPT
+        {
+            using namespace system;
+            source.skip_bytes(tx::size);
+            value = source.read_variable();
+            script.resize(possible_narrow_cast<size_t>(
+                source.read_variable()));
+            source.read_bytes(script.data(), script.size());
+            return source;
+        }
+
+        uint64_t value{};
+        system::data_chunk script{};
+    };
+
     struct get_spendable
       : public schema::output
     {

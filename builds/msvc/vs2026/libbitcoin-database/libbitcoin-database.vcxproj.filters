@@ -395,6 +395,9 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\unspent.hpp">
       <Filter>include\bitcoin\database\types</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\types\unspent_coin.hpp">
+      <Filter>include\bitcoin\database\types</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\unspent_totals.hpp">
       <Filter>include\bitcoin\database\types</Filter>
     </ClInclude>
