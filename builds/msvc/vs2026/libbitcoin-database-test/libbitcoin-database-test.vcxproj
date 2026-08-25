@@ -195,6 +195,9 @@
     <ClCompile Include="..\..\..\..\test\query\properties_tx.cpp" />
     <ClCompile Include="..\..\..\..\test\query\sequences.cpp" />
     <ClCompile Include="..\..\..\..\test\query\sizes.cpp" />
+    <ClCompile Include="..\..\..\..\test\query\unspent.cpp">
+      <ObjectFileName>$(IntDir)test_query_unspent.obj</ObjectFileName>
+    </ClCompile>
     <ClCompile Include="..\..\..\..\test\settings.cpp" />
     <ClCompile Include="..\..\..\..\test\store\store.cpp" />
     <ClCompile Include="..\..\..\..\test\store\store_backup.cpp" />
@@ -244,7 +247,9 @@
     <ClCompile Include="..\..\..\..\test\test.cpp" />
     <ClCompile Include="..\..\..\..\test\types\history.cpp" />
     <ClCompile Include="..\..\..\..\test\types\span.cpp" />
-    <ClCompile Include="..\..\..\..\test\types\unspent.cpp" />
+    <ClCompile Include="..\..\..\..\test\types\unspent.cpp">
+      <ObjectFileName>$(IntDir)test_types_unspent.obj</ObjectFileName>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\test\mocks\blocks.hpp" />

@@ -153,6 +153,35 @@ struct output
         bool match{};
     };
 
+    struct get_spendable
+      : public schema::output
+    {
+        inline link count() const NOEXCEPT
+        {
+            BC_ASSERT(false);
+            return {};
+        }
+
+        inline bool from_data(reader& source) NOEXCEPT
+        {
+            using namespace system;
+            source.skip_bytes(tx::size);
+            value = source.read_variable();
+            script_size = possible_narrow_cast<size_t>(
+                source.read_variable());
+
+            // bitcoind's utxo set exclusion (op_return lead or oversized).
+            constexpr auto op_return = to_value(chain::opcode::op_return);
+            unspendable = (script_size > chain::max_script_size) ||
+                (!is_zero(script_size) && (source.read_byte() == op_return));
+            return source;
+        }
+
+        uint64_t value{};
+        size_t script_size{};
+        bool unspendable{};
+    };
+
     struct get_parent_value
       : public schema::output
     {

@@ -768,6 +768,13 @@ public:
     bool set_filter_head(const header_link& link, const hash_digest& head,
         const hash_digest& hash) NOEXCEPT;
 
+    /// Unspent.
+    /// -----------------------------------------------------------------------
+
+    /// Unspent output totals over the branch (administrative scan).
+    code get_unspent_totals(const stopper& cancel, unspent_totals& out,
+        const header_links& branch, bool turbo=false) const NOEXCEPT;
+
 protected:
     /// Network
     /// -----------------------------------------------------------------------
@@ -968,6 +975,13 @@ private:
     static point::cptr make_point(hash_digest&& hash,
         uint32_t index) NOEXCEPT;
 
+    bool is_bip30_exception(bool& out,
+        const header_link& link) const NOEXCEPT;
+    code scan_unspent(difference_set<>& set, const stopper& cancel,
+        const header_links& branch, bool turbo) const NOEXCEPT;
+    code count_unspent(unspent_totals& out, const stopper& cancel,
+        const difference_set<>::entries& survivors) const NOEXCEPT;
+
     // Not thread safe.
     size_t get_fork_() const NOEXCEPT;
 
@@ -1032,6 +1046,7 @@ BC_PUSH_WARNING(NO_THROW_IN_NOEXCEPT)
 #include <bitcoin/database/impl/query/query.ipp>
 #include <bitcoin/database/impl/query/sequences.ipp>
 #include <bitcoin/database/impl/query/sizes.ipp>
+#include <bitcoin/database/impl/query/unspent.ipp>
 
 BC_POP_WARNING()
 
