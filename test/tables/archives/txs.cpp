@@ -30,12 +30,11 @@ const table::txs::slab slab0
     0x000000,
     0x000000,
     {
-        // tx fk 0 uniquely identifies genesis, resulting in depth storage.
+        // tx fk 0 uniquely identifies genesis, resulting in envelope storage.
         0x00000000_u32
     },
     {},         // interval (unused due to default span)
-    0x42,       // depth (genesis only)
-    0x12345678  // flags (genesis only)
+    {}          // envelope (genesis only)
 };
 const table::txs::slab slab1
 {
@@ -67,26 +66,29 @@ const table::txs::slab slab3
         0x56341233_u32
     }
 };
-const data_chunk expected0
+const data_chunk expected0 = build_chunk(
 {
-    // slab0 (light) [0x00]
-    0x00, 0x00, 0x00,
+    data_chunk
+    {
+        // slab0 (light) [0x00]
+        0x00, 0x00, 0x00,
 
-    // slab0 (heavy) [0x00]
-    0x00, 0x00, 0x00,
+        // slab0 (heavy) [0x00]
+        0x00, 0x00, 0x00,
 
-    // slab0 (count) [1]
-    0x01, 0x00,
+        // slab0 (count) [1]
+        0x01, 0x00,
 
-    // slab0 (txs)
-    0x00, 0x00, 0x00, 0x00,
+        // slab0 (txs)
+        0x00, 0x00, 0x00, 0x00,
 
-    // depth (genesis)
-    0x42,
+        // envelope version (genesis)
+        0x01
+    },
 
-    // flags (genesis)
-    0x78, 0x56, 0x34, 0x12
-};
+    // default envelope body (genesis)
+    data_chunk(262, 0x00)
+});
 const data_chunk expected1
 {
     // slab1 (light) [0x0000ab]
@@ -151,8 +153,7 @@ BOOST_AUTO_TEST_CASE(txs__put__get__expected)
     BOOST_CHECK(slab == slab0);
     BOOST_CHECK_EQUAL(body_store.buffer(), build_chunk({ expected0 }));
 
-    slab.depth = {};
-    slab.forks = {};
+    slab.envelope = {};
     BOOST_CHECK(instance.put(key, slab1));
     BOOST_CHECK(instance.exists(key));
     BOOST_CHECK(instance.at(key, slab));

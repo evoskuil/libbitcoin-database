@@ -20,6 +20,7 @@
 #define LIBBITCOIN_DATABASE_SETTINGS_HPP
 
 #include <bitcoin/database/define.hpp>
+#include <bitcoin/database/types/envelope.hpp>
 #include <bitcoin/database/memory/settings.hpp>
 
 #include <filesystem>
@@ -66,8 +67,8 @@ struct BCD_API settings
     /// Depth of merkle tree interval caching (used at store create only).
     uint16_t interval_depth{ max_uint8 };
 
-    /// Fork flags upon store creation (used at store create only).
-    uint32_t fork_flags{};
+    /// Creation settings envelope (used at store create only).
+    database::envelope envelope{};
 
     /// Path to the database directory.
     std::filesystem::path path{ "bitcoin" };

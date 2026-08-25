@@ -84,6 +84,18 @@ code CLASS::open(const event_handler& handler) NOEXCEPT
     verify(ec, filter_bk, table_t::filter_bk_table);
     verify(ec, filter_tx, table_t::filter_tx_table);
 
+    if (!ec)
+    {
+        // The stored creation envelope governs, configuration is not read.
+        table::txs::get_envelope genesis{};
+        if (is_zero(txs.body_size()))
+            envelope_ = configuration_.envelope;
+        else if (txs.at(zero, genesis))
+            envelope_ = genesis.envelope;
+        else
+            ec = error::verify_table;
+    }
+
     if (ec)
     {
         /* code */ unload_close(handler);

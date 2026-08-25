@@ -132,6 +132,9 @@
     <ClCompile Include="..\..\..\..\src\settings.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\src\types\envelope.cpp">
+      <Filter>src\types</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\..\src\types\history.cpp">
       <Filter>src\types</Filter>
     </ClCompile>
@@ -354,6 +357,9 @@
       <Filter>include\bitcoin\database\types</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\difference_set.hpp">
+      <Filter>include\bitcoin\database\types</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\types\envelope.hpp">
       <Filter>include\bitcoin\database\types</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\fee_rate.hpp">

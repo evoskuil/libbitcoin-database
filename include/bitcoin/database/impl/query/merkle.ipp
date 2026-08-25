@@ -295,8 +295,7 @@ size_t CLASS::interval_span() const NOEXCEPT
 TEMPLATE
 size_t CLASS::interval_depth() const NOEXCEPT
 {
-    table::txs::get_genesis_depth txs{};
-    return store_.txs.at(to_txs(0), txs) ? txs.depth : store_.interval_depth();
+    return store_.interval_depth();
 }
 
 // protected

@@ -58,6 +58,7 @@ src_libbitcoin_database_la_SOURCES = \
     ${srcdir}/../../src/memory/mman.cpp \
     ${srcdir}/../../src/memory/mstage.cpp \
     ${srcdir}/../../src/memory/utilities.cpp \
+    ${srcdir}/../../src/types/envelope.cpp \
     ${srcdir}/../../src/types/history.cpp \
     ${srcdir}/../../src/types/multisig_view.cpp \
     ${srcdir}/../../src/types/unspent.cpp
@@ -325,6 +326,7 @@ include_bitcoin_database_types_HEADERS = \
     ${srcdir}/../../include/bitcoin/database/types/associations.hpp \
     ${srcdir}/../../include/bitcoin/database/types/block_state.hpp \
     ${srcdir}/../../include/bitcoin/database/types/difference_set.hpp \
+    ${srcdir}/../../include/bitcoin/database/types/envelope.hpp \
     ${srcdir}/../../include/bitcoin/database/types/fee_rate.hpp \
     ${srcdir}/../../include/bitcoin/database/types/header_state.hpp \
     ${srcdir}/../../include/bitcoin/database/types/history.hpp \
