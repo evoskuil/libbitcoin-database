@@ -37,6 +37,8 @@ struct BCD_API envelope
     envelope(const system::settings& bitcoin,
         const settings& database) NOEXCEPT;
 
+    void set(const settings& database) NOEXCEPT;
+
     bool from_data(reader& source) NOEXCEPT;
     bool to_data(finalizer& sink) const NOEXCEPT;
     size_t serialized_size() const NOEXCEPT;

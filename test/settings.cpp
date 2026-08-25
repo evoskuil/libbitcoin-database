@@ -26,7 +26,15 @@ BOOST_AUTO_TEST_CASE(settings__construct__default__expected)
     BOOST_REQUIRE_EQUAL(configuration.turbo, false);
     BOOST_REQUIRE_EQUAL(configuration.mark_unconfirmable, true);
     BOOST_REQUIRE_EQUAL(configuration.interval_depth, 255u);
-    BOOST_REQUIRE(configuration.envelope == database::envelope{});
+    BOOST_REQUIRE_EQUAL(configuration.envelope.interval_depth, 255u);
+    BOOST_REQUIRE_EQUAL(configuration.envelope.header_buckets, 128u);
+    BOOST_REQUIRE_EQUAL(configuration.envelope.ins_buckets, 128u);
+    BOOST_REQUIRE_EQUAL(configuration.envelope.outs_buckets, 128u);
+    BOOST_REQUIRE_EQUAL(configuration.envelope.tx_buckets, 128u);
+    BOOST_REQUIRE_EQUAL(configuration.envelope.strong_tx_buckets, 128u);
+    BOOST_REQUIRE_EQUAL(configuration.envelope.duplicate_buckets, 128u);
+    BOOST_REQUIRE_EQUAL(configuration.envelope.validated_tx_buckets, 128u);
+    BOOST_REQUIRE_EQUAL(configuration.envelope.filter, true);
     BOOST_REQUIRE_EQUAL(configuration.path, "bitcoin");
 
     // Archives.

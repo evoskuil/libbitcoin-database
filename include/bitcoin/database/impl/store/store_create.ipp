@@ -44,7 +44,6 @@ code CLASS::create(const event_handler& handler) NOEXCEPT
         return error::flush_lock;
     }
 
-    envelope_ = configuration_.envelope;
     auto ec = create_load(handler);
 
     if (ec)

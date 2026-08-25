@@ -27,6 +27,7 @@ using namespace bc::system;
 
 settings::settings() NOEXCEPT
 {
+    envelope.set(*this);
 }
 
 settings::settings(chain::selection context) NOEXCEPT

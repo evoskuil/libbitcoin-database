@@ -27,6 +27,7 @@ namespace database {
 TEMPLATE
 CLASS::store(const settings& config) NOEXCEPT
   : configuration_(config),
+    envelope_(config.envelope),
 
     // Archive.
     // ------------------------------------------------------------------------
@@ -132,6 +133,7 @@ CLASS::store(const settings& config) NOEXCEPT
     filter_bk(filter_bk_head_, filter_bk_body_, config.filter_bk.buckets),
     filter_tx(filter_tx_head_, filter_tx_body_, config.filter_tx.buckets)
 {
+    envelope_.set(config);
 }
 
 TEMPLATE

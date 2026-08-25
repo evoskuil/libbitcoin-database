@@ -26,19 +26,23 @@ namespace database {
 
 using namespace system;
 
+void envelope::set(const settings& database) NOEXCEPT
+{
+    interval_depth = database.interval_depth;
+    header_buckets = database.header.buckets;
+    ins_buckets = database.ins.buckets;
+    outs_buckets = database.outs.buckets;
+    tx_buckets = database.tx.buckets;
+    strong_tx_buckets = database.strong_tx.buckets;
+    duplicate_buckets = database.duplicate.buckets;
+    validated_tx_buckets = database.validated_tx.buckets;
+    filter = to_bool(database.filter_bk.buckets) &&
+        to_bool(database.filter_tx.buckets);
+}
+
 envelope::envelope(const system::settings& bitcoin,
     const settings& database) NOEXCEPT
-  : interval_depth(database.interval_depth),
-    header_buckets(database.header.buckets),
-    ins_buckets(database.ins.buckets),
-    outs_buckets(database.outs.buckets),
-    tx_buckets(database.tx.buckets),
-    strong_tx_buckets(database.strong_tx.buckets),
-    duplicate_buckets(database.duplicate.buckets),
-    validated_tx_buckets(database.validated_tx.buckets),
-    filter(to_bool(database.filter_bk.buckets) &&
-        to_bool(database.filter_tx.buckets)),
-    forks(bitcoin.forks),
+  : forks(bitcoin.forks),
     initial_subsidy_bitcoin(bitcoin.initial_subsidy_bitcoin),
     subsidy_interval_blocks(bitcoin.subsidy_interval_blocks),
     timestamp_limit_seconds(bitcoin.timestamp_limit_seconds),
@@ -67,6 +71,7 @@ envelope::envelope(const system::settings& bitcoin,
     bip9_bit1_active_checkpoint(bitcoin.bip9_bit1_active_checkpoint),
     bip9_bit2_active_checkpoint(bitcoin.bip9_bit2_active_checkpoint)
 {
+    set(database);
 }
 
 bool envelope::from_data(reader& source) NOEXCEPT
