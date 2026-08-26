@@ -287,6 +287,8 @@ public:
     height_link find_strong_spender_height(const point& point) const NOEXCEPT;
 
     header_link to_parent(const header_link& link) const NOEXCEPT;
+    header_link to_candidate_child(const header_link& link) const NOEXCEPT;
+    header_link to_confirmed_child(const header_link& link) const NOEXCEPT;
     tx_links to_duplicates(const hash_digest& tx_hash) const NOEXCEPT;
 
     /// find confirmed objects (reverse navigation)

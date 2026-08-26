@@ -43,6 +43,28 @@ header_link CLASS::to_parent(const header_link& link) const NOEXCEPT
     return header.parent_fk;
 }
 
+TEMPLATE
+header_link CLASS::to_candidate_child(const header_link& link) const NOEXCEPT
+{
+    size_t height{};
+    if (!get_height(height, link))
+        return {};
+
+    const auto child = to_candidate(add1(height));
+    return (to_parent(child) == link) ? child : header_link{};
+}
+
+TEMPLATE
+header_link CLASS::to_confirmed_child(const header_link& link) const NOEXCEPT
+{
+    size_t height{};
+    if (!get_height(height, link))
+        return {};
+
+    const auto child = to_confirmed(add1(height));
+    return (to_parent(child) == link) ? child : header_link{};
+}
+
 // address->outputs[receivers]
 // ----------------------------------------------------------------------------
 // There can be multiple spenders of the same output (due to conflicts) and
