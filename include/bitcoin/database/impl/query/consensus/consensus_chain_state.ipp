@@ -175,7 +175,7 @@ bool CLASS::populate_all(chain_state::data& data,
 }
 
 TEMPLATE
-typename CLASS::chain_state_cptr CLASS::get_chain_state(
+typename CLASS::chain_state_cptr CLASS::get_confirmed_chain_state(
     const system::settings& settings, const hash_digest& hash) const NOEXCEPT
 {
     const auto link = to_header(hash);
@@ -186,9 +186,14 @@ typename CLASS::chain_state_cptr CLASS::get_chain_state(
     if (!get_height(height, link))
         return nullptr;
 
-    if (to_candidate(height) == link)
-        return get_candidate_chain_state(settings, link, height);
+    return get_confirmed_chain_state(settings, link, height);
+}
 
+TEMPLATE
+typename CLASS::chain_state_cptr CLASS::get_confirmed_chain_state(
+    const system::settings& settings, const header_link& link,
+    size_t height) const NOEXCEPT
+{
     chain_state::data data{};
     if (!populate_all(data, settings, link, height))
         return nullptr;

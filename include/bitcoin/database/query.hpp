@@ -544,8 +544,10 @@ public:
     /// Context.
     /// -----------------------------------------------------------------------
 
-    chain_state_cptr get_chain_state(const system::settings& settings,
+    chain_state_cptr get_confirmed_chain_state(const system::settings& settings,
         const hash_digest& hash) const NOEXCEPT;
+    chain_state_cptr get_confirmed_chain_state(const system::settings& settings,
+        const header_link& link, size_t height) const NOEXCEPT;
     chain_state_cptr get_candidate_chain_state(
         const system::settings& settings) const NOEXCEPT;
     chain_state_cptr get_candidate_chain_state(const system::settings& settings,
