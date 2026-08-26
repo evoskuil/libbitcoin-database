@@ -287,6 +287,8 @@ public:
     height_link find_strong_spender_height(const point& point) const NOEXCEPT;
 
     header_link to_parent(const header_link& link) const NOEXCEPT;
+    header_link to_candidate_child(const header_link& link) const NOEXCEPT;
+    header_link to_confirmed_child(const header_link& link) const NOEXCEPT;
     tx_links to_duplicates(const hash_digest& tx_hash) const NOEXCEPT;
 
     /// find confirmed objects (reverse navigation)
@@ -542,8 +544,10 @@ public:
     /// Context.
     /// -----------------------------------------------------------------------
 
-    chain_state_cptr get_chain_state(const system::settings& settings,
+    chain_state_cptr get_confirmed_chain_state(const system::settings& settings,
         const hash_digest& hash) const NOEXCEPT;
+    chain_state_cptr get_confirmed_chain_state(const system::settings& settings,
+        const header_link& link, size_t height) const NOEXCEPT;
     chain_state_cptr get_candidate_chain_state(
         const system::settings& settings) const NOEXCEPT;
     chain_state_cptr get_candidate_chain_state(const system::settings& settings,

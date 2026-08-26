@@ -36,6 +36,10 @@ bool CLASS::populate_bits(chain_state::data& data,
     if (!get_bits(data.bits.self, link))
         return false;
 
+    // Navigate from the subject (data.height) to the map's high block.
+    for (auto height = data.height; height > map.bits.high; --height)
+        link = to_parent(link);
+
     data.bits.ordered.resize(map.bits.count);
     for (auto& bit: std::views::reverse(data.bits.ordered))
     {
@@ -53,6 +57,10 @@ bool CLASS::populate_versions(chain_state::data& data,
     if (!get_version(data.version.self, link))
         return false;
 
+    // Navigate from the subject (data.height) to the map's high block.
+    for (auto height = data.height; height > map.version.high; --height)
+        link = to_parent(link);
+
     data.version.ordered.resize(map.version.count);
     for (auto& version: std::views::reverse(data.version.ordered))
     {
@@ -69,6 +77,10 @@ bool CLASS::populate_timestamps(chain_state::data& data,
 {
     if (!get_timestamp(data.timestamp.self, link))
         return false;
+
+    // Navigate from the subject (data.height) to the map's high block.
+    for (auto height = data.height; height > map.timestamp.high; --height)
+        link = to_parent(link);
 
     data.timestamp.ordered.resize(map.timestamp.count);
     for (auto& timestamp: std::views::reverse(data.timestamp.ordered))
@@ -163,7 +175,7 @@ bool CLASS::populate_all(chain_state::data& data,
 }
 
 TEMPLATE
-typename CLASS::chain_state_cptr CLASS::get_chain_state(
+typename CLASS::chain_state_cptr CLASS::get_confirmed_chain_state(
     const system::settings& settings, const hash_digest& hash) const NOEXCEPT
 {
     const auto link = to_header(hash);
@@ -174,9 +186,14 @@ typename CLASS::chain_state_cptr CLASS::get_chain_state(
     if (!get_height(height, link))
         return nullptr;
 
-    if (to_candidate(height) == link)
-        return get_candidate_chain_state(settings, link, height);
+    return get_confirmed_chain_state(settings, link, height);
+}
 
+TEMPLATE
+typename CLASS::chain_state_cptr CLASS::get_confirmed_chain_state(
+    const system::settings& settings, const header_link& link,
+    size_t height) const NOEXCEPT
+{
     chain_state::data data{};
     if (!populate_all(data, settings, link, height))
         return nullptr;
