@@ -27,8 +27,9 @@ namespace libbitcoin {
 namespace database {
 
 TEMPLATE
-CLASS::hashmap(storage& header, storage& body, const Link& buckets) NOEXCEPT
-  : head_(header, buckets), body_(body)
+CLASS::hashmap(storage& header, storage& body, const Link& buckets,
+    size_t expected) NOEXCEPT
+  : head_(header, buckets, expected), body_(body)
 {
 }
 
@@ -84,6 +85,18 @@ TEMPLATE
 size_t CLASS::buckets() const NOEXCEPT
 {
     return head_.buckets();
+}
+
+TEMPLATE
+size_t CLASS::filter_k() const NOEXCEPT
+{
+    return head_.filter_k();
+}
+
+TEMPLATE
+bool CLASS::set_filter_k(size_t k) NOEXCEPT
+{
+    return head_.set_filter_k(k);
 }
 
 TEMPLATE

@@ -83,11 +83,11 @@ const data_chunk expected0 = build_chunk(
         0x00, 0x00, 0x00, 0x00,
 
         // envelope version (genesis)
-        0x01
+        0x02
     },
 
     // default envelope body (genesis)
-    data_chunk(262, 0x00)
+    data_chunk(269, 0x00)
 });
 const data_chunk expected1
 {

@@ -55,7 +55,8 @@ public:
         std::array<size_t, add1(sizeof...(Widths))>{ RowSize, Widths... }
     );
 
-    hashmaps(storage& header, storage& body, const Link& buckets) NOEXCEPT;
+    hashmaps(storage& header, storage& body, const Link& buckets,
+        size_t expected=zero) NOEXCEPT;
 
     /// Setup, not thread safe.
     /// -----------------------------------------------------------------------
@@ -74,6 +75,12 @@ public:
 
     /// Hash table bucket count.
     size_t buckets() const NOEXCEPT;
+
+    /// Filter selections, derived at construct, overridden by set_filter_k.
+    size_t filter_k() const NOEXCEPT;
+
+    /// Set filter selections from stored envelope (not thread safe).
+    bool set_filter_k(size_t k) NOEXCEPT;
 
     /// Head file bytes.
     size_t head_size() const NOEXCEPT;

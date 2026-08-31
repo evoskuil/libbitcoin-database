@@ -109,31 +109,42 @@ CLASS::store(const settings& config) NOEXCEPT
     // Tables.
     // ------------------------------------------------------------------------
 
-    header(header_head_, header_body_, config.header.buckets),
+    header(header_head_, header_body_, config.header.buckets, config.header.expected),
     input(input_head_, input_body_),
     output(output_head_, output_body_),
-    ins(ins_head_, ins_body_, config.ins.buckets),
-    outs(outs_head_, outs_body_, config.outs.buckets),
-    tx(tx_head_, tx_body_, config.tx.buckets),
+    ins(ins_head_, ins_body_, config.ins.buckets, config.ins.expected),
+    outs(outs_head_, outs_body_, config.outs.buckets, config.outs.expected),
+    tx(tx_head_, tx_body_, config.tx.buckets, config.tx.expected),
     txs(txs_head_, txs_body_, config.txs.buckets),
 
     candidate(candidate_head_),
     confirmed(confirmed_head_),
-    strong_tx(strong_tx_head_, strong_tx_body_, config.strong_tx.buckets),
+    strong_tx(strong_tx_head_, strong_tx_body_, config.strong_tx.buckets, config.strong_tx.expected),
 
     ecdsa(ecdsa_head_, ecdsa_body_),
     schnorr(schnorr_head_, schnorr_body_),
     silent(silent_head_, silent_body_),
-    duplicate(duplicate_head_, duplicate_body_, config.duplicate.buckets),
+    duplicate(duplicate_head_, duplicate_body_, config.duplicate.buckets, config.duplicate.expected),
     prevalid(prevalid_head_, prevalid_body_),
     prevout(prevout_head_, prevout_body_, config.prevout.buckets),
     validated_bk(validated_bk_head_, validated_bk_body_, config.validated_bk.buckets),
-    validated_tx(validated_tx_head_, validated_tx_body_, config.validated_tx.buckets),
+    validated_tx(validated_tx_head_, validated_tx_body_, config.validated_tx.buckets, config.validated_tx.expected),
 
     filter_bk(filter_bk_head_, filter_bk_body_, config.filter_bk.buckets),
     filter_tx(filter_tx_head_, filter_tx_body_, config.filter_tx.buckets)
 {
     envelope_.set(config);
+
+    // Filter k derives from configured expected/buckets, envelope records it
+    // at create and overrides it at open (stored values govern the store).
+    using namespace system;
+    envelope_.header_k = possible_narrow_cast<uint8_t>(header.filter_k());
+    envelope_.ins_k = possible_narrow_cast<uint8_t>(ins.filter_k());
+    envelope_.outs_k = possible_narrow_cast<uint8_t>(outs.filter_k());
+    envelope_.tx_k = possible_narrow_cast<uint8_t>(tx.filter_k());
+    envelope_.strong_tx_k = possible_narrow_cast<uint8_t>(strong_tx.filter_k());
+    envelope_.duplicate_k = possible_narrow_cast<uint8_t>(duplicate.filter_k());
+    envelope_.validated_tx_k = possible_narrow_cast<uint8_t>(validated_tx.filter_k());
 }
 
 TEMPLATE

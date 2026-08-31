@@ -20,6 +20,7 @@
 #define LIBBITCOIN_DATABASE_PRIMITIVES_HASHHEAD_IPP
 
 #include <algorithm>
+#include <cmath>
 #include <bitcoin/database/define.hpp>
 
 // Heads are not subject to resize/remap and therefore do not require memory
@@ -32,9 +33,10 @@ namespace database {
 // ----------------------------------------------------------------------------
 
 TEMPLATE
-CLASS::hashhead(storage& head, size_t buckets) NOEXCEPT
+CLASS::hashhead(storage& head, size_t buckets, size_t expected) NOEXCEPT
   : file_(head),
-    buckets_(system::possible_narrow_cast<link>(buckets))
+    buckets_(system::possible_narrow_cast<link>(buckets)),
+    k_(optimal_k(expected, buckets))
 {
     BC_ASSERT(buckets <= Link::terminal);
 }
@@ -49,6 +51,12 @@ TEMPLATE
 inline size_t CLASS::buckets() const NOEXCEPT
 {
     return buckets_;
+}
+
+TEMPLATE
+inline size_t CLASS::filter_k() const NOEXCEPT
+{
+    return k_;
 }
 
 TEMPLATE
@@ -82,6 +90,92 @@ TEMPLATE
 bool CLASS::verify() const NOEXCEPT
 {
     return file_.size() == size();
+}
+
+TEMPLATE
+bool CLASS::set_filter_k(size_t k) NOEXCEPT
+{
+    if constexpr (is_zero(k_max))
+    {
+        return is_zero(k);
+    }
+    else
+    {
+        if (is_zero(k) || (k > k_max))
+            return false;
+
+        k_ = k;
+        return true;
+    }
+}
+
+TEMPLATE
+size_t CLASS::optimal_k(size_t count, size_t buckets) NOEXCEPT
+{
+    if constexpr (is_zero(k_max))
+    {
+        return k_default;
+    }
+    else
+    {
+        if (is_zero(count) || is_zero(buckets))
+            return k_default;
+
+        const auto load_factor = system::to_floating(count) /
+            system::to_floating(buckets);
+
+        auto optimum = one;
+        auto minimum = expected_walk(one, load_factor);
+        for (auto k = two; k <= k_max; ++k)
+        {
+            const auto cost = expected_walk(k, load_factor);
+            if (cost < minimum)
+            {
+                minimum = cost;
+                optimum = k;
+            }
+        }
+
+        return optimum;
+    }
+}
+
+// Bloom false positive rate for n keys of k selections over m bits.
+TEMPLATE
+double CLASS::bloom_false_positive(size_t k, size_t n) NOEXCEPT
+{
+    using namespace system;
+    const auto retain = 1.0 - (1.0 / to_floating(m));
+    const auto value = std::pow(retain, to_floating(k * n));
+    return std::pow(1.0 - value, to_floating(k));
+}
+
+// Poisson mass is negligible past ten deviations of the mean. The minimum
+// floors the bound for small means where deviations are near zero.
+TEMPLATE
+size_t CLASS::poisson_span(double load_factor) NOEXCEPT
+{
+    constexpr auto deviations = 10.0;
+    constexpr auto minimum = 30.0;
+    return system::to_integer<size_t>(std::ceil(load_factor +
+        deviations * std::sqrt(load_factor) + minimum));
+}
+
+// False positive over poisson bucket occupancy, weighted by the occupancy.
+TEMPLATE
+double CLASS::expected_walk(size_t k, double load_factor) NOEXCEPT
+{
+    using namespace system;
+    auto walk = 0.0;
+    auto poisson = std::exp(-load_factor);
+    const auto span = poisson_span(load_factor);
+    for (auto n = one; n <= span; ++n)
+    {
+        poisson *= load_factor / to_floating(n);
+        walk += poisson * to_floating(n) * bloom_false_positive(k, n);
+    }
+
+    return walk;
 }
 
 TEMPLATE
@@ -266,8 +360,8 @@ INLINE constexpr CLASS::link CLASS::to_link(cell value) NOEXCEPT
 }
 
 TEMPLATE
-INLINE constexpr CLASS::cell CLASS::next_cell(bool& collision, cell previous,
-    link current, uint64_t entropy) NOEXCEPT
+INLINE CLASS::cell CLASS::next_cell(bool& collision, cell previous,
+    link current, uint64_t entropy) const NOEXCEPT
 {
     if constexpr (filter_t::disabled)
     {
@@ -278,14 +372,14 @@ INLINE constexpr CLASS::cell CLASS::next_cell(bool& collision, cell previous,
     {
         using namespace system;
         const auto prev = to_filter(previous);
-        const auto next = filter_t::screen(prev, entropy);
+        const auto next = filter_t::screen(prev, entropy, k_);
         collision = filter_t::is_collision(prev, next);
         return bit_or<cell>(shift_left<cell>(next, link_bits), current);
     }
 }
 
 TEMPLATE
-INLINE constexpr bool CLASS::screened(cell value, uint64_t entropy) NOEXCEPT
+INLINE bool CLASS::screened(cell value, uint64_t entropy) const NOEXCEPT
 {
     if constexpr (filter_t::disabled)
     {
@@ -293,7 +387,7 @@ INLINE constexpr bool CLASS::screened(cell value, uint64_t entropy) NOEXCEPT
     }
     else
     {
-        return filter_t::is_screened(to_filter(value), entropy);
+        return filter_t::is_screened(to_filter(value), entropy, k_);
     }
 }
 

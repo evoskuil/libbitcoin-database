@@ -41,11 +41,20 @@ public:
     using bytes = typename Link::bytes;
 
     /// A hash head is disabled if it has no buckets.
-    hashhead(storage& head, size_t buckets) NOEXCEPT;
+    hashhead(storage& head, size_t buckets, size_t expected=zero) NOEXCEPT;
 
     /// Sizing (thread safe).
     inline size_t size() const NOEXCEPT;
     inline size_t buckets() const NOEXCEPT;
+
+    /// Filter selections, derived at construct, overridden by set_filter_k.
+    inline size_t filter_k() const NOEXCEPT;
+
+    /// Set filter selections from stored envelope (not thread safe).
+    bool set_filter_k(size_t k) NOEXCEPT;
+
+    /// Optimal filter k-value for expected load factor.
+    static size_t optimal_k(size_t count, size_t buckets) NOEXCEPT;
 
     /// Create from empty head file (not thread safe).
     bool create() NOEXCEPT;
@@ -83,8 +92,11 @@ protected:
     static constexpr size_t link_size = Link::size;
     static constexpr size_t link_bits = Link::bits;
     static constexpr size_t m = to_bits(cell_size) - link_bits;
-    static constexpr size_t k = system::floored_log2(m);
-    using filter_t = system::bloom<m, k>;
+    static constexpr size_t k_default = system::floored_log2(m);
+    static constexpr size_t k_max = (m < two) ? zero : std::min(m,
+        bits<uint64_t> / system::ceilinged_log2(m));
+
+    using filter_t = system::bloom<m, k_max>;
     using cell = unsigned_type<cell_size>;
     using filter = filter_t::type;
     using link = Link::integer;
@@ -95,11 +107,17 @@ protected:
     static_assert(std::atomic<cell>::is_always_lock_free);
     static_assert(is_nonzero(Link::size));
 
+    static_assert(is_zero(k_max) || (k_default <= k_max));
+
     INLINE static constexpr filter to_filter(cell value) NOEXCEPT;
     INLINE static constexpr link to_link(cell value) NOEXCEPT;
-    INLINE static constexpr bool screened(cell value, uint64_t entropy) NOEXCEPT;
-    INLINE static constexpr cell next_cell(bool& collision, cell previous,
-        link current, uint64_t entropy) NOEXCEPT;
+    INLINE bool screened(cell value, uint64_t entropy) const NOEXCEPT;
+    INLINE cell next_cell(bool& collision, cell previous,
+        link current, uint64_t entropy) const NOEXCEPT;
+
+    static double bloom_false_positive(size_t k, size_t n) NOEXCEPT;
+    static size_t poisson_span(double load_factor) NOEXCEPT;
+    static double expected_walk(size_t k, double load_factor) NOEXCEPT;
 
     inline cell get_cell(const Link& index) const NOEXCEPT;
     inline bool set_cell(bool& collision, bytes& next, const Link& current,
@@ -144,6 +162,9 @@ private:
     storage& file_;
     const Link buckets_;
     mutable std::shared_mutex mutex_{};
+
+    // Protected by order - derived at construct, envelope overrides at open.
+    size_t k_;
 };
 
 } // namespace database
