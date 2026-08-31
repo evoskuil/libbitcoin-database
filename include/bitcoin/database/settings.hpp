@@ -55,6 +55,14 @@ struct BCD_API settings
         uint32_t buckets{ 128 };
     };
 
+    /// Adds the expected element count (rows for records, not for slabs).
+    struct hash_table
+      : public bucket_table
+    {
+        /// Expected element count, derives filter k at create (zero=legacy).
+        uint64_t expected{ 0 };
+    };
+
     /// Properties.
     /// -----------------------------------------------------------------------
 
@@ -76,12 +84,12 @@ struct BCD_API settings
     /// Archives.
     /// -----------------------------------------------------------------------
 
-    bucket_table header{};
+    hash_table header{};
     simple_table input{};
     simple_table output{};
-    bucket_table ins{};
-    bucket_table outs{};
-    bucket_table tx{};
+    hash_table ins{};
+    hash_table outs{};
+    hash_table tx{};
     bucket_table txs{};
 
     /// Indexes.
@@ -89,7 +97,7 @@ struct BCD_API settings
 
     bucket_table candidate{};
     bucket_table confirmed{};
-    bucket_table strong_tx{};
+    hash_table strong_tx{};
 
     /// Caches.
     /// -----------------------------------------------------------------------
@@ -97,11 +105,11 @@ struct BCD_API settings
     simple_table ecdsa{};
     simple_table schnorr{};
     simple_table silent{};
-    bucket_table duplicate{};
+    hash_table duplicate{};
     simple_table prevalid{};
     bucket_table prevout{};
     bucket_table validated_bk{};
-    bucket_table validated_tx{};
+    hash_table validated_tx{};
 
     /// Optionals.
     /// -----------------------------------------------------------------------

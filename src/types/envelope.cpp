@@ -90,6 +90,13 @@ bool envelope::from_data(reader& source) NOEXCEPT
     strong_tx_buckets = source.read_little_endian<uint32_t>();
     duplicate_buckets = source.read_little_endian<uint32_t>();
     validated_tx_buckets = source.read_little_endian<uint32_t>();
+    header_k = source.read_byte();
+    ins_k = source.read_byte();
+    outs_k = source.read_byte();
+    tx_k = source.read_byte();
+    strong_tx_k = source.read_byte();
+    duplicate_k = source.read_byte();
+    validated_tx_k = source.read_byte();
     filter = to_bool(source.read_byte());
 
     forks.bip16 = to_bool(source.read_byte());
@@ -166,6 +173,13 @@ bool envelope::to_data(finalizer& sink) const NOEXCEPT
     sink.write_little_endian<uint32_t>(strong_tx_buckets);
     sink.write_little_endian<uint32_t>(duplicate_buckets);
     sink.write_little_endian<uint32_t>(validated_tx_buckets);
+    sink.write_byte(header_k);
+    sink.write_byte(ins_k);
+    sink.write_byte(outs_k);
+    sink.write_byte(tx_k);
+    sink.write_byte(strong_tx_k);
+    sink.write_byte(duplicate_k);
+    sink.write_byte(validated_tx_k);
     sink.write_byte(to_int<uint8_t>(filter));
 
     sink.write_byte(to_int<uint8_t>(forks.bip16));
@@ -234,7 +248,8 @@ size_t envelope::serialized_size() const NOEXCEPT
 {
     constexpr auto forks_size = 24_size;
     constexpr auto fixed = one + sizeof(uint16_t) + (7 * sizeof(uint32_t)) +
-        one + forks_size + sizeof(uint64_t) + (15 * sizeof(uint32_t));
+        (7 * sizeof(uint8_t)) + one + forks_size + sizeof(uint64_t) +
+        (15 * sizeof(uint32_t));
 
     const auto checkpoint_size = [](const chain::checkpoint& in) NOEXCEPT
     {

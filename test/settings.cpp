@@ -39,9 +39,11 @@ BOOST_AUTO_TEST_CASE(settings__construct__default__expected)
 
     // Archives.
     BOOST_REQUIRE_EQUAL(configuration.header.buckets, 128u);
+    BOOST_REQUIRE_EQUAL(configuration.header.expected, 0u);
     BOOST_REQUIRE_EQUAL(configuration.header.size, 1u);
     BOOST_REQUIRE_EQUAL(configuration.header.rate, 5u);
     BOOST_REQUIRE_EQUAL(configuration.ins.buckets, 128u);
+    BOOST_REQUIRE_EQUAL(configuration.ins.expected, 0u);
     BOOST_REQUIRE_EQUAL(configuration.ins.size, 1u);
     BOOST_REQUIRE_EQUAL(configuration.ins.rate, 5u);
     BOOST_REQUIRE_EQUAL(configuration.input.size, 1u);
@@ -49,9 +51,11 @@ BOOST_AUTO_TEST_CASE(settings__construct__default__expected)
     BOOST_REQUIRE_EQUAL(configuration.output.size, 1u);
     BOOST_REQUIRE_EQUAL(configuration.output.rate, 5u);
     BOOST_REQUIRE_EQUAL(configuration.outs.buckets, 128u);
+    BOOST_REQUIRE_EQUAL(configuration.outs.expected, 0u);
     BOOST_REQUIRE_EQUAL(configuration.outs.size, 1u);
     BOOST_REQUIRE_EQUAL(configuration.outs.rate, 5u);
     BOOST_REQUIRE_EQUAL(configuration.tx.buckets, 128u);
+    BOOST_REQUIRE_EQUAL(configuration.tx.expected, 0u);
     BOOST_REQUIRE_EQUAL(configuration.tx.size, 1u);
     BOOST_REQUIRE_EQUAL(configuration.tx.rate, 5u);
     BOOST_REQUIRE_EQUAL(configuration.txs.buckets, 128u);
@@ -64,6 +68,7 @@ BOOST_AUTO_TEST_CASE(settings__construct__default__expected)
     BOOST_REQUIRE_EQUAL(configuration.confirmed.buckets, 128u);
     BOOST_REQUIRE_EQUAL(configuration.confirmed.rate, 5u);
     BOOST_REQUIRE_EQUAL(configuration.strong_tx.buckets, 128u);
+    BOOST_REQUIRE_EQUAL(configuration.strong_tx.expected, 0u);
     BOOST_REQUIRE_EQUAL(configuration.strong_tx.size, 1u);
     BOOST_REQUIRE_EQUAL(configuration.strong_tx.rate, 5u);
 
@@ -75,6 +80,7 @@ BOOST_AUTO_TEST_CASE(settings__construct__default__expected)
     BOOST_REQUIRE_EQUAL(configuration.silent.size, 1u);
     BOOST_REQUIRE_EQUAL(configuration.silent.rate, 5u);
     BOOST_REQUIRE_EQUAL(configuration.duplicate.buckets, 128u);
+    BOOST_REQUIRE_EQUAL(configuration.duplicate.expected, 0u);
     BOOST_REQUIRE_EQUAL(configuration.duplicate.size, 1u);
     BOOST_REQUIRE_EQUAL(configuration.duplicate.rate, 5u);
     BOOST_REQUIRE_EQUAL(configuration.prevalid.size, 1u);
@@ -86,6 +92,7 @@ BOOST_AUTO_TEST_CASE(settings__construct__default__expected)
     BOOST_REQUIRE_EQUAL(configuration.validated_bk.size, 1u);
     BOOST_REQUIRE_EQUAL(configuration.validated_bk.rate, 5u);
     BOOST_REQUIRE_EQUAL(configuration.validated_tx.buckets, 128u);
+    BOOST_REQUIRE_EQUAL(configuration.validated_tx.expected, 0u);
     BOOST_REQUIRE_EQUAL(configuration.validated_tx.size, 1u);
     BOOST_REQUIRE_EQUAL(configuration.validated_tx.rate, 5u);
 

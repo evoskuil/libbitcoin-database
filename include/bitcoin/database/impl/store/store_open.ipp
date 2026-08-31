@@ -85,17 +85,7 @@ code CLASS::open(const event_handler& handler) NOEXCEPT
     verify(ec, filter_tx, table_t::filter_tx_table);
 
     if (!ec)
-    {
-        // The stored creation envelope governs, configuration is not read.
-        table::txs::get_envelope genesis{};
-        if (!is_zero(txs.body_size()))
-        {
-            if (txs.at(zero, genesis))
-                envelope_ = genesis.envelope;
-            else
-                ec = error::verify_table;
-        }
-    }
+        ec = load_envelope();
 
     if (ec)
     {
@@ -109,6 +99,34 @@ code CLASS::open(const event_handler& handler) NOEXCEPT
     // process and flush locks remain open until close().
     transactor_mutex_.unlock();
     return ec;
+}
+
+TEMPLATE
+code CLASS::load_envelope() NOEXCEPT
+{
+    // The stored creation envelope governs, configuration is not read.
+    table::txs::get_envelope genesis{};
+    if (!is_zero(txs.body_size()))
+    {
+        if (txs.at(zero, genesis))
+            envelope_ = genesis.envelope;
+        else
+            return error::verify_table;
+    }
+
+    // The stored filter k values govern filter bit interpretation.
+    if (!header.set_filter_k(envelope_.header_k) ||
+        !ins.set_filter_k(envelope_.ins_k) ||
+        !outs.set_filter_k(envelope_.outs_k) ||
+        !tx.set_filter_k(envelope_.tx_k) ||
+        !strong_tx.set_filter_k(envelope_.strong_tx_k) ||
+        !duplicate.set_filter_k(envelope_.duplicate_k) ||
+        !validated_tx.set_filter_k(envelope_.validated_tx_k))
+    {
+        return error::verify_table;
+    }
+
+    return error::success;
 }
 
 } // namespace database

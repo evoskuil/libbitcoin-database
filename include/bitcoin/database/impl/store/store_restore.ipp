@@ -156,6 +156,9 @@ code CLASS::restore(const event_handler& handler) NOEXCEPT
         restore(ec, filter_bk, table_t::filter_bk_table);
         restore(ec, filter_tx, table_t::filter_tx_table);
 
+        if (!ec)
+            ec = load_envelope();
+
         if (ec)
             /* code */ unload_close(handler);
     }

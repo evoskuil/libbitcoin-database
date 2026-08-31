@@ -117,6 +117,7 @@ protected:
     /// Method helpers.
     code create_load(const event_handler& handler) NOEXCEPT;
     code open_load(const event_handler& handler) NOEXCEPT;
+    code load_envelope() NOEXCEPT;
     code unload_close(const event_handler& handler) NOEXCEPT;
     code backup(const event_handler& handler, bool prune=false) NOEXCEPT;
     code dump(const path& folder, const event_handler& handler) NOEXCEPT;

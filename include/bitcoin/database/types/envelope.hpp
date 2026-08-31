@@ -31,7 +31,7 @@ struct settings;
 /// values govern the store, configuration is consumed only at creation.
 struct BCD_API envelope
 {
-    static constexpr uint8_t current{ 1 };
+    static constexpr uint8_t current{ 2 };
 
     envelope() NOEXCEPT = default;
     envelope(const system::settings& bitcoin,
@@ -53,6 +53,13 @@ struct BCD_API envelope
     uint32_t strong_tx_buckets{};
     uint32_t duplicate_buckets{};
     uint32_t validated_tx_buckets{};
+    uint8_t header_k{};
+    uint8_t ins_k{};
+    uint8_t outs_k{};
+    uint8_t tx_k{};
+    uint8_t strong_tx_k{};
+    uint8_t duplicate_k{};
+    uint8_t validated_tx_k{};
     bool filter{};
 
     /// System settings.

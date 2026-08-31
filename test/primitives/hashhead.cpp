@@ -172,4 +172,71 @@ BOOST_AUTO_TEST_CASE(hashhead__push__key__terminal)
     BOOST_REQUIRE_EQUAL(head.top(null_key), expected);
 }
 
+// filtered head (mirrors ins geometry: cell 8, link 4, m = 32, legacy k = 5)
+
+using link4 = linkage<4>;
+using filtered_ = hashhead<link4, key, 8>;
+constexpr auto filtered_buckets = 16_size;
+
+BOOST_AUTO_TEST_CASE(hashhead__optimal_k__zeros__legacy)
+{
+    BOOST_REQUIRE_EQUAL(filtered_::optimal_k(0, 100), 5u);
+    BOOST_REQUIRE_EQUAL(filtered_::optimal_k(100, 0), 5u);
+}
+
+BOOST_AUTO_TEST_CASE(hashhead__optimal_k__load_factor__banded)
+{
+    BOOST_REQUIRE_EQUAL(filtered_::optimal_k(25, 10), 4u);
+    BOOST_REQUIRE_EQUAL(filtered_::optimal_k(40, 10), 4u);
+    BOOST_REQUIRE_EQUAL(filtered_::optimal_k(60, 10), 3u);
+    BOOST_REQUIRE_EQUAL(filtered_::optimal_k(75, 10), 2u);
+    BOOST_REQUIRE_EQUAL(filtered_::optimal_k(100, 10), 2u);
+    BOOST_REQUIRE_EQUAL(filtered_::optimal_k(200, 10), 1u);
+}
+
+BOOST_AUTO_TEST_CASE(hashhead__construct__expected__derived_k)
+{
+    data_chunk data{};
+    test::chunk_storage store{ data };
+    filtered_ head{ store, filtered_buckets, 40 };
+    BOOST_REQUIRE_EQUAL(head.filter_k(), 4u);
+}
+
+BOOST_AUTO_TEST_CASE(hashhead__construct__no_expected__legacy_k)
+{
+    data_chunk data{};
+    test::chunk_storage store{ data };
+    filtered_ head{ store, filtered_buckets };
+    BOOST_REQUIRE_EQUAL(head.filter_k(), 5u);
+}
+
+BOOST_AUTO_TEST_CASE(hashhead__set_filter_k__valid__set)
+{
+    data_chunk data{};
+    test::chunk_storage store{ data };
+    filtered_ head{ store, filtered_buckets };
+    BOOST_REQUIRE(head.set_filter_k(2));
+    BOOST_REQUIRE_EQUAL(head.filter_k(), 2u);
+}
+
+BOOST_AUTO_TEST_CASE(hashhead__set_filter_k__invalid__false)
+{
+    data_chunk data{};
+    test::chunk_storage store{ data };
+    filtered_ head{ store, filtered_buckets };
+    BOOST_REQUIRE(!head.set_filter_k(0));
+    BOOST_REQUIRE(!head.set_filter_k(13));
+    BOOST_REQUIRE_EQUAL(head.filter_k(), 5u);
+}
+
+BOOST_AUTO_TEST_CASE(hashhead__set_filter_k__disabled__zero_only)
+{
+    data_chunk data{};
+    test::chunk_storage store{ data };
+    hashhead_ head{ store, buckets };
+    BOOST_REQUIRE(head.set_filter_k(0));
+    BOOST_REQUIRE(!head.set_filter_k(1));
+    BOOST_REQUIRE_EQUAL(head.filter_k(), 0u);
+}
+
 BOOST_AUTO_TEST_SUITE_END()
