@@ -775,6 +775,10 @@ public:
     /// Unspent.
     /// -----------------------------------------------------------------------
 
+    /// Coin amounts moved by the block.
+    code get_block_amounts(block_amounts& out,
+        const header_link& link) const NOEXCEPT;
+
     /// Unspent output totals over the branch (administrative scan).
     code get_unspent_totals(const stopper& cancel, unspent_totals& out,
         const header_links& branch, bool turbo=false) const NOEXCEPT;
@@ -783,8 +787,8 @@ public:
     /// canonical (txid, index) order as required for utxo set serialization,
     /// otherwise unordered (ordering requires a full materialized sort).
     template <typename Visitor>
-    code get_unspent_coins(const stopper& cancel, const Visitor& visit,
-        const header_links& branch, bool ordered,
+    code get_unspent_coins(const stopper& cancel, unspent_totals& out,
+        const Visitor& visit, const header_links& branch, bool ordered,
         bool turbo=false) const NOEXCEPT;
 
 protected:
@@ -989,8 +993,9 @@ private:
 
     bool is_bip30_exception(bool& out,
         const header_link& link) const NOEXCEPT;
-    code scan_unspent(difference_set<>& set, const stopper& cancel,
-        const header_links& branch, bool turbo) const NOEXCEPT;
+    code scan_unspent(difference_set<>& set, unspent_totals& out,
+        const stopper& cancel, const header_links& branch,
+        bool turbo) const NOEXCEPT;
     code count_unspent(unspent_totals& out, const stopper& cancel,
         const difference_set<>::entries& survivors) const NOEXCEPT;
     template <typename Visitor>

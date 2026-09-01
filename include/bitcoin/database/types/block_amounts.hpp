@@ -16,36 +16,30 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef LIBBITCOIN_DATABASE_TYPES_UNSPENT_TOTALS_HPP
-#define LIBBITCOIN_DATABASE_TYPES_UNSPENT_TOTALS_HPP
+#ifndef LIBBITCOIN_DATABASE_TYPES_BLOCK_AMOUNTS_HPP
+#define LIBBITCOIN_DATABASE_TYPES_BLOCK_AMOUNTS_HPP
 
 #include <bitcoin/database/define.hpp>
 
 namespace libbitcoin {
 namespace database {
 
-/// Spendable unspent output totals, accumulated over a branch scan.
-struct BCD_API unspent_totals
+/// Coin amounts moved by a single block.
+struct BCD_API block_amounts
 {
-    /// Unspent outputs.
-    size_t outputs{};
+    /// Total value of the prevouts spent by the block.
+    uint64_t prevouts{};
 
-    /// Transactions with at least one unspent output.
-    size_t transactions{};
+    /// Total value of the coinbase outputs.
+    uint64_t coinbase{};
 
-    /// Total serialized script size of unspent outputs.
-    size_t script_bytes{};
+    /// Total value of the non-coinbase outputs.
+    uint64_t outputs{};
 
-    /// Total coin-serialized (bitcoind) size of unspent outputs.
-    size_t coin_bytes{};
-
-    /// Total value of unspent outputs.
-    uint64_t value{};
-
-    /// Total value of provably unspendable outputs (excluded from the set).
+    /// Total value of the provably unspendable outputs created.
     uint64_t unspendable{};
 
-    /// Total value of coinbase outputs overwritten by bip30 duplication.
+    /// Total value of the coinbase outputs overwritten by bip30 duplication.
     uint64_t bip30{};
 };
 

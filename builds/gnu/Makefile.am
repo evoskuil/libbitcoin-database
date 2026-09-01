@@ -324,6 +324,7 @@ include_bitcoin_database_typesdir = \
 include_bitcoin_database_types_HEADERS = \
     ${srcdir}/../../include/bitcoin/database/types/association.hpp \
     ${srcdir}/../../include/bitcoin/database/types/associations.hpp \
+    ${srcdir}/../../include/bitcoin/database/types/block_amounts.hpp \
     ${srcdir}/../../include/bitcoin/database/types/block_state.hpp \
     ${srcdir}/../../include/bitcoin/database/types/difference_set.hpp \
     ${srcdir}/../../include/bitcoin/database/types/envelope.hpp \

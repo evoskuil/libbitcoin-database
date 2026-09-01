@@ -84,6 +84,7 @@
 #include <bitcoin/database/tables/optionals/filter_tx.hpp>
 #include <bitcoin/database/types/association.hpp>
 #include <bitcoin/database/types/associations.hpp>
+#include <bitcoin/database/types/block_amounts.hpp>
 #include <bitcoin/database/types/block_state.hpp>
 #include <bitcoin/database/types/difference_set.hpp>
 #include <bitcoin/database/types/envelope.hpp>
