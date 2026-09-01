@@ -655,9 +655,9 @@ public:
     bool get_branch(header_states& branch, const hash_digest& hash) const NOEXCEPT;
     bool get_work(uint256_t& work, const header_states& states) const NOEXCEPT;
     bool get_strong_branch(bool& strong, const uint256_t& branch_work,
-        size_t branch_point) const NOEXCEPT;
+        size_t branch_point, bool tie=false) const NOEXCEPT;
     bool get_strong_fork(bool& strong, const uint256_t& fork_work,
-        size_t fork_point) const NOEXCEPT;
+        size_t fork_point, bool tie=false) const NOEXCEPT;
 
     /// Height indexation.
     /// -----------------------------------------------------------------------

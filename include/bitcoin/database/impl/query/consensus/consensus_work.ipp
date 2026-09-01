@@ -62,7 +62,7 @@ bool CLASS::get_branch(header_states& branch,
 
 TEMPLATE
 bool CLASS::get_strong_branch(bool& strong, const uint256_t& branch_work,
-    size_t branch_point) const NOEXCEPT
+    size_t branch_point, bool tie) const NOEXCEPT
 {
     uint256_t work{};
     for (auto height = get_top_candidate(); height > branch_point; --height)
@@ -71,9 +71,8 @@ bool CLASS::get_strong_branch(bool& strong, const uint256_t& branch_work,
         if (!get_bits(bits, to_candidate(height)))
             return false;
 
-        // Not strong when candidate_work equals or exceeds branch_work.
         work += system::chain::header::proof(bits);
-        if (work >= branch_work)
+        if (tie ? (work > branch_work) : (work >= branch_work))
         {
             strong = false;
             return true;
@@ -86,7 +85,7 @@ bool CLASS::get_strong_branch(bool& strong, const uint256_t& branch_work,
 
 TEMPLATE
 bool CLASS::get_strong_fork(bool& strong, const uint256_t& fork_work,
-    size_t fork_point) const NOEXCEPT
+    size_t fork_point, bool tie) const NOEXCEPT
 {
     uint256_t work{};
     for (auto height = get_top_confirmed(); height > fork_point; --height)
@@ -95,9 +94,8 @@ bool CLASS::get_strong_fork(bool& strong, const uint256_t& fork_work,
         if (!get_bits(bits, to_confirmed(height)))
             return false;
 
-        // Not strong is confirmed work ever equals or exceeds fork_work.
         work += system::chain::header::proof(bits);
-        if (work >= fork_work)
+        if (tie ? (work > fork_work) : (work >= fork_work))
         {
             strong = false;
             return true;
