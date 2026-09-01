@@ -211,6 +211,7 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\tables.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\association.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\associations.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\types\block_amounts.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\block_state.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\difference_set.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\envelope.hpp" />

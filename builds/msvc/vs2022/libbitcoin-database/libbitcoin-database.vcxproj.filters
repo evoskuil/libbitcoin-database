@@ -353,6 +353,9 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\associations.hpp">
       <Filter>include\bitcoin\database\types</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\types\block_amounts.hpp">
+      <Filter>include\bitcoin\database\types</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\block_state.hpp">
       <Filter>include\bitcoin\database\types</Filter>
     </ClInclude>

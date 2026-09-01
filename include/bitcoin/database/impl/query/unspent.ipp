@@ -70,11 +70,58 @@ bool CLASS::is_bip30_exception(bool& out,
 }
 
 TEMPLATE
-code CLASS::scan_unspent(difference_set<>& set, const stopper& cancel,
-    const header_links& branch, bool turbo) const NOEXCEPT
+code CLASS::get_block_amounts(block_amounts& out,
+    const header_link& link) const NOEXCEPT
+{
+    out = {};
+    auto bip30_exception = false;
+    if (!is_bip30_exception(bip30_exception, link))
+        return error::integrity;
+
+    auto coinbase = true;
+    table::output::get_spendable value{};
+    for (const auto& tx: to_transactions(link))
+    {
+        for (const auto& put: to_outputs(tx))
+        {
+            if (!store_.output.get(put, value))
+                return error::integrity;
+
+            if (value.unspendable)
+                out.unspendable += value.value;
+
+            if (coinbase)
+                out.coinbase += value.value;
+            else
+                out.outputs += value.value;
+        }
+
+        coinbase = false;
+    }
+
+    // The duplicated coinbase overwrites (destroys) that of the original.
+    if (bip30_exception)
+        out.bip30 = out.coinbase;
+
+    for (const auto& put: to_block_prevouts(link))
+    {
+        if (!store_.output.get(put, value))
+            return error::integrity;
+
+        out.prevouts += value.value;
+    }
+
+    return error::success;
+}
+
+TEMPLATE
+code CLASS::scan_unspent(difference_set<>& set, unspent_totals& out,
+    const stopper& cancel, const header_links& branch, bool turbo) const NOEXCEPT
 {
     using namespace system;
     std::atomic_bool fail{};
+    std::atomic<uint64_t> unspendable{};
+    std::atomic<uint64_t> overwritten{};
     const auto parallel = poolstl::execution::par_if(turbo);
 
     // Reverse order in best effort attempt to minimize set size.
@@ -92,12 +139,27 @@ code CLASS::scan_unspent(difference_set<>& set, const stopper& cancel,
                 return;
             }
 
-            // The bip30 exception blocks are coinbase only.
-            if (bip30_exception)
-                return;
-
             auto coinbase = true;
             table::output::get_spendable value{};
+
+            // The bip30 exception blocks are coinbase only, their duplicated
+            // outputs overwrite (destroy) those of the original blocks.
+            if (bip30_exception)
+            {
+                for (const auto& tx: to_transactions(link))
+                    for (const auto& out_: to_outputs(tx))
+                    {
+                        if (!store_.output.get(out_, value))
+                        {
+                            fail = true;
+                            return;
+                        }
+
+                        overwritten += value.value;
+                    }
+
+                return;
+            }
             for (const auto& tx: to_transactions(link))
             {
                 if (cancel || fail)
@@ -112,7 +174,9 @@ code CLASS::scan_unspent(difference_set<>& set, const stopper& cancel,
                         return;
                     }
 
-                    if (!value.unspendable)
+                    if (value.unspendable)
+                        unspendable += value.value;
+                    else
                         set.toggle(tx, index);
 
                     ++index;
@@ -165,6 +229,8 @@ code CLASS::scan_unspent(difference_set<>& set, const stopper& cancel,
     if (cancel)
         return error::query_canceled;
 
+    out.unspendable = unspendable;
+    out.bip30 = overwritten;
     return error::success;
 }
 
@@ -174,7 +240,6 @@ code CLASS::count_unspent(unspent_totals& out, const stopper& cancel,
 {
     using namespace system;
 
-    out = {};
     output_links puts{};
     auto previous = max_uint64;
     table::output::get_spendable value{};
@@ -280,20 +345,23 @@ TEMPLATE
 code CLASS::get_unspent_totals(const stopper& cancel, unspent_totals& out,
     const header_links& branch, bool turbo) const NOEXCEPT
 {
+    out = {};
     difference_set<> set{};
-    const auto ec = scan_unspent(set, cancel, branch, turbo);
+    const auto ec = scan_unspent(set, out, cancel, branch, turbo);
     return ec ? ec : count_unspent(out, cancel, set.drain());
 }
 
 TEMPLATE
 template <typename Visitor>
-code CLASS::get_unspent_coins(const stopper& cancel, const Visitor& visit,
-    const header_links& branch, bool ordered, bool turbo) const NOEXCEPT
+code CLASS::get_unspent_coins(const stopper& cancel, unspent_totals& out,
+    const Visitor& visit, const header_links& branch, bool ordered,
+    bool turbo) const NOEXCEPT
 {
     using namespace system;
 
+    out = {};
     difference_set<> set{};
-    if (const auto ec = scan_unspent(set, cancel, branch, turbo))
+    if (const auto ec = scan_unspent(set, out, cancel, branch, turbo))
         return ec;
 
     auto survivors = set.drain();
