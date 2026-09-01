@@ -334,7 +334,7 @@ private:
     size_t allocate_filled_(size_t count, uint8_t backfill) NOEXCEPT;
     bool lazy_install_() NOEXCEPT;
     size_t record_(size_t count) NOEXCEPT;
-    bool claim_(extent& record, size_t count) NOEXCEPT;
+    bool claim_(extent& record, size_t offset, size_t count) NOEXCEPT;
     void maintain_() NOEXCEPT;
     void discard_() NOEXCEPT;
     void throttle_() NOEXCEPT;

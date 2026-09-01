@@ -44,54 +44,50 @@ void CLASS::complete(size_t STAGING_ONLY(offset),
     if (!staged_ || is_zero(count))
         return;
 
-    // Acquire-ordered window snapshot (published entries are immobile; the
-    // packed word precludes observing a torn head/size pair across pops).
-    const auto window = window_.load(std::memory_order_acquire);
-    const auto [head, size] = system::unpack_word<uint64_t>(window);
-
-    // Lock-free binary search of the sorted window for the covering extent.
-    auto high = size;
-    for (size_t low{}; low < high;)
+    // The covering extent is immobile while this completion is pending and
+    // cannot refuse a consistent claim, so a failed pass raced a recycle
+    // (torn navigation or stale snapshot): rescan against a fresh window.
+    for (;;)
     {
-        const auto middle = to_half(low + high);
-        auto& record = ring_.at((head + middle) % extents);
-        const auto start = record.start.load(relaxed);
+        // Acquire-ordered window snapshot (published entries are immobile;
+        // the packed word precludes observing a torn head/size pair).
+        const auto window = window_.load(std::memory_order_acquire);
+        const auto [head, size] = system::unpack_word<uint64_t>(window);
 
-        if (offset < start)
+        // Lock-free binary search of the sorted window (relaxed navigation
+        // is heuristic only; claim_ verifies cover under the generation).
+        auto high = size;
+        for (size_t low{}; low < high;)
         {
-            high = middle;
-            continue;
+            const auto middle = to_half(low + high);
+            auto& record = ring_.at((head + middle) % extents);
+            const auto start = record.start.load(relaxed);
+
+            if (offset < start)
+            {
+                high = middle;
+                continue;
+            }
+
+            if (offset >= (start + record.count.load(relaxed)))
+            {
+                low = add1(middle);
+                continue;
+            }
+
+            if (claim_(record, offset, count))
+                return;
+
+            // The matched slot recycled under the search: scan below.
+            break;
         }
 
-        if (offset >= (start + record.count.load(relaxed)))
-        {
-            low = add1(middle);
-            continue;
-        }
-
-        if (claim_(record, count))
-            return;
-
-        // The range matched a slot recycling under the search (regardless
-        // of apparent agreement, the claim refused it). The true covering
-        // extent is immobile while this completion is pending, so the
-        // exhaustive scan below finds it.
-        break;
-    }
-
-    // Contention can record extents out of start order (allocation claim and
-    // recording are not one atomic step), transiently breaking search order.
-    // Contiguity guarantees a unique cover, so fall back to a linear scan.
-    for (size_t index{}; index < size; ++index)
-    {
-        auto& record = ring_.at((head + index) % extents);
-        const auto start = record.start.load(relaxed);
-        if ((offset < start) ||
-            (offset >= (start + record.count.load(relaxed))))
-            continue;
-
-        if (claim_(record, count))
-            return;
+        // Contention can record extents out of start order (allocation claim
+        // and recording are not one atomic step), transiently breaking search
+        // order. Contiguity guarantees a unique cover: scan linearly.
+        for (size_t index{}; index < size; ++index)
+            if (claim_(ring_.at((head + index) % extents), offset, count))
+                return;
     }
 #endif
 }
@@ -99,27 +95,34 @@ void CLASS::complete(size_t STAGING_ONLY(offset),
 #if defined(MANAGE_STAGING)
 
 // Claim completion of count rows against the extent, by cas decrement of the
-// packed state while its recycling generation holds. A claim can therefore
-// never land across a recycle and requires no repair (the prior repair
-// misfired when the decrement itself zeroed the extent and the slot recycled
-// before the start recheck, permanently inflating the successor). False
-// implies the slot recycled out from under the caller's range match (or the
-// match was torn across a recycle): the caller rescans. The true covering
-// extent cannot refuse: its generation is stable and its outstanding covers
-// every pending completion while any remains.
+// packed state under a cover check ordered by that state's own acquire: the
+// publishing release sequences start/count before state, so both read after
+// it belong to the observed generation (a live outstanding precludes a
+// recycle in progress, as slots re-record only after retirement). A range
+// match read before the acquire can be torn across a recycle and debit the
+// slot's successor extent, pinning the true cover's frontier forever. False
+// implies the slot does not (or no longer does) cover the offset, or is
+// drained (recycle in flight): the caller rescans. The true covering extent
+// cannot refuse: its generation is stable and its outstanding covers every
+// pending completion while any remains.
 TEMPLATE
-bool CLASS::claim_(extent& record, size_t count) NOEXCEPT
+bool CLASS::claim_(extent& record, size_t offset, size_t count) NOEXCEPT
 {
     using namespace system;
     auto state = record.state.load(std::memory_order_acquire);
-    const auto generation = shift_right<uint64_t>(state, generation_shift);
 
-    // An outstanding below the claim is a recycle in flight or a torn match
-    // (never the covering extent), refused rather than wrapped.
-    for (auto outstanding = bit_and<uint64_t>(state, outstanding_mask);
-        outstanding >= count;
-        outstanding = bit_and<uint64_t>(state, outstanding_mask))
+    for (;;)
     {
+        const auto generation = shift_right<uint64_t>(state, generation_shift);
+        const auto outstanding = bit_and<uint64_t>(state, outstanding_mask);
+        const auto start = record.start.load(relaxed);
+
+        // An outstanding below the claim is a recycle in flight or a drained
+        // slot (never the covering extent), refused rather than wrapped.
+        if ((outstanding < count) || (offset < start) ||
+            (offset >= (start + record.count.load(relaxed))))
+            return false;
+
         if (record.state.compare_exchange_weak(state,
             pack_extent_(generation, outstanding - count),
             std::memory_order_acq_rel, std::memory_order_acquire))
@@ -137,12 +140,8 @@ bool CLASS::claim_(extent& record, size_t count) NOEXCEPT
             return true;
         }
 
-        // The failed cas reloaded state; a generation change is a recycle.
-        if (shift_right<uint64_t>(state, generation_shift) != generation)
-            return false;
+        // The failed cas reloaded state (acquire): recheck under it.
     }
-
-    return false;
 }
 
 #endif // MANAGE_STAGING
