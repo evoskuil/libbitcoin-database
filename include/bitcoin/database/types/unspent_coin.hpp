@@ -50,6 +50,8 @@ struct BCD_API unspent_coin
     system::data_chunk script{};
 };
 
+using unspent_coins = std::vector<unspent_coin>;
+
 } // namespace database
 } // namespace libbitcoin
 
