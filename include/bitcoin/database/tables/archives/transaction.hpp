@@ -266,6 +266,19 @@ struct transaction
         bool coinbase{};
     };
 
+    struct get_hash
+      : public schema::transaction
+    {
+        inline bool from_data(reader& source) NOEXCEPT
+        {
+            source.rewind_bytes(sk);
+            hash = source.read_hash();
+            return source;
+        }
+
+        key hash{};
+    };
+
     struct get_version
       : public schema::transaction
     {

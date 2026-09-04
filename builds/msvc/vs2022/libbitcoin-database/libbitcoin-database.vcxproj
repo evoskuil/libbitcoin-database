@@ -136,16 +136,17 @@
       <ObjectFileName>$(IntDir)src_memory_utilities.obj</ObjectFileName>
     </ClCompile>
     <ClCompile Include="..\..\..\..\src\settings.cpp" />
-    <ClCompile Include="..\..\..\..\src\types\envelope.cpp" />
+    <ClCompile Include="..\..\..\..\src\tables\envelope.cpp" />
     <ClCompile Include="..\..\..\..\src\types\history.cpp" />
     <ClCompile Include="..\..\..\..\src\types\multisig_view.cpp" />
-    <ClCompile Include="..\..\..\..\src\types\unspent.cpp" />
+    <ClCompile Include="..\..\..\..\src\types\unspent_output.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\include\bitcoin\database.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\boost.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\define.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\error.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\file\advice.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\file\file.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\file\rotator.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\file\utilities.hpp" />
@@ -162,6 +163,7 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\database\memory\mmaps.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\memory\mstage.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\memory\reader.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\memory\release.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\memory\settings.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\memory\streamers.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\memory\utilities.hpp" />
@@ -199,6 +201,7 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\caches\validated_bk.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\caches\validated_tx.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\context.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\envelope.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\event.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\indexes\height.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\indexes\strong_tx.hpp" />
@@ -213,8 +216,8 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\associations.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\block_amounts.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\block_state.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\types\constants.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\difference_set.hpp" />
-    <ClInclude Include="..\..\..\..\include\bitcoin\database\types\envelope.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\fee_rate.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\header_state.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\history.hpp" />
@@ -225,9 +228,18 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\tx_state.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\type.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\types.hpp" />
-    <ClInclude Include="..\..\..\..\include\bitcoin\database\types\unspent.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\unspent_coin.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\types\unspent_output.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\unspent_totals.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\unspent\unspent.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\unspent\unspent_counter.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\unspent\unspent_matcher.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\unspent\unspent_muhash.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\unspent\unspent_reader.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\unspent\unspent_scanner.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\unspent\unspent_serial.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\unspent\unspent_spans.hpp" />
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\unspent\unspent_writer.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\version.hpp" />
   </ItemGroup>
   <ItemGroup>
@@ -307,7 +319,14 @@
     <None Include="..\..\..\..\include\bitcoin\database\impl\store\store_snapshot.ipp" />
     <None Include="..\..\..\..\include\bitcoin\database\impl\store\store_tables.ipp" />
     <None Include="..\..\..\..\include\bitcoin\database\impl\store\store_unload_close.ipp" />
-    <None Include="..\..\..\..\include\bitcoin\database\impl\types\difference_set.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\database\impl\unspent\unspent_counter.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\database\impl\unspent\unspent_matcher.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\database\impl\unspent\unspent_muhash.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\database\impl\unspent\unspent_reader.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\database\impl\unspent\unspent_scanner.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\database\impl\unspent\unspent_serial.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\database\impl\unspent\unspent_spans.ipp" />
+    <None Include="..\..\..\..\include\bitcoin\database\impl\unspent\unspent_writer.ipp" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>

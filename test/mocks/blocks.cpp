@@ -517,6 +517,51 @@ const block block1b
         }
     }
 };
+
+const block block1c
+{
+    header
+    {
+        0x31323334,         // version
+        block0_hash,        // previous_block_hash
+        hash_digest{ 0x1c },// merkle_root
+        0x41424344,         // timestamp
+        0x51525354,         // bits
+        0x61626364          // nonce
+    },
+    transactions
+    {
+        // This first transaction is a coinbase with two outputs.
+        transaction     // tx#1
+        {
+            0xc1,
+            inputs
+            {
+                input
+                {
+                    point{},
+                    script{ { { opcode::push_positive_1 } } },
+                    witness{},
+                    0xc1
+                }
+            },
+            outputs
+            {
+                output
+                {
+                    0x18,
+                    script{ { { opcode::pick } } }
+                },
+                output
+                {
+                    0x2a,
+                    script{ { { opcode::roll } } }
+                }
+            },
+            0xc1
+        }
+    }
+};
 const block block2b
 {
     header

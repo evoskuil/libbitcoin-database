@@ -16,8 +16,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef LIBBITCOIN_DATABASE_TYPES_UNSPENT_HPP
-#define LIBBITCOIN_DATABASE_TYPES_UNSPENT_HPP
+#ifndef LIBBITCOIN_DATABASE_TYPES_UNSPENT_OUTPUT_HPP
+#define LIBBITCOIN_DATABASE_TYPES_UNSPENT_OUTPUT_HPP
 
 #include <bitcoin/database/define.hpp>
 #include <bitcoin/database/types/type.hpp>
@@ -25,40 +25,42 @@
 namespace libbitcoin {
 namespace database {
 
-struct BCD_API unspent
+/// Used by native and electrum services.
+struct BCD_API unspent_output
 {
     static constexpr size_t unused_height = zero;
     static constexpr size_t unconfirmed_position = max_size_t;
 
     /// Filter out invalid unspent output elements and sort.
-    static void filter_sort_and_dedup(std::vector<unspent>& unspent) NOEXCEPT;
+    static void filter_sort_and_dedup(
+        std::vector<unspent_output>& unspent_output) NOEXCEPT;
 
-    /// The unspent is valid.
+    /// The unspent output is valid.
     bool valid() const NOEXCEPT;
 
-    /// A fault occured (and the unspent is not valid).
+    /// A fault occured (and the unspent output is not valid).
     bool fault() const NOEXCEPT;
 
     /// The tx is confirmed in a block.
     bool confirmed() const NOEXCEPT;
 
     /// Comparison operator based on Electrum unspent status sort.
-    bool operator<(const unspent& other) const NOEXCEPT;
+    bool operator<(const unspent_output& other) const NOEXCEPT;
 
     /// Equivalence: !LT && !GT.
-    bool operator==(const unspent& other) const NOEXCEPT;
+    bool operator==(const unspent_output& other) const NOEXCEPT;
 
     /// Tx hash and index of output within the tx.
     outpoint out{};
 
-    /// Tx's block height if confirmed, or unspent::unused_height.
+    /// Tx's block height if confirmed, or unspent_output::unused_height.
     size_t height{};
 
-    /// Tx's position in confirmed block, or unspent::unconfirmed_position.
+    /// Tx's position in confirmed block, or unspent_output::unconfirmed_position.
     size_t position{};
 };
 
-using unspents = std::vector<unspent>;
+using unspent_outputs = std::vector<unspent_output>;
 
 } // namespace database
 } // namespace libbitcoin

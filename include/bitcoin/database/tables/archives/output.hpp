@@ -161,7 +161,7 @@ struct output
         inline bool from_data(reader& source) NOEXCEPT
         {
             using namespace system;
-            source.skip_bytes(tx::size);
+            parent_fk = source.read_little_endian<tx::integer, tx::size>();
             value = source.read_variable();
             script.resize(possible_narrow_cast<size_t>(
                 source.read_variable()));
@@ -169,6 +169,7 @@ struct output
             return source;
         }
 
+        tx::integer parent_fk{};
         uint64_t value{};
         system::data_chunk script{};
     };
@@ -190,7 +191,7 @@ struct output
             script_size = possible_narrow_cast<size_t>(
                 source.read_variable());
 
-            // bitcoind's utxo set exclusion (op_return lead or oversized).
+            // bitcoind's unspent set exclusion (op_return lead or oversized).
             constexpr auto op_return = to_value(chain::opcode::op_return);
             unspendable = (script_size > chain::max_script_size) ||
                 (!is_zero(script_size) && (source.read_byte() == op_return));
@@ -220,6 +221,30 @@ struct output
 
         tx::integer parent_fk{};
         uint64_t value{};
+    };
+
+    struct get_parent_coin
+      : public schema::output
+    {
+        inline link count() const NOEXCEPT
+        {
+            BC_ASSERT(false);
+            return {};
+        }
+
+        inline bool from_data(reader& source) NOEXCEPT
+        {
+            using namespace system;
+            parent_fk = source.read_little_endian<tx::integer, tx::size>();
+            value = source.read_variable();
+            script_size = possible_narrow_cast<size_t>(
+                source.read_variable());
+            return source;
+        }
+
+        tx::integer parent_fk{};
+        uint64_t value{};
+        size_t script_size{};
     };
 
     struct get_parent

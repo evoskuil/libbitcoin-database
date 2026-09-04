@@ -16,7 +16,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include <bitcoin/database/types/unspent.hpp>
+#include <bitcoin/database/types/unspent_output.hpp>
 
 #include <algorithm>
 #include <bitcoin/database/define.hpp>
@@ -26,7 +26,7 @@ namespace database {
 
 // local
 // zero is unconfirmed height, but cannot be a sentinel for unconfirmed.
-bool less_than(const unspent& a, const unspent& b) NOEXCEPT
+bool less_than(const unspent_output& a, const unspent_output& b) NOEXCEPT
 {
     const auto a_point = a.out.point();
     const auto b_point = b.out.point();
@@ -55,36 +55,36 @@ bool less_than(const unspent& a, const unspent& b) NOEXCEPT
     return a_point < b_point;
 }
 
-bool unspent::valid() const NOEXCEPT
+bool unspent_output::valid() const NOEXCEPT
 {
     return out.is_valid();
 }
 
-bool unspent::fault() const NOEXCEPT
+bool unspent_output::fault() const NOEXCEPT
 {
     // Invalid with default position implies fault (return {}).
     return !valid() && is_zero(position);
 }
 
-bool unspent::confirmed() const NOEXCEPT
+bool unspent_output::confirmed() const NOEXCEPT
 {
     return position != unconfirmed_position;
 }
 
-bool unspent::operator<(const unspent& other) const NOEXCEPT
+bool unspent_output::operator<(const unspent_output& other) const NOEXCEPT
 {
     return less_than(*this, other);
 }
 
-bool unspent::operator==(const unspent& other) const NOEXCEPT
+bool unspent_output::operator==(const unspent_output& other) const NOEXCEPT
 {
     return !(*this < other) && !(other < *this);
 }
 
-void unspent::filter_sort_and_dedup(std::vector<unspent>& out) NOEXCEPT
+void unspent_output::filter_sort_and_dedup(std::vector<unspent_output>& out) NOEXCEPT
 {
     const auto excluded = std::remove_if(out.begin(), out.end(),
-        [](const unspent& element) NOEXCEPT
+        [](const unspent_output& element) NOEXCEPT
         {
             return !element.valid();
         });

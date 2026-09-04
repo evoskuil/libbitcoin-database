@@ -110,6 +110,41 @@ bool CLASS::set_filter_k(size_t k) NOEXCEPT
 }
 
 TEMPLATE
+uint32_t CLASS::derive_buckets(uint64_t expected, uint32_t low,
+    uint32_t high) NOEXCEPT
+{
+    using namespace system;
+    constexpr auto gigabyte = power2<uint64_t>(30u);
+    constexpr auto megabyte = power2<uint64_t>(20u);
+    constexpr auto uncontested = power2<uint64_t>(35u);
+#if defined(HAVE_APPLE)
+    constexpr auto contested = 10u * gigabyte;
+#else
+    constexpr auto contested = 8u * gigabyte;
+#endif
+
+    if (is_zero(expected) || is_zero(low) || is_zero(high))
+        return {};
+
+    const auto scaled = ceilinged_multiply<uint64_t>(expected, 10);
+    const auto floored = scaled / low;
+    const auto ceiled = scaled / high;
+    const auto memory = system_memory();
+
+    if (memory <= contested)
+        return possible_narrow_cast<uint32_t>(floored);
+
+    if (memory >= uncontested)
+        return possible_narrow_cast<uint32_t>(ceiled);
+
+    // Megabytes, as the byte product overflows the word.
+    const auto over = (memory - contested) / megabyte;
+    const auto rise = floored_subtract(ceiled, floored);
+    constexpr auto span = (uncontested - contested) / megabyte;
+    return limit<uint32_t>(floored + (ceilinged_multiply(rise, over) / span));
+}
+
+TEMPLATE
 size_t CLASS::optimal_k(size_t count, size_t buckets) NOEXCEPT
 {
     if constexpr (is_zero(k_max))

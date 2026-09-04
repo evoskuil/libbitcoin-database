@@ -49,7 +49,7 @@
     <Filter Include="include\bitcoin\database\impl\store">
       <UniqueIdentifier>{62D7FBEE-4D52-424A-0000-00000000000D}</UniqueIdentifier>
     </Filter>
-    <Filter Include="include\bitcoin\database\impl\types">
+    <Filter Include="include\bitcoin\database\impl\unspent">
       <UniqueIdentifier>{62D7FBEE-4D52-424A-0000-00000000000E}</UniqueIdentifier>
     </Filter>
     <Filter Include="include\bitcoin\database\locks">
@@ -82,20 +82,26 @@
     <Filter Include="include\bitcoin\database\types">
       <UniqueIdentifier>{62D7FBEE-4D52-424A-0000-000000000009}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src">
+    <Filter Include="include\bitcoin\database\unspent">
       <UniqueIdentifier>{62D7FBEE-4D52-424A-0000-000000000010}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\file">
+    <Filter Include="src">
       <UniqueIdentifier>{62D7FBEE-4D52-424A-0000-0000000000A1}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\locks">
+    <Filter Include="src\file">
       <UniqueIdentifier>{62D7FBEE-4D52-424A-0000-0000000000B1}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\memory">
+    <Filter Include="src\locks">
       <UniqueIdentifier>{62D7FBEE-4D52-424A-0000-0000000000C1}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\types">
+    <Filter Include="src\memory">
       <UniqueIdentifier>{62D7FBEE-4D52-424A-0000-0000000000D1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\tables">
+      <UniqueIdentifier>{62D7FBEE-4D52-424A-0000-0000000000E1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\types">
+      <UniqueIdentifier>{62D7FBEE-4D52-424A-0000-0000000000F1}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -132,8 +138,8 @@
     <ClCompile Include="..\..\..\..\src\settings.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\src\types\envelope.cpp">
-      <Filter>src\types</Filter>
+    <ClCompile Include="..\..\..\..\src\tables\envelope.cpp">
+      <Filter>src\tables</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\src\types\history.cpp">
       <Filter>src\types</Filter>
@@ -141,7 +147,7 @@
     <ClCompile Include="..\..\..\..\src\types\multisig_view.cpp">
       <Filter>src\types</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\src\types\unspent.cpp">
+    <ClCompile Include="..\..\..\..\src\types\unspent_output.cpp">
       <Filter>src\types</Filter>
     </ClCompile>
   </ItemGroup>
@@ -157,6 +163,9 @@
     </ClInclude>
     <ClInclude Include="..\..\..\..\include\bitcoin\database\error.hpp">
       <Filter>include\bitcoin\database</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\file\advice.hpp">
+      <Filter>include\bitcoin\database\file</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\include\bitcoin\database\file\file.hpp">
       <Filter>include\bitcoin\database\file</Filter>
@@ -204,6 +213,9 @@
       <Filter>include\bitcoin\database\memory</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\include\bitcoin\database\memory\reader.hpp">
+      <Filter>include\bitcoin\database\memory</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\memory\release.hpp">
       <Filter>include\bitcoin\database\memory</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\include\bitcoin\database\memory\settings.hpp">
@@ -317,6 +329,9 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\context.hpp">
       <Filter>include\bitcoin\database\tables</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\envelope.hpp">
+      <Filter>include\bitcoin\database\tables</Filter>
+    </ClInclude>
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\event.hpp">
       <Filter>include\bitcoin\database\tables</Filter>
     </ClInclude>
@@ -359,10 +374,10 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\block_state.hpp">
       <Filter>include\bitcoin\database\types</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\include\bitcoin\database\types\difference_set.hpp">
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\types\constants.hpp">
       <Filter>include\bitcoin\database\types</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\include\bitcoin\database\types\envelope.hpp">
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\types\difference_set.hpp">
       <Filter>include\bitcoin\database\types</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\fee_rate.hpp">
@@ -395,14 +410,41 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\types.hpp">
       <Filter>include\bitcoin\database\types</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\include\bitcoin\database\types\unspent.hpp">
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\types\unspent_coin.hpp">
       <Filter>include\bitcoin\database\types</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\include\bitcoin\database\types\unspent_coin.hpp">
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\types\unspent_output.hpp">
       <Filter>include\bitcoin\database\types</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\include\bitcoin\database\types\unspent_totals.hpp">
       <Filter>include\bitcoin\database\types</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\unspent\unspent.hpp">
+      <Filter>include\bitcoin\database\unspent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\unspent\unspent_counter.hpp">
+      <Filter>include\bitcoin\database\unspent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\unspent\unspent_matcher.hpp">
+      <Filter>include\bitcoin\database\unspent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\unspent\unspent_muhash.hpp">
+      <Filter>include\bitcoin\database\unspent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\unspent\unspent_reader.hpp">
+      <Filter>include\bitcoin\database\unspent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\unspent\unspent_scanner.hpp">
+      <Filter>include\bitcoin\database\unspent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\unspent\unspent_serial.hpp">
+      <Filter>include\bitcoin\database\unspent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\unspent\unspent_spans.hpp">
+      <Filter>include\bitcoin\database\unspent</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\unspent\unspent_writer.hpp">
+      <Filter>include\bitcoin\database\unspent</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\include\bitcoin\database\version.hpp">
       <Filter>include\bitcoin\database</Filter>
@@ -637,8 +679,29 @@
     <None Include="..\..\..\..\include\bitcoin\database\impl\store\store_unload_close.ipp">
       <Filter>include\bitcoin\database\impl\store</Filter>
     </None>
-    <None Include="..\..\..\..\include\bitcoin\database\impl\types\difference_set.ipp">
-      <Filter>include\bitcoin\database\impl\types</Filter>
+    <None Include="..\..\..\..\include\bitcoin\database\impl\unspent\unspent_counter.ipp">
+      <Filter>include\bitcoin\database\impl\unspent</Filter>
+    </None>
+    <None Include="..\..\..\..\include\bitcoin\database\impl\unspent\unspent_matcher.ipp">
+      <Filter>include\bitcoin\database\impl\unspent</Filter>
+    </None>
+    <None Include="..\..\..\..\include\bitcoin\database\impl\unspent\unspent_muhash.ipp">
+      <Filter>include\bitcoin\database\impl\unspent</Filter>
+    </None>
+    <None Include="..\..\..\..\include\bitcoin\database\impl\unspent\unspent_reader.ipp">
+      <Filter>include\bitcoin\database\impl\unspent</Filter>
+    </None>
+    <None Include="..\..\..\..\include\bitcoin\database\impl\unspent\unspent_scanner.ipp">
+      <Filter>include\bitcoin\database\impl\unspent</Filter>
+    </None>
+    <None Include="..\..\..\..\include\bitcoin\database\impl\unspent\unspent_serial.ipp">
+      <Filter>include\bitcoin\database\impl\unspent</Filter>
+    </None>
+    <None Include="..\..\..\..\include\bitcoin\database\impl\unspent\unspent_spans.ipp">
+      <Filter>include\bitcoin\database\impl\unspent</Filter>
+    </None>
+    <None Include="..\..\..\..\include\bitcoin\database\impl\unspent\unspent_writer.ipp">
+      <Filter>include\bitcoin\database\impl\unspent</Filter>
     </None>
     <None Include="packages.config" />
   </ItemGroup>

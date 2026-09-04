@@ -29,5 +29,6 @@
 // /primitives    : /memory
 // /tables        : /primitives
 // /types         : /tables
+// /unspent       : /types
 // store          : /types settings /locks
-// query          : /types settings
+// query          : /unspent settings

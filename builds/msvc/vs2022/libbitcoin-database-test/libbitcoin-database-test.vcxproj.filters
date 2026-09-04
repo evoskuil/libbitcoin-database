@@ -64,6 +64,9 @@
     <Filter Include="src\types">
       <UniqueIdentifier>{5C4DA53A-8C06-4DA6-0000-000000000003}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\unspent">
+      <UniqueIdentifier>{5C4DA53A-8C06-4DA6-0000-000000000004}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\..\test\error.cpp">
@@ -91,6 +94,9 @@
       <Filter>src\memory</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\test\memory\mmap.cpp">
+      <Filter>src\memory</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\test\memory\release.cpp">
       <Filter>src\memory</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\test\memory\utilities.cpp">
@@ -369,14 +375,20 @@
     <ClCompile Include="..\..\..\..\test\test.cpp">
       <Filter>src</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\test\types\difference_set.cpp">
+      <Filter>src\types</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\..\test\types\history.cpp">
       <Filter>src\types</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\test\types\span.cpp">
       <Filter>src\types</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\test\types\unspent.cpp">
+    <ClCompile Include="..\..\..\..\test\types\unspent_output.cpp">
       <Filter>src\types</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\test\unspent\unspent_commitment.cpp">
+      <Filter>src\unspent</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

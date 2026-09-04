@@ -22,6 +22,7 @@
 #include <bitcoin/database/settings.hpp>
 #include <bitcoin/database/store.hpp>
 #include <bitcoin/database/version.hpp>
+#include <bitcoin/database/file/advice.hpp>
 #include <bitcoin/database/file/file.hpp>
 #include <bitcoin/database/file/rotator.hpp>
 #include <bitcoin/database/file/utilities.hpp>
@@ -37,6 +38,7 @@
 #include <bitcoin/database/memory/mmaps.hpp>
 #include <bitcoin/database/memory/mstage.hpp>
 #include <bitcoin/database/memory/reader.hpp>
+#include <bitcoin/database/memory/release.hpp>
 #include <bitcoin/database/memory/settings.hpp>
 #include <bitcoin/database/memory/streamers.hpp>
 #include <bitcoin/database/memory/utilities.hpp>
@@ -57,6 +59,7 @@
 #include <bitcoin/database/primitives/nomaps.hpp>
 #include <bitcoin/database/primitives/primitives.hpp>
 #include <bitcoin/database/tables/context.hpp>
+#include <bitcoin/database/tables/envelope.hpp>
 #include <bitcoin/database/tables/event.hpp>
 #include <bitcoin/database/tables/names.hpp>
 #include <bitcoin/database/tables/schema.hpp>
@@ -86,8 +89,8 @@
 #include <bitcoin/database/types/associations.hpp>
 #include <bitcoin/database/types/block_amounts.hpp>
 #include <bitcoin/database/types/block_state.hpp>
+#include <bitcoin/database/types/constants.hpp>
 #include <bitcoin/database/types/difference_set.hpp>
-#include <bitcoin/database/types/envelope.hpp>
 #include <bitcoin/database/types/fee_rate.hpp>
 #include <bitcoin/database/types/header_state.hpp>
 #include <bitcoin/database/types/history.hpp>
@@ -98,8 +101,17 @@
 #include <bitcoin/database/types/tx_state.hpp>
 #include <bitcoin/database/types/type.hpp>
 #include <bitcoin/database/types/types.hpp>
-#include <bitcoin/database/types/unspent.hpp>
 #include <bitcoin/database/types/unspent_coin.hpp>
+#include <bitcoin/database/types/unspent_output.hpp>
 #include <bitcoin/database/types/unspent_totals.hpp>
+#include <bitcoin/database/unspent/unspent.hpp>
+#include <bitcoin/database/unspent/unspent_counter.hpp>
+#include <bitcoin/database/unspent/unspent_matcher.hpp>
+#include <bitcoin/database/unspent/unspent_muhash.hpp>
+#include <bitcoin/database/unspent/unspent_reader.hpp>
+#include <bitcoin/database/unspent/unspent_scanner.hpp>
+#include <bitcoin/database/unspent/unspent_serial.hpp>
+#include <bitcoin/database/unspent/unspent_spans.hpp>
+#include <bitcoin/database/unspent/unspent_writer.hpp>
 
 #endif

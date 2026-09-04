@@ -20,31 +20,25 @@
 #define LIBBITCOIN_DATABASE_TYPES_UNSPENT_COIN_HPP
 
 #include <bitcoin/database/define.hpp>
+#include <bitcoin/database/types/type.hpp>
 
 namespace libbitcoin {
 namespace database {
 
-/// A coin (unspent output) presented during a branch scan.
-/// The buffers are reused across visits, copy to retain.
+/// An unspent output, used by bitcoind.
 struct BCD_API unspent_coin
 {
-    /// First visited coin of the containing transaction.
+    /// First coin of the containing transaction, in presentation order.
     bool first{};
 
-    /// Hash of the containing transaction.
-    system::hash_digest txid{};
-
-    /// Output index within the containing transaction.
-    uint32_t index{};
+    /// The output (value carried).
+    outpoint out{};
 
     /// Confirmed height of the containing transaction.
     size_t height{};
 
     /// The containing transaction is coinbase.
     bool coinbase{};
-
-    /// Output value.
-    uint64_t value{};
 
     /// Serialized script.
     system::data_chunk script{};

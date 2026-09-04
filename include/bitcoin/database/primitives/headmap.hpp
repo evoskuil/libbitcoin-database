@@ -88,6 +88,10 @@ public:
     /// Return link at index, terminal if at or above count.
     Link at(size_t index) const NOEXCEPT;
 
+    /// Head accessor (shared lock), for at(ptr, index) over many indexes.
+    memory get_memory() const NOEXCEPT;
+    Link at(const memory& ptr, size_t index) const NOEXCEPT;
+
     /// Append link at count into reserved capacity (single writer).
     bool push(const Link& link) NOEXCEPT;
 

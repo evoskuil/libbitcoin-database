@@ -76,6 +76,10 @@ public:
     /// Hash table bucket count.
     size_t buckets() const NOEXCEPT;
 
+    /// Head buckets for expected elements (hashhead::derive_buckets).
+    static uint32_t derive_buckets(uint64_t expected, uint32_t low,
+        uint32_t high) NOEXCEPT;
+
     /// Filter selections, derived at construct, overridden by set_filter_k.
     size_t filter_k() const NOEXCEPT;
 

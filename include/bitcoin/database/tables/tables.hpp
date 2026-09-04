@@ -19,6 +19,7 @@
 #ifndef LIBBITCOIN_DATABASE_TABLES_TABLES_HPP
 #define LIBBITCOIN_DATABASE_TABLES_TABLES_HPP
 
+#include <bitcoin/database/tables/envelope.hpp>
 #include <bitcoin/database/tables/archives/header.hpp>
 #include <bitcoin/database/tables/archives/input.hpp>
 #include <bitcoin/database/tables/archives/ins.hpp>

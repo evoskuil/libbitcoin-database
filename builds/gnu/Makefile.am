@@ -58,10 +58,10 @@ src_libbitcoin_database_la_SOURCES = \
     ${srcdir}/../../src/memory/mman.cpp \
     ${srcdir}/../../src/memory/mstage.cpp \
     ${srcdir}/../../src/memory/utilities.cpp \
-    ${srcdir}/../../src/types/envelope.cpp \
+    ${srcdir}/../../src/tables/envelope.cpp \
     ${srcdir}/../../src/types/history.cpp \
     ${srcdir}/../../src/types/multisig_view.cpp \
-    ${srcdir}/../../src/types/unspent.cpp
+    ${srcdir}/../../src/types/unspent_output.cpp
 
 include_bitcoindir = \
     ${includedir}/bitcoin
@@ -85,6 +85,7 @@ include_bitcoin_database_filedir = \
     ${includedir}/bitcoin/database/file
 
 include_bitcoin_database_file_HEADERS = \
+    ${srcdir}/../../include/bitcoin/database/file/advice.hpp \
     ${srcdir}/../../include/bitcoin/database/file/file.hpp \
     ${srcdir}/../../include/bitcoin/database/file/rotator.hpp \
     ${srcdir}/../../include/bitcoin/database/file/utilities.hpp
@@ -210,11 +211,18 @@ include_bitcoin_database_impl_store_HEADERS = \
     ${srcdir}/../../include/bitcoin/database/impl/store/store_tables.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/store/store_unload_close.ipp
 
-include_bitcoin_database_impl_typesdir = \
-    ${includedir}/bitcoin/database/impl/types
+include_bitcoin_database_impl_unspentdir = \
+    ${includedir}/bitcoin/database/impl/unspent
 
-include_bitcoin_database_impl_types_HEADERS = \
-    ${srcdir}/../../include/bitcoin/database/impl/types/difference_set.ipp
+include_bitcoin_database_impl_unspent_HEADERS = \
+    ${srcdir}/../../include/bitcoin/database/impl/unspent/unspent_counter.ipp \
+    ${srcdir}/../../include/bitcoin/database/impl/unspent/unspent_matcher.ipp \
+    ${srcdir}/../../include/bitcoin/database/impl/unspent/unspent_muhash.ipp \
+    ${srcdir}/../../include/bitcoin/database/impl/unspent/unspent_reader.ipp \
+    ${srcdir}/../../include/bitcoin/database/impl/unspent/unspent_scanner.ipp \
+    ${srcdir}/../../include/bitcoin/database/impl/unspent/unspent_serial.ipp \
+    ${srcdir}/../../include/bitcoin/database/impl/unspent/unspent_spans.ipp \
+    ${srcdir}/../../include/bitcoin/database/impl/unspent/unspent_writer.ipp
 
 include_bitcoin_database_locksdir = \
     ${includedir}/bitcoin/database/locks
@@ -237,6 +245,7 @@ include_bitcoin_database_memory_HEADERS = \
     ${srcdir}/../../include/bitcoin/database/memory/mmaps.hpp \
     ${srcdir}/../../include/bitcoin/database/memory/mstage.hpp \
     ${srcdir}/../../include/bitcoin/database/memory/reader.hpp \
+    ${srcdir}/../../include/bitcoin/database/memory/release.hpp \
     ${srcdir}/../../include/bitcoin/database/memory/settings.hpp \
     ${srcdir}/../../include/bitcoin/database/memory/streamers.hpp \
     ${srcdir}/../../include/bitcoin/database/memory/utilities.hpp
@@ -272,6 +281,7 @@ include_bitcoin_database_tablesdir = \
 
 include_bitcoin_database_tables_HEADERS = \
     ${srcdir}/../../include/bitcoin/database/tables/context.hpp \
+    ${srcdir}/../../include/bitcoin/database/tables/envelope.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/event.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/names.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/schema.hpp \
@@ -326,8 +336,8 @@ include_bitcoin_database_types_HEADERS = \
     ${srcdir}/../../include/bitcoin/database/types/associations.hpp \
     ${srcdir}/../../include/bitcoin/database/types/block_amounts.hpp \
     ${srcdir}/../../include/bitcoin/database/types/block_state.hpp \
+    ${srcdir}/../../include/bitcoin/database/types/constants.hpp \
     ${srcdir}/../../include/bitcoin/database/types/difference_set.hpp \
-    ${srcdir}/../../include/bitcoin/database/types/envelope.hpp \
     ${srcdir}/../../include/bitcoin/database/types/fee_rate.hpp \
     ${srcdir}/../../include/bitcoin/database/types/header_state.hpp \
     ${srcdir}/../../include/bitcoin/database/types/history.hpp \
@@ -338,9 +348,23 @@ include_bitcoin_database_types_HEADERS = \
     ${srcdir}/../../include/bitcoin/database/types/tx_state.hpp \
     ${srcdir}/../../include/bitcoin/database/types/type.hpp \
     ${srcdir}/../../include/bitcoin/database/types/types.hpp \
-    ${srcdir}/../../include/bitcoin/database/types/unspent.hpp \
     ${srcdir}/../../include/bitcoin/database/types/unspent_coin.hpp \
+    ${srcdir}/../../include/bitcoin/database/types/unspent_output.hpp \
     ${srcdir}/../../include/bitcoin/database/types/unspent_totals.hpp
+
+include_bitcoin_database_unspentdir = \
+    ${includedir}/bitcoin/database/unspent
+
+include_bitcoin_database_unspent_HEADERS = \
+    ${srcdir}/../../include/bitcoin/database/unspent/unspent.hpp \
+    ${srcdir}/../../include/bitcoin/database/unspent/unspent_counter.hpp \
+    ${srcdir}/../../include/bitcoin/database/unspent/unspent_matcher.hpp \
+    ${srcdir}/../../include/bitcoin/database/unspent/unspent_muhash.hpp \
+    ${srcdir}/../../include/bitcoin/database/unspent/unspent_reader.hpp \
+    ${srcdir}/../../include/bitcoin/database/unspent/unspent_scanner.hpp \
+    ${srcdir}/../../include/bitcoin/database/unspent/unspent_serial.hpp \
+    ${srcdir}/../../include/bitcoin/database/unspent/unspent_spans.hpp \
+    ${srcdir}/../../include/bitcoin/database/unspent/unspent_writer.hpp
 
 # Tests.
 #==============================================================================
@@ -378,6 +402,7 @@ test_libbitcoin_database_test_SOURCES = \
     ${srcdir}/../../test/locks/interprocess_lock.cpp \
     ${srcdir}/../../test/memory/accessor.cpp \
     ${srcdir}/../../test/memory/mmap.cpp \
+    ${srcdir}/../../test/memory/release.cpp \
     ${srcdir}/../../test/memory/utilities.cpp \
     ${srcdir}/../../test/mocks/blocks.cpp \
     ${srcdir}/../../test/primitives/arrayhead.cpp \
@@ -468,9 +493,11 @@ test_libbitcoin_database_test_SOURCES = \
     ${srcdir}/../../test/tables/optional/address.cpp \
     ${srcdir}/../../test/tables/optional/filter_bk.cpp \
     ${srcdir}/../../test/tables/optional/filter_tx.cpp \
+    ${srcdir}/../../test/types/difference_set.cpp \
     ${srcdir}/../../test/types/history.cpp \
     ${srcdir}/../../test/types/span.cpp \
-    ${srcdir}/../../test/types/unspent.cpp
+    ${srcdir}/../../test/types/unspent_output.cpp \
+    ${srcdir}/../../test/unspent/unspent_commitment.cpp
 
 TESTS = test_runner.sh
 

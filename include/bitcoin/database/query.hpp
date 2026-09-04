@@ -24,6 +24,7 @@
 #include <bitcoin/database/define.hpp>
 #include <bitcoin/database/settings.hpp>
 #include <bitcoin/database/types/types.hpp>
+#include <bitcoin/database/unspent/unspent.hpp>
 
 namespace libbitcoin {
 namespace database {
@@ -69,6 +70,8 @@ public:
 
     /// Get a transactor object.
     transactor get_transactor() const NOEXCEPT;
+
+    /// The store.
 
     /// Get first fault code, or disk_full if none and full, or success.
     code get_code() const NOEXCEPT;
@@ -719,12 +722,12 @@ public:
         histories& out, const hash_digest& key, size_t limit=max_size_t,
         bool turbo=false) const NOEXCEPT;
 
-    /// Electrum queries (unspents, deduped, electrum sort).
-    code get_unconfirmed_unspent(const stopper& cancel, unspents& out,
+    /// Electrum queries (unspent_outputs, deduped, electrum sort).
+    code get_unconfirmed_unspent(const stopper& cancel, unspent_outputs& out,
         const hash_digest& key, bool turbo=false) const NOEXCEPT;
-    code get_confirmed_unspent(const stopper& cancel, unspents& out,
+    code get_confirmed_unspent(const stopper& cancel, unspent_outputs& out,
         const hash_digest& key, bool turbo=false) const NOEXCEPT;
-    code get_unspent(const stopper& cancel, unspents& out,
+    code get_unspent(const stopper& cancel, unspent_outputs& out,
         const hash_digest& key, bool turbo=false) const NOEXCEPT;
 
     /// Balance queries (universal, unconfirmed conflict resolution arbitrary).
@@ -748,9 +751,9 @@ public:
         uint32_t index) const NOEXCEPT;
 
     /// Unspent queries.
-    unspent get_tx_unspent(const output_link& link) const NOEXCEPT;
-    unspent get_tx_confirmed_unspent(const output_link& link) const NOEXCEPT;
-    unspent get_tx_unconfirmed_unspent(const output_link& link) const NOEXCEPT;
+    unspent_output get_tx_unspent(const output_link& link) const NOEXCEPT;
+    unspent_output get_tx_confirmed_unspent(const output_link& link) const NOEXCEPT;
+    unspent_output get_tx_unconfirmed_unspent(const output_link& link) const NOEXCEPT;
 
     /// Filters.
     /// -----------------------------------------------------------------------
@@ -783,13 +786,25 @@ public:
     code get_unspent_totals(const stopper& cancel, unspent_totals& out,
         const header_links& branch, bool turbo=false) const NOEXCEPT;
 
-    /// Visit each unspent coin over the branch (administrative scan), in
-    /// canonical (txid, index) order as required for utxo set serialization,
-    /// otherwise unordered (ordering requires a full materialized sort).
-    template <typename Visitor>
-    code get_unspent_coins(const stopper& cancel, unspent_totals& out,
-        const Visitor& visit, const header_links& branch, bool ordered,
+    /// Unspent totals and bitcoind muhash set commitment (order invariant).
+    code get_unspent_muhash(const stopper& cancel, unspent_totals& out,
+        hash_digest& digest, const header_links& branch,
         bool turbo=false) const NOEXCEPT;
+
+    /// Unspent totals and bitcoind serialized set commitment (canonical
+    /// (txid, index) order, a serial stream).
+    code get_unspent_serialized(const stopper& cancel, unspent_totals& out,
+        hash_digest& digest, const header_links& branch,
+        bool turbo=false) const NOEXCEPT;
+
+    /// Unspent coins with scripts hashing to the keys, and the set size.
+    code get_unspent_matches(const stopper& cancel, unspent_coins& out,
+        size_t& txouts, const std::unordered_set<hash_digest>& keys,
+        const header_links& branch, bool turbo=false) const NOEXCEPT;
+
+    /// The block is a bip30 exception (duplicated coinbase, if configured).
+    bool is_bip30_exception(bool& out,
+        const header_link& link) const NOEXCEPT;
 
 protected:
     /// Network
@@ -986,21 +1001,11 @@ private:
         histories& out, const tx_links& links, Functor&& functor) NOEXCEPT;
     template <typename Functor>
     static code parallel_unspent_transform(const stopper& cancel, bool turbo,
-        unspents& out, const output_links& outs, Functor&& functor) NOEXCEPT;
+        unspent_outputs& out, const output_links& outs, Functor&& functor) NOEXCEPT;
 
     static point::cptr make_point(hash_digest&& hash,
         uint32_t index) NOEXCEPT;
 
-    bool is_bip30_exception(bool& out,
-        const header_link& link) const NOEXCEPT;
-    code scan_unspent(difference_set<>& set, unspent_totals& out,
-        const stopper& cancel, const header_links& branch,
-        bool turbo) const NOEXCEPT;
-    code count_unspent(unspent_totals& out, const stopper& cancel,
-        const difference_set<>::entries& survivors) const NOEXCEPT;
-    template <typename Visitor>
-    code visit_unspent(const Visitor& visit, const stopper& cancel,
-        const difference_set<>::entries& survivors) const NOEXCEPT;
 
     // Not thread safe.
     size_t get_fork_() const NOEXCEPT;

@@ -20,7 +20,7 @@
 #define LIBBITCOIN_DATABASE_TABLES_SCHEMA_HPP
 
 #include <bitcoin/database/define.hpp>
-#include <bitcoin/database/primitives/keys.hpp>
+#include <bitcoin/database/primitives/primitives.hpp>
 #include <bitcoin/database/tables/names.hpp>
 
 #define TABLE_COLUMN(table, bytes) \
@@ -153,7 +153,7 @@ struct output
 {
     static constexpr size_t sk = zero;
     static constexpr size_t pk = schema::put;
-    using link = linkage<pk, to_bits(pk)>;
+    using link = linkage<pk, sub1(to_bits(pk))>; // reduced for outs merge.
     static constexpr size_t minsize =
         schema::transaction::pk +   // parent->tx (address navigation)
         one +                       // value (variable)
@@ -232,6 +232,7 @@ struct outs
     static constexpr size_t pk = schema::outs_;
     using link = linkage<pk, to_bits(pk)>;
     static constexpr size_t minsize =
+        ////schema::bit +       // excluded (merged into output fk)
         schema::output::pk;
     static constexpr size_t minrow = minsize;
     static constexpr size_t size = minsize;
