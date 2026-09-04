@@ -37,15 +37,16 @@
 namespace libbitcoin {
 namespace database {
 
+using namespace system;
+
 #if defined(HAVE_MSC)
 
 size_t page_size() NOEXCEPT
 {
-    using namespace system;
     SYSTEM_INFO info{};
     ::GetSystemInfo(&info);
 
-    BC_ASSERT(!system::is_limited<size_t>(info.dwPageSize));
+    BC_ASSERT(!is_limited<size_t>(info.dwPageSize));
     return info.dwPageSize;
 }
 
@@ -94,12 +95,11 @@ uint64_t system_compressed() NOEXCEPT
     return zero;
 }
 
-#else
+#else // HAVE_MSC
 
 size_t page_size() NOEXCEPT
 {
     errno = 0;
-    using namespace system;
     const auto size = sysconf(_SC_PAGESIZE);
     if (is_zero(errno) && !is_negative(size))
     {
@@ -113,7 +113,6 @@ size_t page_size() NOEXCEPT
 uint64_t system_memory() NOEXCEPT
 {
     errno = 0;
-    using namespace system;
     const int64_t pages = sysconf(_SC_PHYS_PAGES);
     if (is_zero(errno) && !is_negative(pages))
     {
@@ -128,7 +127,6 @@ uint64_t system_memory() NOEXCEPT
 uint64_t system_free() NOEXCEPT
 {
 #if defined(HAVE_APPLE)
-    using namespace system;
     auto count = HOST_VM_INFO64_COUNT;
     vm_statistics64_data_t statistics{};
     if (::host_statistics64(::mach_host_self(), HOST_VM_INFO64,
@@ -138,7 +136,6 @@ uint64_t system_free() NOEXCEPT
     }
 #else
     errno = 0;
-    using namespace system;
     const int64_t pages = sysconf(_SC_AVPHYS_PAGES);
     if (is_zero(errno) && !is_negative(pages))
     {
@@ -157,7 +154,6 @@ uint64_t system_available() NOEXCEPT
 #if defined(HAVE_APPLE)
     // Free plus purgeable plus file-backed (external) pages are available to
     // allocation without compression or swap.
-    using namespace system;
     auto count = HOST_VM_INFO64_COUNT;
     vm_statistics64_data_t statistics{};
     if (::host_statistics64(::mach_host_self(), HOST_VM_INFO64,
@@ -180,7 +176,7 @@ uint64_t system_available() NOEXCEPT
                 &kilobytes) == 1)
             {
                 std::fclose(file);
-                return system::ceilinged_multiply<uint64_t>(kilobytes, 1024u);
+                return ceilinged_multiply<uint64_t>(kilobytes, 1024u);
             }
         }
 
@@ -200,7 +196,7 @@ size_t system_pressure() NOEXCEPT
     if (is_zero(::sysctlbyname("kern.memorystatus_vm_pressure_level", &level,
         &size, nullptr, 0)))
     {
-        return system::possible_narrow_sign_cast<size_t>(level);
+        return possible_narrow_sign_cast<size_t>(level);
     }
 #elif defined(HAVE_LINUX)
     // PSI (requires CONFIG_PSI): fraction of recent wall time that tasks
@@ -235,7 +231,6 @@ size_t system_pressure() NOEXCEPT
 uint64_t system_compressed() NOEXCEPT
 {
 #if defined(HAVE_APPLE)
-    using namespace system;
     auto count = HOST_VM_INFO64_COUNT;
     vm_statistics64_data_t statistics{};
     if (::host_statistics64(::mach_host_self(), HOST_VM_INFO64,
@@ -251,7 +246,41 @@ uint64_t system_compressed() NOEXCEPT
     return zero;
 }
 
+#endif // HAVE_MSC
+
+constexpr auto gigabyte = power2<uint64_t>(30u);
+constexpr auto megabyte = power2<uint64_t>(20u);
+constexpr auto uncontested = power2<uint64_t>(35u);
+
+#if defined(HAVE_APPLE)
+constexpr auto contested = 10u * gigabyte;
+#else
+constexpr auto contested = 8u * gigabyte;
 #endif
+
+uint32_t derive_buckets(uint64_t expected, uint32_t low,
+    uint32_t high) NOEXCEPT
+{
+    if (is_zero(expected) || is_zero(low) || is_zero(high))
+        return {};
+
+    const auto scaled = ceilinged_multiply<uint64_t>(expected, 10);
+    const auto floored = scaled / low;
+    const auto ceiled = scaled / high;
+    const auto memory = system_memory();
+
+    if (memory <= contested)
+        return possible_narrow_cast<uint32_t>(floored);
+
+    if (memory >= uncontested)
+        return possible_narrow_cast<uint32_t>(ceiled);
+
+    // Megabytes, as the byte product overflows the word.
+    const auto over = (memory - contested) / megabyte;
+    const auto rise = floored_subtract(ceiled, floored);
+    constexpr auto span = (uncontested - contested) / megabyte;
+    return limit<uint32_t>(floored + (ceilinged_multiply(rise, over) / span));
+}
 
 } // namespace database
 } // namespace libbitcoin
