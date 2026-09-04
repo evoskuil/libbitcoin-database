@@ -33,6 +33,12 @@ BCD_API size_t page_size() NOEXCEPT;
 /// The bytes of physical memory, zero if failed.
 BCD_API uint64_t system_memory() NOEXCEPT;
 
+/// Head buckets from expected elements and installed memory, scaled linearly
+/// between the contested and uncontested load factors (in tenths). Hashmaps
+/// only; zero expected is not derived.
+BCD_API uint32_t derive_buckets(uint64_t expected, uint32_t low,
+    uint32_t high) NOEXCEPT;
+
 /// The bytes of unused physical memory, zero if failed. Scarcity precedes
 /// pressure: clean file cache is reclaimable, so the pressure level does not
 /// raise while free memory exhausts.
@@ -51,10 +57,12 @@ BCD_API size_t system_pressure() NOEXCEPT;
 /// if failed or the platform provides no source.
 BCD_API uint64_t system_compressed() NOEXCEPT;
 
+// TODO: move all below to release.hpp, remove compound ternaries, delint.
+
 /// Head-release page-run helpers (pure, unit tested). Pages are tracked as
 /// bits in 64-bit words (low order bit is the lowest page of the word). A
 /// release candidate page is clean (not dirty), cold (not recently written)
-/// and not already released; candidacy is limited to full pages below the
+/// and not already released. Candidacy is limited to full pages below the
 /// logical page count.
 /// ---------------------------------------------------------------------------
 
@@ -132,20 +140,6 @@ inline std::pair<size_t, size_t> bit_run(const uint64_t* words, size_t pages,
         ++end;
 
     return { start, end };
-}
-
-/// C++26: std::atomic<size_t>::fetch_max
-template <typename Integral, if_integral_integer<Integral> = true>
-Integral fetch_max(std::atomic<Integral>& atomic, Integral value) NOEXCEPT
-{
-    constexpr auto relaxed = std::memory_order_relaxed;
-
-    auto atom = atomic.load(relaxed);
-    while (value > atom && !atomic.compare_exchange_weak(atom, value, relaxed))
-    {
-    }
-
-    return atom;
 }
 
 } // namespace database
