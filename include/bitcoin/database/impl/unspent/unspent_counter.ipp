@@ -63,7 +63,8 @@ code CLASS::span(unspent_totals& out, const difference_set& set,
     return reader_.elements(set, begin, end,
         [&](const unspent_elements& elements) NOEXCEPT
         {
-            if (const auto ec = reader_.read_puts(puts, elements, zero,
+            puts.resize(elements.size());
+            if (const auto ec = reader_.read_puts(puts, zero, elements, zero,
                 elements.size()))
                 return ec;
 

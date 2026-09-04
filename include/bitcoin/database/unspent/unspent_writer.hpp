@@ -33,16 +33,18 @@ struct unspent_writer
     static constexpr auto value_size = sizeof(uint64_t);
     static constexpr auto fixed_size = point_size + code_size + value_size;
 
-    /// Write the element of the coin to the sink.
+    /// Write the element head (txid, index, height code) of the coin to the
+    /// sink, the tail (value, script) is streamed by output::wire_script.
     static void write(system::writer& sink, const unspent_coin& coin) NOEXCEPT;
 
-    /// The element size of the coin.
-    static size_t size(const unspent_coin& coin) NOEXCEPT;
+    /// The element size given the script size.
+    static size_t size(size_t script) NOEXCEPT;
 
-    /// The sha256 hash of the element of the coin (muhash element).
-    static hash_digest hash(const unspent_coin& coin) NOEXCEPT;
+    /// Add an output to the totals.
+    static void add(unspent_totals& out, bool first, uint64_t value,
+        size_t script) NOEXCEPT;
 
-    /// Add the coin to the totals.
+    /// Add the coin (script copied) to the totals.
     static void add(unspent_totals& out, const unspent_coin& coin) NOEXCEPT;
 
     /// Add the totals to the totals.

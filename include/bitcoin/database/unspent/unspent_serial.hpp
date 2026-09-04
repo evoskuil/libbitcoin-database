@@ -52,16 +52,19 @@ private:
         const Emit& emit) const NOEXCEPT;
     code slots(sizes& out, const unspent_elements& elements) const NOEXCEPT;
     static void starts(sizes& counts, sizes& offsets, size_t chunks) NOEXCEPT;
-    code fill(unspent_coins& out, const unspent_elements& elements,
-        size_t begin, size_t end) const NOEXCEPT;
+    code fill(unspent_coins& out, output_links& puts,
+        const unspent_elements& elements, size_t begin,
+        size_t end) const NOEXCEPT;
     void order(sizes& out, const unspent_coins& coins) const NOEXCEPT;
-    void gather(unspent_coins& out, unspent_coins& coins,
-        const sizes& order) const NOEXCEPT;
+    void gather(unspent_coins& out, output_links& links, unspent_coins& coins,
+        const output_links& puts, const sizes& order) const NOEXCEPT;
     code fold(unspent_totals& out, system::writer& sink,
-        hash_digest& previous, unspent_coins& coins) const NOEXCEPT;
+        hash_digest& previous, unspent_coins& coins,
+        const output_links& puts) const NOEXCEPT;
 
     const unspent_reader<Store> reader_;
     const unspent_spans<Store> spans_;
+    const Store& store_;
     const stopper& cancel_;
     const bool turbo_;
 };

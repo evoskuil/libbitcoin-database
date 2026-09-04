@@ -33,6 +33,7 @@ CLASS::unspent_serial(const Store& store, const stopper& cancel,
     bool turbo) NOEXCEPT
   : reader_(store, cancel),
     spans_(store, cancel, turbo),
+    store_(store),
     cancel_(cancel),
     turbo_(turbo)
 {
@@ -55,6 +56,7 @@ code CLASS::hash(unspent_totals& out, hash_digest& digest,
     system::stream::out::fast stream{ digest };
     system::hash::sha256x2::fast sink{ stream };
     unspent_coins coins{}, ordered{};
+    output_links puts{}, links{};
     std::binary_semaphore ready{ 0 };
     std::binary_semaphore done{ 1 };
     std::thread folder
@@ -63,7 +65,7 @@ code CLASS::hash(unspent_totals& out, hash_digest& digest,
         {
             for (ready.acquire(); !stop; ready.acquire())
             {
-                folded = fold(out, sink, previous, ordered);
+                folded = fold(out, sink, previous, ordered, links);
                 done.release();
             }
         }
@@ -75,7 +77,7 @@ code CLASS::hash(unspent_totals& out, hash_digest& digest,
     {
         const auto begin = offsets.at(bucket);
         const auto end = offsets.at(add1(bucket));
-        ec = fill(coins, elements, begin, end);
+        ec = fill(coins, puts, elements, begin, end);
         done.acquire();
         if (!ec)
             ec = folded;
@@ -84,7 +86,7 @@ code CLASS::hash(unspent_totals& out, hash_digest& digest,
             break;
 
         this->order(order, coins);
-        gather(ordered, coins, order);
+        gather(ordered, links, coins, puts, order);
         ready.release();
     }
 
@@ -197,13 +199,13 @@ TEMPLATE
 code CLASS::slots(sizes& out,
     const unspent_elements& elements) const NOEXCEPT
 {
-    output_links puts{};
-    if (const auto ec = reader_.read_puts(puts, elements, zero,
+    output_links puts(elements.size());
+    if (const auto ec = reader_.read_puts(puts, zero, elements, zero,
         elements.size()))
         return ec;
 
     tx_links parents{};
-    if (const auto ec = reader_.read_parents(parents, puts))
+    if (const auto ec = reader_.read_parents(parents, puts, zero, puts.size()))
         return ec;
 
     system::hashes hashes{};
@@ -243,11 +245,12 @@ void CLASS::starts(sizes& counts, sizes& offsets, size_t chunks) NOEXCEPT
 }
 
 TEMPLATE
-code CLASS::fill(unspent_coins& out, const unspent_elements& elements,
-    size_t begin, size_t end) const NOEXCEPT
+code CLASS::fill(unspent_coins& out, output_links& puts,
+    const unspent_elements& elements, size_t begin, size_t end) const NOEXCEPT
 {
     const auto size = end - begin;
     out.resize(size);
+    puts.resize(size);
     if (is_zero(size))
         return error::success;
 
@@ -268,8 +271,8 @@ code CLASS::fill(unspent_coins& out, const unspent_elements& elements,
             auto previous = tx_link::terminal;
             const auto first = chunk * span;
             const auto last = std::min(size, first + span);
-            if (reader_.fill(out, first, previous, elements, begin + first,
-                begin + last))
+            if (reader_.fill(out, puts, first, previous, elements,
+                begin + first, begin + last))
                 fail = true;
         });
 
@@ -298,10 +301,12 @@ void CLASS::order(sizes& out, const unspent_coins& coins) const NOEXCEPT
 }
 
 TEMPLATE
-void CLASS::gather(unspent_coins& out, unspent_coins& coins,
+void CLASS::gather(unspent_coins& out, output_links& links,
+    unspent_coins& coins, const output_links& puts,
     const sizes& order) const NOEXCEPT
 {
     out.resize(coins.size());
+    links.resize(coins.size());
     sizes index(coins.size());
     std::iota(index.begin(), index.end(), zero);
     const auto parallel = poolstl::execution::par_if(turbo_);
@@ -310,24 +315,32 @@ void CLASS::gather(unspent_coins& out, unspent_coins& coins,
         [&](size_t at) NOEXCEPT
         {
             out.at(at) = std::move(coins.at(order.at(at)));
+            links.at(at) = puts.at(order.at(at));
         });
 }
 
 TEMPLATE
 code CLASS::fold(unspent_totals& out, system::writer& sink,
-    hash_digest& previous, unspent_coins& coins) const NOEXCEPT
+    hash_digest& previous, unspent_coins& coins,
+    const output_links& puts) const NOEXCEPT
 {
-    for (auto& coin: coins)
+    const auto ptr = store_.output.get_memory();
+    for (size_t at{}; at < coins.size(); ++at)
     {
         if (cancel_)
             return error::query_canceled;
 
+        auto& coin = coins.at(at);
         const auto& hash = coin.out.point().hash();
         coin.first = (hash != previous);
         previous = hash;
 
-        unspent_writer::add(out, coin);
         unspent_writer::write(sink, coin);
+        table::output::write_script tail{ {}, sink };
+        if (!store_.output.raw(ptr, puts.at(at), tail))
+            return error::integrity;
+
+        unspent_writer::add(out, coin.first, tail.value, tail.length);
     }
 
     return error::success;

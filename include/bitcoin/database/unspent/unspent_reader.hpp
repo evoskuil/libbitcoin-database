@@ -41,22 +41,29 @@ public:
     code elements(const difference_set& set, size_t begin, size_t end,
         const Flush& flush) const NOEXCEPT;
 
-    /// handle(coin) for each coin in the range, in tx order.
+    /// handle(coin) for each coin (script copied) in the range, in tx order.
     template <typename Handler>
     code batch(const difference_set& set, size_t begin, size_t end,
         const Handler& handle) const NOEXCEPT;
 
-    /// Coins of the elements into out from offset, tx state carried.
-    code fill(unspent_coins& out, size_t offset, tx_link::integer& previous,
+    /// Coins (scripts not copied) and output links of the elements into out
+    /// and puts from offset, tx state carried.
+    code fill(unspent_coins& out, output_links& puts, size_t offset,
+        tx_link::integer& previous, const unspent_elements& elements,
+        size_t begin, size_t end) const NOEXCEPT;
+
+    /// Values and scripts of the output links into out from offset.
+    code read_scripts(unspent_coins& out, size_t offset,
+        const output_links& puts, size_t count) const NOEXCEPT;
+
+    /// Output links of the elements into out from offset.
+    code read_puts(output_links& out, size_t offset,
         const unspent_elements& elements, size_t begin,
         size_t end) const NOEXCEPT;
 
-    /// Output fks of the elements.
-    code read_puts(output_links& out, const unspent_elements& elements,
-        size_t begin, size_t end) const NOEXCEPT;
-
-    /// Parent tx links of the output fks.
-    code read_parents(tx_links& out, const output_links& puts) const NOEXCEPT;
+    /// Parent tx links of the output links from offset.
+    code read_parents(tx_links& out, const output_links& puts, size_t offset,
+        size_t count) const NOEXCEPT;
 
     /// Hashes of the tx links.
     code read_hashes(system::hashes& out,
@@ -65,8 +72,6 @@ public:
 private:
     static constexpr auto batch_size = 4096_size;
 
-    code read_outputs(unspent_coins& out, size_t offset, tx_links& parents,
-        const output_links& puts) const NOEXCEPT;
     code read_transactions(unspent_coins& out, size_t offset,
         tx_link::integer& previous, const tx_links& parents,
         const unspent_elements& elements, size_t begin) const NOEXCEPT;

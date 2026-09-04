@@ -28,7 +28,7 @@ namespace database {
 TEMPLATE
 CLASS::unspent_muhash(const Store& store, const stopper& cancel,
     bool turbo) NOEXCEPT
-  : reader_(store, cancel), spans_(store, cancel, turbo)
+  : reader_(store, cancel), spans_(store, cancel, turbo), store_(store)
 {
 }
 
@@ -63,12 +63,48 @@ TEMPLATE
 code CLASS::span(unspent_totals& out, system::muhash3072& partial,
     const difference_set& set, size_t begin, size_t end) const NOEXCEPT
 {
-    return reader_.batch(set, begin, end,
-        [&](const unspent_coin& coin) NOEXCEPT
+    output_links puts{};
+    unspent_coins coins{};
+    auto previous = tx_link::terminal;
+
+    return reader_.elements(set, begin, end,
+        [&](const unspent_elements& at) NOEXCEPT
         {
-            unspent_writer::add(out, coin);
-            partial.insert_hash(unspent_writer::hash(coin));
+            puts.resize(at.size());
+            coins.resize(at.size());
+            auto ec = reader_.fill(coins, puts, zero, previous, at, zero,
+                at.size());
+
+            if (!ec)
+                ec = insert(out, partial, coins, puts);
+
+            return ec;
         });
+}
+
+TEMPLATE
+code CLASS::insert(unspent_totals& out, system::muhash3072& partial,
+    const unspent_coins& coins, const output_links& puts) const NOEXCEPT
+{
+    using namespace system;
+    const auto ptr = store_.output.get_memory();
+    for (size_t at{}; at < coins.size(); ++at)
+    {
+        hash_digest digest{};
+        stream::out::fast stream{ digest };
+        hash::sha256::fast sink{ stream };
+        const auto& coin = coins.at(at);
+        unspent_writer::write(sink, coin);
+        table::output::write_script tail{ {}, sink };
+        if (!store_.output.raw(ptr, puts.at(at), tail))
+            return error::integrity;
+
+        sink.flush();
+        partial.insert_hash(digest);
+        unspent_writer::add(out, coin.first, tail.value, tail.length);
+    }
+
+    return error::success;
 }
 
 } // namespace database

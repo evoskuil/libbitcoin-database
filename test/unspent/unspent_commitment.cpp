@@ -37,43 +37,41 @@ static unspent_coin coin(size_t height, bool coinbase, uint64_t value,
     return out;
 }
 
-BOOST_AUTO_TEST_CASE(unspent_writer__write__short_script__expected_element)
+BOOST_AUTO_TEST_CASE(unspent_writer__write__coinbase__expected_head)
 {
     const auto script = base16_chunk("76a914000000000000000000000000000000000000000088ac");
     const auto subject = coin(1234, true, 5'000'000'000, script);
     const auto index = to_little_endian<uint32_t>(7);
     const auto code = to_little_endian<uint32_t>((1234 << 1) | 1);
-    const auto value = to_little_endian<uint64_t>(5'000'000'000);
-    const auto size = to_array(possible_narrow_cast<uint8_t>(script.size()));
-    const auto expected = build_chunk({ txid, index, code, value, size, script });
+    const auto expected = build_chunk({ txid, index, code });
 
-    data_chunk element{};
-    write::bytes::data sink{ element };
+    data_chunk head{};
+    write::bytes::data sink{ head };
     unspent_writer::write(sink, subject);
     sink.flush();
-    BOOST_REQUIRE_EQUAL(element, expected);
-    BOOST_REQUIRE_EQUAL(unspent_writer::hash(subject), sha256_hash(expected));
-    BOOST_REQUIRE_EQUAL(unspent_writer::size(subject), expected.size());
+    BOOST_REQUIRE_EQUAL(head, expected);
 }
 
-BOOST_AUTO_TEST_CASE(unspent_writer__write__long_script__two_byte_prefix)
+BOOST_AUTO_TEST_CASE(unspent_writer__write__non_coinbase__expected_head)
 {
     const data_chunk script(300, 0x51);
     const auto subject = coin(42, false, 1, script);
     const auto index = to_little_endian<uint32_t>(7);
     const auto code = to_little_endian<uint32_t>(42 << 1);
-    const auto value = to_little_endian<uint64_t>(1);
-    const auto prefix = to_array(varint_two_bytes);
-    const auto size = to_little_endian<uint16_t>(300);
-    const auto expected = build_chunk({ txid, index, code, value, prefix, size, script });
+    const auto expected = build_chunk({ txid, index, code });
 
-    data_chunk element{};
-    write::bytes::data sink{ element };
+    data_chunk head{};
+    write::bytes::data sink{ head };
     unspent_writer::write(sink, subject);
     sink.flush();
-    BOOST_REQUIRE_EQUAL(element, expected);
-    BOOST_REQUIRE_EQUAL(unspent_writer::hash(subject), sha256_hash(expected));
-    BOOST_REQUIRE_EQUAL(unspent_writer::size(subject), expected.size());
+    BOOST_REQUIRE_EQUAL(head, expected);
+}
+
+BOOST_AUTO_TEST_CASE(unspent_writer__size__script_sizes__expected)
+{
+    BOOST_REQUIRE_EQUAL(unspent_writer::size(0), 48u + 1u);
+    BOOST_REQUIRE_EQUAL(unspent_writer::size(25), 48u + 1u + 25u);
+    BOOST_REQUIRE_EQUAL(unspent_writer::size(300), 48u + 3u + 300u);
 }
 
 BOOST_AUTO_TEST_CASE(unspent_writer__add__coin__accumulated)

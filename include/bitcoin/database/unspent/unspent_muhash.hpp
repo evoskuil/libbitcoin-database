@@ -42,9 +42,12 @@ public:
 private:
     code span(unspent_totals& out, system::muhash3072& partial,
         const difference_set& set, size_t begin, size_t end) const NOEXCEPT;
+    code insert(unspent_totals& out, system::muhash3072& partial,
+        const unspent_coins& coins, const output_links& puts) const NOEXCEPT;
 
     const unspent_reader<Store> reader_;
     const unspent_spans<Store> spans_;
+    const Store& store_;
 };
 
 } // namespace database

@@ -148,6 +148,31 @@ struct output
         bool match{};
     };
 
+    /// Unstreamed, writes full output directly to the sink.
+    struct write_script
+      : public schema::output
+    {
+        inline bool from_data(memory::iterator start) NOEXCEPT
+        {
+            using namespace system;
+
+            // Skip parent fk, read the value and script size.
+            const auto* position = std::next(start, tx::size);
+            value = unsafe_from_variable(position);
+            const auto script_size = unsafe_from_variable(position);
+            length = possible_narrow_cast<size_t>(script_size);
+
+            sink.write_8_bytes_little_endian(value);
+            sink.write_variable(length);
+            sink.write_bytes(position, length);
+            return true;
+        }
+
+        bytewriter& sink;
+        uint64_t value{};
+        size_t length{};
+    };
+
     /// Reuse an instance across gets to amortize the script allocation.
     struct get_coin
       : public schema::output

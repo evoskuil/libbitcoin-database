@@ -34,38 +34,29 @@ inline void unspent_writer::write(system::writer& sink,
     sink.write_bytes(coin.out.point().hash());
     sink.write_4_bytes_little_endian(coin.out.point().index());
     sink.write_4_bytes_little_endian(bit_or(shift_left(height), coinbase));
-    sink.write_8_bytes_little_endian(coin.out.value());
-    sink.write_variable(coin.script.size());
-    sink.write_bytes(coin.script);
 }
 
-inline size_t unspent_writer::size(const unspent_coin& coin) NOEXCEPT
+inline size_t unspent_writer::size(size_t script) NOEXCEPT
 {
-    const auto script = coin.script.size();
     return fixed_size + variable_size(script) + script;
 }
 
-inline hash_digest unspent_writer::hash(const unspent_coin& coin) NOEXCEPT
+inline void unspent_writer::add(unspent_totals& out, bool first,
+    uint64_t value, size_t script) NOEXCEPT
 {
-    using namespace system;
-    hash_digest digest{};
-    stream::out::fast stream{ digest };
-    hash::sha256::fast sink{ stream };
-    write(sink, coin);
-    sink.flush();
-    return digest;
+    if (first)
+        ++out.transactions;
+
+    ++out.outputs;
+    out.value += value;
+    out.script_bytes += script;
+    out.coin_bytes += size(script);
 }
 
 inline void unspent_writer::add(unspent_totals& out,
     const unspent_coin& coin) NOEXCEPT
 {
-    if (coin.first)
-        ++out.transactions;
-
-    ++out.outputs;
-    out.value += coin.out.value();
-    out.script_bytes += coin.script.size();
-    out.coin_bytes += size(coin);
+    add(out, coin.first, coin.out.value(), coin.script.size());
 }
 
 inline void unspent_writer::add(unspent_totals& out,

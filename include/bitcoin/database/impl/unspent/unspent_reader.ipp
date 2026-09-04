@@ -19,7 +19,6 @@
 #ifndef LIBBITCOIN_DATABASE_UNSPENT_UNSPENT_READER_IPP
 #define LIBBITCOIN_DATABASE_UNSPENT_UNSPENT_READER_IPP
 
-#include <algorithm>
 #include <utility>
 #include <bitcoin/database/define.hpp>
 
@@ -80,13 +79,18 @@ template <typename Handler>
 code CLASS::batch(const difference_set& set, size_t begin, size_t end,
     const Handler& handle) const NOEXCEPT
 {
+    output_links puts{};
     unspent_coins coins{};
     auto previous = tx_link::terminal;
 
     return elements(set, begin, end, [&](const unspent_elements& at) NOEXCEPT
     {
+        puts.resize(at.size());
         coins.resize(at.size());
-        const auto ec = fill(coins, zero, previous, at, zero, at.size());
+        auto ec = fill(coins, puts, zero, previous, at, zero, at.size());
+        if (!ec)
+            ec = read_scripts(coins, zero, puts, at.size());
+
         if (!ec)
             for (const auto& coin: coins)
                 handle(coin);
@@ -96,16 +100,15 @@ code CLASS::batch(const difference_set& set, size_t begin, size_t end,
 }
 
 TEMPLATE
-code CLASS::fill(unspent_coins& out, size_t offset,
+code CLASS::fill(unspent_coins& out, output_links& puts, size_t offset,
     tx_link::integer& previous, const unspent_elements& elements,
     size_t begin, size_t end) const NOEXCEPT
 {
-    output_links puts{};
-    if (const auto ec = read_puts(puts, elements, begin, end))
+    if (const auto ec = read_puts(puts, offset, elements, begin, end))
         return ec;
 
     tx_links parents{};
-    if (const auto ec = read_outputs(out, offset, parents, puts))
+    if (const auto ec = read_parents(parents, puts, offset, end - begin))
         return ec;
 
     if (const auto ec = read_transactions(out, offset, previous, parents,
@@ -124,11 +127,29 @@ code CLASS::fill(unspent_coins& out, size_t offset,
 }
 
 TEMPLATE
-code CLASS::read_puts(output_links& out, const unspent_elements& elements,
-    size_t begin, size_t end) const NOEXCEPT
+code CLASS::read_scripts(unspent_coins& out, size_t offset,
+    const output_links& puts, size_t count) const NOEXCEPT
+{
+    const auto ptr = store_.output.get_memory();
+    for (size_t at{}; at < count; ++at)
+    {
+        table::output::get_coin output{};
+        if (!store_.output.get(ptr, puts.at(offset + at), output))
+            return error::integrity;
+
+        auto& coin = out.at(offset + at);
+        coin.out = { coin.out.point(), output.value };
+        std::swap(coin.script, output.script);
+    }
+
+    return error::success;
+}
+
+TEMPLATE
+code CLASS::read_puts(output_links& out, size_t offset,
+    const unspent_elements& elements, size_t begin, size_t end) const NOEXCEPT
 {
     const auto count = end - begin;
-    out.resize(count);
 
     const auto ptr = store_.outs.puts.get_memory();
     for (size_t at{}; at < count; ++at)
@@ -137,23 +158,23 @@ code CLASS::read_puts(output_links& out, const unspent_elements& elements,
         if (!store_.outs.puts.get(ptr, elements.at(begin + at), output))
             return error::integrity;
 
-        out.at(at) = output.out_fk;
+        out.at(offset + at) = output.out_fk;
     }
 
     return error::success;
 }
 
 TEMPLATE
-code CLASS::read_parents(tx_links& out,
-    const output_links& puts) const NOEXCEPT
+code CLASS::read_parents(tx_links& out, const output_links& puts,
+    size_t offset, size_t count) const NOEXCEPT
 {
-    out.resize(puts.size());
+    out.resize(count);
 
     const auto ptr = store_.output.get_memory();
-    for (size_t at{}; at < puts.size(); ++at)
+    for (size_t at{}; at < count; ++at)
     {
         table::output::get_parent output{};
-        if (!store_.output.get(ptr, puts.at(at), output))
+        if (!store_.output.get(ptr, puts.at(offset + at), output))
             return error::integrity;
 
         out.at(at) = output.parent_fk;
@@ -176,28 +197,6 @@ code CLASS::read_hashes(system::hashes& out,
             return error::integrity;
 
         out.at(at) = tx.hash;
-    }
-
-    return error::success;
-}
-
-TEMPLATE
-code CLASS::read_outputs(unspent_coins& out, size_t offset,
-    tx_links& parents, const output_links& puts) const NOEXCEPT
-{
-    parents.resize(puts.size());
-
-    const auto ptr = store_.output.get_memory();
-    for (size_t at{}; at < puts.size(); ++at)
-    {
-        table::output::get_coin output{};
-        if (!store_.output.get(ptr, puts.at(at), output))
-            return error::integrity;
-
-        auto& coin = out.at(offset + at);
-        parents.at(at) = output.parent_fk;
-        coin.out = { {}, output.value };
-        std::swap(coin.script, output.script);
     }
 
     return error::success;

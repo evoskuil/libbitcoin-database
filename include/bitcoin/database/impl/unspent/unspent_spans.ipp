@@ -50,9 +50,17 @@ code CLASS::for_each(const difference_set& set, const Span& span) const NOEXCEPT
     if (const auto ec = this->bounds(bounds, set))
         return ec;
 
+    // Static chunking is contiguous, so spans are interleaved across threads
+    // (unspent density rises with height, contiguous lanes are unbalanced).
+    const auto cuts = sub1(bounds.size());
+    const auto width = cores();
+    std_vector<size_t> index{};
+    index.reserve(cuts);
+    for (size_t lane{}; lane < width; ++lane)
+        for (auto at = lane; at < cuts; at += width)
+            index.push_back(at);
+
     std::atomic_bool fail{};
-    std_vector<size_t> index(sub1(bounds.size()));
-    std::iota(index.begin(), index.end(), zero);
     const auto parallel = poolstl::execution::par_if(turbo_);
 
     std::for_each(parallel, index.begin(), index.end(),
