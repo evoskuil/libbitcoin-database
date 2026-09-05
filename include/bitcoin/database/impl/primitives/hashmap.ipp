@@ -88,6 +88,13 @@ size_t CLASS::buckets() const NOEXCEPT
 }
 
 TEMPLATE
+uint32_t CLASS::derive_buckets(uint64_t expected, uint32_t low,
+    uint32_t high) NOEXCEPT
+{
+    return head::derive_buckets(expected, low, high);
+}
+
+TEMPLATE
 size_t CLASS::filter_k() const NOEXCEPT
 {
     return head_.filter_k();

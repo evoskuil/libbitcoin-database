@@ -19,85 +19,75 @@
 #ifndef LIBBITCOIN_DATABASE_TYPES_DIFFERENCE_SET_HPP
 #define LIBBITCOIN_DATABASE_TYPES_DIFFERENCE_SET_HPP
 
-#include <mutex>
-#include <utility>
-#include <boost/unordered/unordered_flat_map.hpp>
+#include <atomic>
 #include <bitcoin/database/define.hpp>
 
 namespace libbitcoin {
 namespace database {
 
-/// Multiset symmetric difference, exact and enumerable. Each presentation of
-/// an element toggles its membership, so even multiplicities cancel. Elements
-/// are (id, index) pairs, held as Mask-width index windows of an id, with the
-/// id and window number packed into a 64 bit key. Thread safe.
-template <typename Mask = uint64_t, size_t WindowBits = 16>
+/// Multiset symmetric difference over a dense element domain. Each
+/// presentation of an element toggles its membership, so even multiplicities
+/// cancel and the residue is the set. One bit per element, in domain order.
+/// Toggle is thread safe, enumeration (word) is not concurrent with toggle.
 class difference_set
 {
 public:
     DELETE_COPY_MOVE(difference_set);
 
-    using entry = std::pair<uint64_t, Mask>;
-    using entries = std::vector<entry>;
+    using word = uint64_t;
+    static constexpr auto word_bits = bits<word>;
+    static constexpr auto word_shift = system::floored_log2(word_bits);
 
-    static constexpr auto key_bits = bits<uint64_t>;
-    static constexpr auto mask_bits = bits<Mask>;
-    static constexpr auto window_bits = WindowBits;
-    static constexpr auto index_bits = system::floored_log2(mask_bits);
-    static_assert(window_bits < key_bits);
-
-    static constexpr uint64_t to_key(uint64_t id, uint32_t index) NOEXCEPT
+    /// The domain is [0..size), all elements initially absent.
+    difference_set(size_t size=zero) NOEXCEPT
+      : size_(size), words_(system::ceilinged_divide(size, word_bits))
     {
-        using namespace system;
-        return bit_or(shift_left(id, window_bits),
-            shift_right<uint64_t>(index, index_bits));
     }
 
-    static constexpr uint64_t to_id(uint64_t key) NOEXCEPT
-    {
-        return system::shift_right(key, window_bits);
-    }
-
-    static constexpr uint64_t to_index(uint64_t key) NOEXCEPT
-    {
-        using namespace system;
-        return shift_left(bit_and(key, unmask_right<uint64_t>(window_bits)),
-            index_bits);
-    }
-
-    difference_set() NOEXCEPT = default;
     ~difference_set() = default;
 
     /// Toggle element membership (thread safe).
-    void toggle(uint64_t id, uint32_t index) NOEXCEPT;
+    void toggle(size_t element) NOEXCEPT
+    {
+        BC_ASSERT(element < size_);
+        const auto value = system::bit_right<word>(to_offset(element));
+        words_[to_word(element)].fetch_xor(value, std::memory_order_relaxed);
+    }
 
-    /// Sorted odd-multiplicity elements, emptying the set (not thread safe).
-    entries drain() NOEXCEPT;
+    /// Element domain size.
+    size_t size() const NOEXCEPT
+    {
+        return size_;
+    }
+
+    /// Number of words spanning the domain.
+    size_t words() const NOEXCEPT
+    {
+        return words_.size();
+    }
+
+    /// Membership of the word_bits elements based at index * word_bits.
+    word at(size_t index) const NOEXCEPT
+    {
+        return words_[index].load(std::memory_order_relaxed);
+    }
 
 private:
-    static constexpr auto shard_bits = 4_size;
-    static constexpr auto index_mask = system::possible_narrow_cast<uint32_t>(
-        sub1(mask_bits));
-
-    struct shard
+    static constexpr size_t to_word(size_t element) NOEXCEPT
     {
-        std::mutex mutex{};
-        boost::unordered_flat_map<uint64_t, Mask> map{};
-    };
+        return system::shift_right(element, word_shift);
+    }
 
-    // This is guarded by shard::mutex.
-    std::array<shard, system::power2(shard_bits)> shards_{};
+    static constexpr size_t to_offset(size_t element) NOEXCEPT
+    {
+        return system::bit_and(element, sub1(word_bits));
+    }
+
+    const size_t size_;
+    std_vector<std::atomic<word>> words_;
 };
 
 } // namespace database
 } // namespace libbitcoin
-
-#define TEMPLATE template <typename Mask, size_t WindowBits>
-#define CLASS difference_set<Mask, WindowBits>
-
-#include <bitcoin/database/impl/types/difference_set.ipp>
-
-#undef CLASS
-#undef TEMPLATE
 
 #endif

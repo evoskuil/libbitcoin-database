@@ -164,6 +164,44 @@ Link CLASS::at(size_t index) const NOEXCEPT
     }
 }
 
+TEMPLATE
+memory CLASS::get_memory() const NOEXCEPT
+{
+    return file_.get();
+}
+
+TEMPLATE
+Link CLASS::at(const memory& ptr, size_t index) const NOEXCEPT
+{
+    using namespace system;
+
+    // Buckets at or above the logical size are unallocated (count publishes).
+    if (index >= count())
+        return {};
+
+    const auto raw = ptr.offset(link_to_position(index));
+    if (is_null(raw))
+        return {};
+
+    if constexpr (aligned)
+    {
+        // Reads full padded word (masked by to_link).
+        const auto& head = *pointer_cast<std::atomic<cell>>(raw);
+        return to_link(head.load(std::memory_order_relaxed));
+    }
+    else
+    {
+        const auto& head = cell_array(raw);
+        cell value{};
+
+        mutex_.lock_shared();
+        cell_array(value) = head;
+        mutex_.unlock_shared();
+
+        return to_link(value);
+    }
+}
+
 // NOT WRITER-WRITER THREAD SAFE (the logical top is read-write).
 TEMPLATE
 bool CLASS::push(const Link& link) NOEXCEPT

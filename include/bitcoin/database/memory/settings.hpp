@@ -20,30 +20,10 @@
 #define LIBBITCOIN_DATABASE_MEMORY_SETTINGS_HPP
 
 #include <bitcoin/database/define.hpp>
+#include <bitcoin/database/file/file.hpp>
 
 namespace libbitcoin {
 namespace database {
-
-/// Expected read pattern of mapped storage, guiding kernel page advice. This
-/// is independent of the write pattern (structural): bodies are appended
-/// sequentially but read randomly by validation, so advising the kernel from
-/// the write pattern invites eviction of the read set under memory pressure.
-enum class advice : uint8_t
-{
-    /// Let the operating system decide (mixed or unpredictable access).
-    normal,
-
-    /// Random access (suppresses read ahead), preloaded (small maps only).
-    random,
-
-    /// One pass access (allows the kernel to free pages behind).
-    sequential,
-
-    /// Random access (suppresses read ahead) without preload, for maps too
-    /// large to reside: scattered reads otherwise fault a full read-ahead
-    /// window each, and that manufactured cache displaces the head set.
-    scattered
-};
 
 /// Storage tuning consumed by memory map construction: the base of table
 /// configuration, as network settings bases are derived by server services.

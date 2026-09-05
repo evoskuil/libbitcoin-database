@@ -24,7 +24,7 @@
 namespace libbitcoin {
 namespace database {
 
-/// Spendable unspent output totals, accumulated over a branch scan.
+/// Summary of unspent outputs, used by bitcoind.
 struct BCD_API unspent_totals
 {
     /// Unspent outputs.

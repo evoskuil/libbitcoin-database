@@ -35,7 +35,7 @@ namespace database {
 // ununsed
 // Only unconfirmed outputs that are not spent (by an unconfirmed tx).
 TEMPLATE
-code CLASS::get_unconfirmed_unspent(const stopper& cancel, unspents& out,
+code CLASS::get_unconfirmed_unspent(const stopper& cancel, unspent_outputs& out,
     const hash_digest& key, bool turbo) const NOEXCEPT
 {
     output_links outs{};
@@ -51,7 +51,7 @@ code CLASS::get_unconfirmed_unspent(const stopper& cancel, unspents& out,
             // this is only unconfirmeds, but checking both via is_spent() is
             // much faster than calling is_unconfirmed_spent().
             if (cancel || fail || is_spent(link))
-                return unspent{};
+                return unspent_output{};
 
             const auto out = get_tx_unconfirmed_unspent(link);
             if (out.fault()) fail = true;
@@ -62,7 +62,7 @@ code CLASS::get_unconfirmed_unspent(const stopper& cancel, unspents& out,
 // ununsed
 // Only confirmed outputs that are not spent by a confirmed tx.
 TEMPLATE
-code CLASS::get_confirmed_unspent(const stopper& cancel, unspents& out,
+code CLASS::get_confirmed_unspent(const stopper& cancel, unspent_outputs& out,
     const hash_digest& key, bool turbo) const NOEXCEPT
 {
     output_links outs{};
@@ -76,7 +76,7 @@ code CLASS::get_confirmed_unspent(const stopper& cancel, unspents& out,
         {
             // Exclude if spent by confirmed tx, ignore unconfirmed spenders.
             if (cancel || fail || is_confirmed_spent(link))
-                return unspent{};
+                return unspent_output{};
 
             const auto out = get_tx_confirmed_unspent(link);
             if (out.fault()) fail = true;
@@ -87,7 +87,7 @@ code CLASS::get_confirmed_unspent(const stopper& cancel, unspents& out,
 // server/electrum
 // All outputs that are not spent by any tx (confirmed or unconfirmed).
 TEMPLATE
-code CLASS::get_unspent(const stopper& cancel, unspents& out,
+code CLASS::get_unspent(const stopper& cancel, unspent_outputs& out,
     const hash_digest& key, bool turbo) const NOEXCEPT
 {
     output_links outs{};
@@ -101,7 +101,7 @@ code CLASS::get_unspent(const stopper& cancel, unspents& out,
         {
             // Exclude if spent by any tx, confirmed or unconfirmed.
             if (cancel || fail || is_spent(link))
-                return unspent{};
+                return unspent_output{};
 
             auto out = get_tx_unspent(link);
             if (out.fault()) fail = true;
@@ -113,7 +113,7 @@ code CLASS::get_unspent(const stopper& cancel, unspents& out,
 // ----------------------------------------------------------------------------
 
 TEMPLATE
-unspent CLASS::get_tx_unspent(const output_link& link) const NOEXCEPT
+unspent_output CLASS::get_tx_unspent(const output_link& link) const NOEXCEPT
 {
     table::output::get_parent_value out{};
     if (!store_.output.get(link, out))
@@ -125,8 +125,8 @@ unspent CLASS::get_tx_unspent(const output_link& link) const NOEXCEPT
     if ((index == point::null_index) || (hash == system::null_hash))
         return {};
 
-    auto height = unspent::unused_height;
-    auto position = unspent::unconfirmed_position;
+    auto height = unspent_output::unused_height;
+    auto position = unspent_output::unconfirmed_position;
 
     const auto block = find_strong(tx);
     const auto at = get_confirmed_height(block);
@@ -141,9 +141,9 @@ unspent CLASS::get_tx_unspent(const output_link& link) const NOEXCEPT
 }
 
 TEMPLATE
-unspent CLASS::get_tx_confirmed_unspent(const output_link& link) const NOEXCEPT
+unspent_output CLASS::get_tx_confirmed_unspent(const output_link& link) const NOEXCEPT
 {
-    // unspent is invalid in default construction with position.
+    // unspent_output is invalid in default construction with position.
     table::output::get_parent_value out{};
     if (!store_.output.get(link, out))
         return {};
@@ -154,7 +154,7 @@ unspent CLASS::get_tx_confirmed_unspent(const output_link& link) const NOEXCEPT
 
     // Invalid with unconfirmed_position signals no fault.
     if (at.is_terminal())
-        return { .position = unspent::unconfirmed_position };
+        return { .position = unspent_output::unconfirmed_position };
 
     size_t position{};
     auto hash = get_tx_key(tx);
@@ -167,9 +167,9 @@ unspent CLASS::get_tx_confirmed_unspent(const output_link& link) const NOEXCEPT
 }
 
 TEMPLATE
-unspent CLASS::get_tx_unconfirmed_unspent(const output_link& link) const NOEXCEPT
+unspent_output CLASS::get_tx_unconfirmed_unspent(const output_link& link) const NOEXCEPT
 {
-    // unspent is invalid in default construction with position.
+    // unspent_output is invalid in default construction with position.
     table::output::get_parent_value out{};
     if (!store_.output.get(link, out))
         return {};
@@ -178,15 +178,15 @@ unspent CLASS::get_tx_unconfirmed_unspent(const output_link& link) const NOEXCEP
 
     // Invalid with unconfirmed_position signals no fault.
     if (!get_confirmed_height(find_strong(tx)).is_terminal())
-        return { .position = unspent::unconfirmed_position };
+        return { .position = unspent_output::unconfirmed_position };
 
     auto hash = get_tx_key(tx);
     const auto index = to_output_index(tx, link);
     if ((index == point::null_index) || (hash == system::null_hash))
         return {};
 
-    return { { { std::move(hash), index }, out.value }, unspent::unused_height,
-        unspent::unconfirmed_position };
+    return { { { std::move(hash), index }, out.value }, unspent_output::unused_height,
+        unspent_output::unconfirmed_position };
 }
 
 // utilities
@@ -196,7 +196,7 @@ unspent CLASS::get_tx_unconfirmed_unspent(const output_link& link) const NOEXCEP
 TEMPLATE
 template <typename Functor>
 code CLASS::parallel_unspent_transform(const stopper& cancel, bool turbo,
-    unspents& out, const output_links& outs, Functor&& functor) NOEXCEPT
+    unspent_outputs& out, const output_links& outs, Functor&& functor) NOEXCEPT
 {
     const auto policy = poolstl::execution::par_if(turbo);
     stopper fail{};
@@ -215,7 +215,7 @@ code CLASS::parallel_unspent_transform(const stopper& cancel, bool turbo,
     if (cancel)
         return error::query_canceled;
 
-    unspent::filter_sort_and_dedup(out);
+    unspent_output::filter_sort_and_dedup(out);
     return error::success;
 }
 

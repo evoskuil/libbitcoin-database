@@ -28,6 +28,7 @@
 #endif
 #include <bitcoin/database/define.hpp>
 #include <bitcoin/database/memory/mstage.hpp>
+#include <bitcoin/database/memory/release.hpp>
 #include <bitcoin/database/memory/utilities.hpp>
 
 namespace libbitcoin {

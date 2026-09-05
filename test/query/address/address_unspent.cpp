@@ -35,7 +35,7 @@ BOOST_AUTO_TEST_CASE(query_address__get_unspent__genesis__expected)
     BOOST_REQUIRE(!store.create(test::events_handler));
     BOOST_REQUIRE(test::setup_three_block_confirmed_address_store(query));
 
-    unspents out{};
+    unspent_outputs out{};
     const std::atomic_bool cancel{};
     BOOST_REQUIRE(!query.get_unconfirmed_unspent(cancel, out, test::genesis_address0));
     BOOST_REQUIRE_EQUAL(out.size(), 0u);
@@ -68,7 +68,7 @@ BOOST_AUTO_TEST_CASE(query_address__get_unspent__turbo_genesis__expected)
     BOOST_REQUIRE(!store.create(test::events_handler));
     BOOST_REQUIRE(test::setup_three_block_confirmed_address_store(query));
 
-    unspents out{};
+    unspent_outputs out{};
     const std::atomic_bool cancel{};
     BOOST_REQUIRE(!query.get_unconfirmed_unspent(cancel, out, test::block1a_address0, true));
 
@@ -77,20 +77,20 @@ BOOST_AUTO_TEST_CASE(query_address__get_unspent__turbo_genesis__expected)
     // block2b (unconfirmed) contains 1 address output, so 3 total address outputs.
     BOOST_CHECK_EQUAL(out.size(), 3u);
 
-    BOOST_CHECK_EQUAL(out.at(0).height, unspent::unused_height);
-    BOOST_CHECK_EQUAL(out.at(0).position, unspent::unconfirmed_position);
+    BOOST_CHECK_EQUAL(out.at(0).height, unspent_output::unused_height);
+    BOOST_CHECK_EQUAL(out.at(0).position, unspent_output::unconfirmed_position);
     BOOST_CHECK_EQUAL(out.at(0).out.value(), 0x08u);
     BOOST_CHECK_EQUAL(out.at(0).out.point().index(), 0u);
     BOOST_CHECK_EQUAL(out.at(0).out.point().hash(), test::tx4.hash(false));
 
-    BOOST_CHECK_EQUAL(out.at(1).height, unspent::unused_height);
-    BOOST_CHECK_EQUAL(out.at(1).position, unspent::unconfirmed_position);
+    BOOST_CHECK_EQUAL(out.at(1).height, unspent_output::unused_height);
+    BOOST_CHECK_EQUAL(out.at(1).position, unspent_output::unconfirmed_position);
     BOOST_CHECK_EQUAL(out.at(1).out.value(), 0x85u);
     BOOST_CHECK_EQUAL(out.at(1).out.point().index(), 0u);
     BOOST_CHECK_EQUAL(out.at(1).out.point().hash(), test::tx5.hash(false));
 
-    BOOST_CHECK_EQUAL(out.at(2).height, unspent::unused_height);
-    BOOST_CHECK_EQUAL(out.at(2).position, unspent::unconfirmed_position);
+    BOOST_CHECK_EQUAL(out.at(2).height, unspent_output::unused_height);
+    BOOST_CHECK_EQUAL(out.at(2).position, unspent_output::unconfirmed_position);
     BOOST_CHECK_EQUAL(out.at(2).out.value(), 0xb2u);
     BOOST_CHECK_EQUAL(out.at(2).out.point().index(), 0u);
     BOOST_CHECK_EQUAL(out.at(2).out.point().hash(), test::block2b.transactions_ptr()->at(0)->hash(false));
@@ -152,20 +152,20 @@ BOOST_AUTO_TEST_CASE(query_address__get_unspent__turbo_genesis__expected)
 
     // same as get_confirmed_unspent()
 
-    BOOST_CHECK_EQUAL(out.at(3).height, unspent::unused_height);
-    BOOST_CHECK_EQUAL(out.at(3).position, unspent::unconfirmed_position);
+    BOOST_CHECK_EQUAL(out.at(3).height, unspent_output::unused_height);
+    BOOST_CHECK_EQUAL(out.at(3).position, unspent_output::unconfirmed_position);
     BOOST_CHECK_EQUAL(out.at(3).out.value(), 0x08u);
     BOOST_CHECK_EQUAL(out.at(3).out.point().index(), 0u);
     BOOST_CHECK_EQUAL(out.at(3).out.point().hash(), test::tx4.hash(false));
 
-    BOOST_CHECK_EQUAL(out.at(4).height, unspent::unused_height);
-    BOOST_CHECK_EQUAL(out.at(4).position, unspent::unconfirmed_position);
+    BOOST_CHECK_EQUAL(out.at(4).height, unspent_output::unused_height);
+    BOOST_CHECK_EQUAL(out.at(4).position, unspent_output::unconfirmed_position);
     BOOST_CHECK_EQUAL(out.at(4).out.value(), 0x85u);
     BOOST_CHECK_EQUAL(out.at(4).out.point().index(), 0u);
     BOOST_CHECK_EQUAL(out.at(4).out.point().hash(), test::tx5.hash(false));
 
-    BOOST_CHECK_EQUAL(out.at(5).height, unspent::unused_height);
-    BOOST_CHECK_EQUAL(out.at(5).position, unspent::unconfirmed_position);
+    BOOST_CHECK_EQUAL(out.at(5).height, unspent_output::unused_height);
+    BOOST_CHECK_EQUAL(out.at(5).position, unspent_output::unconfirmed_position);
     BOOST_CHECK_EQUAL(out.at(5).out.value(), 0xb2u);
     BOOST_CHECK_EQUAL(out.at(5).out.point().index(), 0u);
     BOOST_CHECK_EQUAL(out.at(5).out.point().hash(), test::block2b.transactions_ptr()->at(0)->hash(false));

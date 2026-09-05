@@ -140,6 +140,7 @@ enum error_t : uint8_t
     depth_limited,
     invalid_cursor,
     query_canceled,
+    branch_inactive,
     invalid_argument,
     missing_prevouts,
     merkle_proof,

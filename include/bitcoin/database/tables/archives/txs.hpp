@@ -23,7 +23,7 @@
 #include <iterator>
 #include <optional>
 #include <bitcoin/database/define.hpp>
-#include <bitcoin/database/types/envelope.hpp>
+#include <bitcoin/database/tables/envelope.hpp>
 #include <bitcoin/database/memory/memory.hpp>
 #include <bitcoin/database/primitives/primitives.hpp>
 #include <bitcoin/database/tables/schema.hpp>

@@ -134,6 +134,7 @@ DEFINE_ERROR_T_MESSAGE_MAP(error)
     { depth_limited, "depth_limited" },
     { invalid_cursor, "invalid_cursor" },
     { query_canceled, "query_canceled" },
+    { branch_inactive, "branch_inactive" },
     { invalid_argument, "invalid_argument" },
     { missing_prevouts, "missing_prevouts" },
     { merkle_proof, "merkle_proof" },

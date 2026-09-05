@@ -20,8 +20,8 @@
 #define LIBBITCOIN_DATABASE_SETTINGS_HPP
 
 #include <bitcoin/database/define.hpp>
-#include <bitcoin/database/types/envelope.hpp>
-#include <bitcoin/database/memory/settings.hpp>
+#include <bitcoin/database/types/types.hpp>
+#include <bitcoin/database/memory/memory.hpp>
 
 #include <filesystem>
 

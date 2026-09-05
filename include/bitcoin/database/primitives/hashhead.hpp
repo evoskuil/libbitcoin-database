@@ -56,6 +56,10 @@ public:
     /// Optimal filter k-value for expected load factor.
     static size_t optimal_k(size_t count, size_t buckets) NOEXCEPT;
 
+    /// Buckets for expected elements, scaled by memory between load factors.
+    static uint32_t derive_buckets(uint64_t expected, uint32_t low,
+        uint32_t high) NOEXCEPT;
+
     /// Create from empty head file (not thread safe).
     bool create() NOEXCEPT;
 

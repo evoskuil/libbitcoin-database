@@ -19,6 +19,7 @@
 #ifndef LIBBITCOIN_DATABASE_FILE_FILE_HPP
 #define LIBBITCOIN_DATABASE_FILE_FILE_HPP
 
+#include <bitcoin/database/file/advice.hpp>
 #include <bitcoin/database/file/rotator.hpp>
 #include <bitcoin/database/file/utilities.hpp>
 

@@ -56,12 +56,50 @@ struct outs_address
 /// Outs column: output fk records (rows aligned with the address spine).
 struct outs_puts
 {
+    using ix = linkage<schema::index>;
     using out = schema::output::link;
     using tx = schema::transaction::link;
     using link = schema::outs::link;
     using output_links = std::vector<out::integer>;
+    using excluded_outputs = std::vector<std::pair<ix::integer, out::integer>>;
     static constexpr auto width = schema::outs::size;
     static constexpr auto suffix = "puts"_t;
+    static constexpr auto offset = out::bits;
+    static_assert(offset < to_bits(out::size));
+
+    static constexpr out::integer merge(bool excluded,
+        out::integer out_fk) NOEXCEPT
+    {
+        BC_ASSERT_MSG(!system::get_right(out_fk, offset), "overflow");
+        return system::set_right(out_fk, offset, excluded);
+    }
+
+    static constexpr out::integer to_out_fk(out::integer merged) NOEXCEPT
+    {
+        return system::set_right(merged, offset, false);
+    }
+
+    static constexpr bool is_excluded(out::integer merged) NOEXCEPT
+    {
+        return system::get_right(merged, offset);
+    }
+
+    static inline bool is_excluded(const system::chain::output& out) NOEXCEPT
+    {
+        using namespace system;
+        const auto& script = out.script();
+        const auto size = script.serialized_size(false);
+        return (size > chain::max_script_size) || (!is_zero(size) &&
+            (script.ops().front().code() == chain::opcode::op_return));
+    }
+
+    static inline bool peek_excluded(auto& source, size_t bytes) NOEXCEPT
+    {
+        using namespace system;
+        constexpr auto op_return = to_value(chain::opcode::op_return);
+        return (bytes > chain::max_script_size) ||
+            (!is_zero(bytes) && (source.peek_byte() == op_return));
+    }
 
     struct record
       : public schema::outs
@@ -75,7 +113,7 @@ struct outs_puts
         {
             std::ranges::for_each(out_fks, [&](auto& fk) NOEXCEPT
             {
-                fk = source.read_little_endian<out::integer, out::size>();
+                fk = to_out_fk(source.read_little_endian<out::integer, out::size>());
             });
 
             BC_ASSERT(!source || source.get_read_position() == count() * out::size);
@@ -108,11 +146,39 @@ struct outs_puts
 
         inline bool from_data(reader& source) NOEXCEPT
         {
-            out_fk = source.read_little_endian<out::integer, out::size>();
+            out_fk = to_out_fk(source.read_little_endian<out::integer, out::size>());
             return source;
         }
 
         out::integer out_fk{};
+    };
+
+    struct get_excluded
+      : public schema::outs
+    {
+        inline link count() const NOEXCEPT
+        {
+            return system::possible_narrow_cast<link::integer>(number);
+        }
+
+        inline bool from_data(reader& source) NOEXCEPT
+        {
+            excluded.clear();
+            for (ix::integer index{}; index < number; ++index)
+            {
+                const auto merged = source.read_little_endian<out::integer,
+                    out::size>();
+
+                if (is_excluded(merged))
+                    excluded.emplace_back(index, to_out_fk(merged));
+            }
+
+            return source;
+        }
+
+        // Output count is assigned by the caller, from the tx record.
+        ix::integer number{};
+        excluded_outputs excluded{};
     };
 
     struct put_ref
@@ -133,7 +199,8 @@ struct outs_puts
             const auto& outs = *tx_.outputs_ptr();
             std::ranges::for_each(outs, [&](const auto& out) NOEXCEPT
             {
-                sink.write_little_endian<out::integer, out::size>(out_fk);
+                const auto merged = merge(is_excluded(*out), out_fk);
+                sink.write_little_endian<out::integer, out::size>(merged);
 
                 // Calculate next corresponding output fk from serialized size.
                 // (variable_size(value) + (value + script)) - (value - parent)
@@ -165,10 +232,12 @@ struct outs_puts
             read::bytes::fast source{ stream };
             for (size_t out{}; out < tx_.outputs(); ++out)
             {
-                sink.write_little_endian<out::integer, out::size>(out_fk);
                 const auto value = source.read_8_bytes_little_endian();
                 const auto bytes = source.read_size();
+                const auto excluded = peek_excluded(source, bytes);
                 source.skip_bytes(bytes);
+                const auto merged = merge(excluded, out_fk);
+                sink.write_little_endian<out::integer, out::size>(merged);
                 out_fk += tx::size + variable_size(value)
                     + variable_size(bytes) + bytes;
             }
@@ -197,8 +266,10 @@ struct outs
     /// Column element aliases.
     using record = outs_puts::record;
     using get_output = outs_puts::get_output;
+    using get_excluded = outs_puts::get_excluded;
     using put_ref = outs_puts::put_ref;
     using put_view = outs_puts::put_view;
+    using excluded_outputs = outs_puts::excluded_outputs;
 
     /// The output fk column (rows aligned with the address spine).
     column<base, one> puts{ *this };
