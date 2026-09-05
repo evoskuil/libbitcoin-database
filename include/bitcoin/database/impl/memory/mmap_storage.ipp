@@ -19,10 +19,8 @@
 #ifndef LIBBITCOIN_DATABASE_MEMORY_MMAP_STORAGE_IPP
 #define LIBBITCOIN_DATABASE_MEMORY_MMAP_STORAGE_IPP
 
-#include <algorithm>
 #include <filesystem>
 #include <mutex>
-#include <utility>
 #include <shared_mutex>
 #include <bitcoin/database/define.hpp>
 #include <bitcoin/database/file/file.hpp>

@@ -19,9 +19,6 @@
 #ifndef LIBBITCOIN_DATABASE_QUERY_MERKLE_IPP
 #define LIBBITCOIN_DATABASE_QUERY_MERKLE_IPP
 
-#include <algorithm>
-#include <iterator>
-#include <utility>
 #include <bitcoin/database/define.hpp>
 
 namespace libbitcoin {

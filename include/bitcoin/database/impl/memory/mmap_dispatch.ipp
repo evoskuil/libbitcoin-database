@@ -19,10 +19,7 @@
 #ifndef LIBBITCOIN_DATABASE_MEMORY_MMAP_DISPATCH_IPP
 #define LIBBITCOIN_DATABASE_MEMORY_MMAP_DISPATCH_IPP
 
-#include <algorithm>
-#include <memory>
 #include <mutex>
-#include <utility>
 #include <shared_mutex>
 #include <bitcoin/database/define.hpp>
 #include <bitcoin/database/file/file.hpp>

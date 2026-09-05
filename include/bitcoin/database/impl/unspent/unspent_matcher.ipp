@@ -19,7 +19,6 @@
 #ifndef LIBBITCOIN_DATABASE_UNSPENT_UNSPENT_MATCHER_IPP
 #define LIBBITCOIN_DATABASE_UNSPENT_UNSPENT_MATCHER_IPP
 
-#include <iterator>
 #include <bitcoin/database/define.hpp>
 #include <bitcoin/database/unspent/unspent_writer.hpp>
 

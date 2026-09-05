@@ -18,7 +18,6 @@
  */
 #include <bitcoin/database/types/unspent_output.hpp>
 
-#include <algorithm>
 #include <bitcoin/database/define.hpp>
 
 namespace libbitcoin {

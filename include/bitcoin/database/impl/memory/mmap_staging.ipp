@@ -19,7 +19,6 @@
 #ifndef LIBBITCOIN_DATABASE_MEMORY_MMAP_STAGING_IPP
 #define LIBBITCOIN_DATABASE_MEMORY_MMAP_STAGING_IPP
 
-#include <algorithm>
 #include <chrono>
 #include <fcntl.h>
 #if defined(STAGING_TELEMETRY)

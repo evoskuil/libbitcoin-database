@@ -19,9 +19,7 @@
 #ifndef LIBBITCOIN_DATABASE_PRIMITIVES_ELEMENT_IPP
 #define LIBBITCOIN_DATABASE_PRIMITIVES_ELEMENT_IPP
 
-#include <iterator>
 #include <cstring>
-#include <utility>
 #include <bitcoin/database/define.hpp>
 
 namespace libbitcoin {

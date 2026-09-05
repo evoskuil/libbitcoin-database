@@ -19,7 +19,6 @@
 #ifndef LIBBITCOIN_DATABASE_UNSPENT_UNSPENT_READER_IPP
 #define LIBBITCOIN_DATABASE_UNSPENT_UNSPENT_READER_IPP
 
-#include <utility>
 #include <bitcoin/database/define.hpp>
 
 namespace libbitcoin {

@@ -19,8 +19,6 @@
 #ifndef LIBBITCOIN_DATABASE_QUERY_ARCHIVE_WIRE_READER_IPP
 #define LIBBITCOIN_DATABASE_QUERY_ARCHIVE_WIRE_READER_IPP
 
-#include <algorithm>
-#include <utility>
 #include <bitcoin/database/define.hpp>
 
 namespace libbitcoin {

@@ -19,8 +19,6 @@
 #ifndef LIBBITCOIN_DATABASE_TABLES_CACHES_PREVOUT_HPP
 #define LIBBITCOIN_DATABASE_TABLES_CACHES_PREVOUT_HPP
 
-#include <algorithm>
-#include <utility>
 #include <bitcoin/database/define.hpp>
 #include <bitcoin/database/primitives/primitives.hpp>
 #include <bitcoin/database/tables/schema.hpp>

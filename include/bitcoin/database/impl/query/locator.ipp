@@ -19,7 +19,6 @@
 #ifndef LIBBITCOIN_DATABASE_QUERY_LOCATOR_IPP
 #define LIBBITCOIN_DATABASE_QUERY_LOCATOR_IPP
 
-#include <algorithm>
 #include <bitcoin/database/define.hpp>
 
 namespace libbitcoin {

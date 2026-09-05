@@ -19,7 +19,6 @@
 #ifndef LIBBITCOIN_DATABASE_MEMORY_MMAP_NATIVE_IPP
 #define LIBBITCOIN_DATABASE_MEMORY_MMAP_NATIVE_IPP
 
-#include <algorithm>
 #include <chrono>
 #include <shared_mutex>
 #include <bitcoin/database/define.hpp>

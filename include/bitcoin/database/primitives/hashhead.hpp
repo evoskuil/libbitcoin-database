@@ -19,7 +19,6 @@
 #ifndef LIBBITCOIN_DATABASE_PRIMITIVES_HEAD_HPP
 #define LIBBITCOIN_DATABASE_PRIMITIVES_HEAD_HPP
 
-#include <algorithm>
 #include <atomic>
 #include <shared_mutex>
 #include <bitcoin/database/define.hpp>

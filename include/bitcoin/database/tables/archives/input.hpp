@@ -19,8 +19,6 @@
 #ifndef LIBBITCOIN_DATABASE_TABLES_ARCHIVES_INPUT_HPP
 #define LIBBITCOIN_DATABASE_TABLES_ARCHIVES_INPUT_HPP
 
-#include <algorithm>
-#include <memory>
 #include <bitcoin/database/define.hpp>
 #include <bitcoin/database/memory/memory.hpp>
 #include <bitcoin/database/primitives/primitives.hpp>

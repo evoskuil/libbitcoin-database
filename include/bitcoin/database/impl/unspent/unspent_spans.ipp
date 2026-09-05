@@ -19,7 +19,6 @@
 #ifndef LIBBITCOIN_DATABASE_UNSPENT_UNSPENT_SPANS_IPP
 #define LIBBITCOIN_DATABASE_UNSPENT_UNSPENT_SPANS_IPP
 
-#include <algorithm>
 #include <atomic>
 #include <thread>
 #include <bitcoin/database/define.hpp>

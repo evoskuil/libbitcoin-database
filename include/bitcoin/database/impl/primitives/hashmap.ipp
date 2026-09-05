@@ -20,7 +20,6 @@
 #define LIBBITCOIN_DATABASE_PRIMITIVES_HASHMAP_IPP
 
 #include <atomic>
-#include <algorithm>
 #include <bitcoin/database/define.hpp>
 
 namespace libbitcoin {

@@ -20,10 +20,7 @@
 #define LIBBITCOIN_DATABASE_QUERY_SIZES_IPP
 
 #include <atomic>
-#include <algorithm>
-#include <iterator>
 #include <numeric>
-#include <utility>
 #include <bitcoin/database/define.hpp>
 
 namespace libbitcoin {

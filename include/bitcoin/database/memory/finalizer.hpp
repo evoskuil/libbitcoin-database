@@ -19,8 +19,6 @@
 #ifndef LIBBITCOIN_DATABASE_MEMORY_FINALIZER_HPP
 #define LIBBITCOIN_DATABASE_MEMORY_FINALIZER_HPP
 
-#include <memory>
-#include <utility>
 #include <bitcoin/database/define.hpp>
 
 namespace libbitcoin {

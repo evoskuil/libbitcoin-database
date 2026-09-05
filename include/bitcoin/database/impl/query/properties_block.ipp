@@ -19,7 +19,6 @@
 #ifndef LIBBITCOIN_DATABASE_QUERY_PROPERTIES_BLOCK_IPP
 #define LIBBITCOIN_DATABASE_QUERY_PROPERTIES_BLOCK_IPP
 
-#include <utility>
 #include <bitcoin/database/define.hpp>
 
 namespace libbitcoin {

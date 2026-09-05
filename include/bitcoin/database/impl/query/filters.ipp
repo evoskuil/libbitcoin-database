@@ -20,9 +20,7 @@
 #define LIBBITCOIN_DATABASE_QUERY_FILTERS_IPP
 
 #include <atomic>
-#include <algorithm>
 #include <ranges>
-#include <utility>
 #include <bitcoin/database/define.hpp>
 
 namespace libbitcoin {

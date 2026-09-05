@@ -19,7 +19,6 @@
 #ifndef LIBBITCOIN_DATABASE_PRIMITIVES_HASHHEAD_IPP
 #define LIBBITCOIN_DATABASE_PRIMITIVES_HASHHEAD_IPP
 
-#include <algorithm>
 #include <cmath>
 #include <bitcoin/database/define.hpp>
 

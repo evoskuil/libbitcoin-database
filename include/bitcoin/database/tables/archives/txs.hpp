@@ -19,8 +19,6 @@
 #ifndef LIBBITCOIN_DATABASE_TABLES_ARCHIVES_TXS_HPP
 #define LIBBITCOIN_DATABASE_TABLES_ARCHIVES_TXS_HPP
 
-#include <algorithm>
-#include <iterator>
 #include <optional>
 #include <bitcoin/database/define.hpp>
 #include <bitcoin/database/tables/envelope.hpp>
