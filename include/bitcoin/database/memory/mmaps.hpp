@@ -19,9 +19,7 @@
 #ifndef LIBBITCOIN_DATABASE_MEMORY_MMAPS_HPP
 #define LIBBITCOIN_DATABASE_MEMORY_MMAPS_HPP
 
-#include <algorithm>
 #include <filesystem>
-#include <utility>
 #include <bitcoin/database/define.hpp>
 #include <bitcoin/database/memory/mmap.hpp>
 

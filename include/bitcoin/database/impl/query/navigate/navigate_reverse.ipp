@@ -19,10 +19,8 @@
 #ifndef LIBBITCOIN_DATABASE_QUERY_NAVIGATE_REVERSE_IPP
 #define LIBBITCOIN_DATABASE_QUERY_NAVIGATE_REVERSE_IPP
 
-#include <algorithm>
 #include <atomic>
 #include <ranges>
-#include <utility>
 #include <bitcoin/database/define.hpp>
 
 namespace libbitcoin {

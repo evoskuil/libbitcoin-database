@@ -19,7 +19,6 @@
 #ifndef LIBBITCOIN_DATABASE_UNSPENT_UNSPENT_SERIAL_IPP
 #define LIBBITCOIN_DATABASE_UNSPENT_UNSPENT_SERIAL_IPP
 
-#include <algorithm>
 #include <atomic>
 #include <semaphore>
 #include <thread>

@@ -19,7 +19,6 @@
 #ifndef LIBBITCOIN_DATABASE_QUERY_CONSENSUS_BLOCK_IPP
 #define LIBBITCOIN_DATABASE_QUERY_CONSENSUS_BLOCK_IPP
 
-#include <algorithm>
 #include <atomic>
 #include <ranges>
 #include <bitcoin/database/define.hpp>

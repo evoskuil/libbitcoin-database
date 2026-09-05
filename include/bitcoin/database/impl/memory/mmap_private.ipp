@@ -19,7 +19,6 @@
 #ifndef LIBBITCOIN_DATABASE_MEMORY_MMAP_PRIVATE_IPP
 #define LIBBITCOIN_DATABASE_MEMORY_MMAP_PRIVATE_IPP
 
-#include <algorithm>
 #include <fcntl.h>
 #include <tuple>
 #include <bitcoin/database/define.hpp>

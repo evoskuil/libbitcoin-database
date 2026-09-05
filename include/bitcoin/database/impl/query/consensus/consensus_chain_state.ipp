@@ -20,7 +20,6 @@
 #define LIBBITCOIN_DATABASE_CONSENSUS_CHAIN_STATE_IPP
 
 #include <ranges>
-#include <memory>
 #include <bitcoin/database/define.hpp>
 
 namespace libbitcoin {

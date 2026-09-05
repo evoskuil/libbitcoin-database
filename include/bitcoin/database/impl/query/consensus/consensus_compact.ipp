@@ -19,7 +19,6 @@
 #ifndef LIBBITCOIN_DATABASE_QUERY_CONSENSUS_COMPACT_IPP
 #define LIBBITCOIN_DATABASE_QUERY_CONSENSUS_COMPACT_IPP
 
-#include <iterator>
 #include <bitcoin/database/define.hpp>
 
 namespace libbitcoin {

@@ -19,7 +19,6 @@
 #include <bitcoin/database/file/rotator.hpp>
 
 #include <exception>
-#include <memory>
 #include <bitcoin/database/define.hpp>
 
 namespace libbitcoin {

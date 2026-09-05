@@ -19,7 +19,6 @@
 #ifndef LIBBITCOIN_DATABASE_STORE_HPP
 #define LIBBITCOIN_DATABASE_STORE_HPP
 
-#include <algorithm>
 #include <atomic>
 #include <filesystem>
 #include <shared_mutex>

@@ -21,7 +21,6 @@
 
 #include <atomic>
 #include <optional>
-#include <utility>
 #include <bitcoin/database/define.hpp>
 #include <bitcoin/database/tables/tables.hpp>
 

@@ -19,9 +19,7 @@
 #ifndef LIBBITCOIN_DATABASE_QUERY_ARCHIVE_CHAIN_WRITER_IPP
 #define LIBBITCOIN_DATABASE_QUERY_ARCHIVE_CHAIN_WRITER_IPP
 
-#include <algorithm>
 #include <ranges>
-#include <utility>
 #include <bitcoin/database/define.hpp>
 
 namespace libbitcoin {

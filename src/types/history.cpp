@@ -18,7 +18,6 @@
  */
 #include <bitcoin/database/types/history.hpp>
 
-#include <algorithm>
 #include <bitcoin/database/define.hpp>
 
 namespace libbitcoin {

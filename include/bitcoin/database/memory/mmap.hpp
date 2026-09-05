@@ -22,7 +22,6 @@
 #include <atomic>
 #include <condition_variable>
 #include <filesystem>
-#include <memory>
 #include <mutex>
 #include <shared_mutex>
 #include <thread>

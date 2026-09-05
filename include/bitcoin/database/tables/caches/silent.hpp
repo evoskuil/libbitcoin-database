@@ -19,7 +19,6 @@
 #ifndef LIBBITCOIN_DATABASE_TABLES_CACHES_SILENT_HPP
 #define LIBBITCOIN_DATABASE_TABLES_CACHES_SILENT_HPP
 
-#include <algorithm>
 #include <filesystem>
 #include <tuple>
 #include <bitcoin/database/define.hpp>

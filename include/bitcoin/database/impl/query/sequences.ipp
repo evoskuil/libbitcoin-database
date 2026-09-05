@@ -19,7 +19,6 @@
 #ifndef LIBBITCOIN_DATABASE_QUERY_SEQUENCES_IPP
 #define LIBBITCOIN_DATABASE_QUERY_SEQUENCES_IPP
 
-#include <algorithm>
 #include <ranges>
 #include <bitcoin/database/define.hpp>
 
