@@ -116,7 +116,7 @@ BOOST_AUTO_TEST_CASE(query_consensus__get_compact_links__ambiguous_pool__termina
     BOOST_REQUIRE_EQUAL(out.at(0), tx_link::terminal);
 }
 
-BOOST_AUTO_TEST_CASE(query_consensus__get_compact_links__allocated_row__pooled_matched)
+BOOST_AUTO_TEST_CASE(query_consensus__get_compact_links__allocated_record__pooled_matched)
 {
     settings settings{};
     settings.path = TEST_DIRECTORY;
@@ -132,7 +132,7 @@ BOOST_AUTO_TEST_CASE(query_consensus__get_compact_links__allocated_row__pooled_m
     BOOST_REQUIRE(!query.set_code(link5, tx5));
     BOOST_REQUIRE(query.set_pooled(link5, tx5, context{ bip113, 8, 9 }));
 
-    // A spine row allocated ahead of its columns (a concurrent pool write).
+    // A spine record allocated ahead of its columns (a concurrent pool write).
     BOOST_REQUIRE(!store.pool.allocate(1).is_terminal());
 
     tx_links out{};
@@ -141,7 +141,7 @@ BOOST_AUTO_TEST_CASE(query_consensus__get_compact_links__allocated_row__pooled_m
     BOOST_REQUIRE_EQUAL(out.at(0), link5);
 }
 
-BOOST_AUTO_TEST_CASE(query_consensus__get_compact_links__uncommitted_row__terminal)
+BOOST_AUTO_TEST_CASE(query_consensus__get_compact_links__uncommitted_record__terminal)
 {
     settings settings{};
     settings.path = TEST_DIRECTORY;
@@ -150,15 +150,15 @@ BOOST_AUTO_TEST_CASE(query_consensus__get_compact_links__uncommitted_row__termin
     BOOST_REQUIRE(!store.create(test::events_handler));
     BOOST_REQUIRE(query.initialize(test::genesis));
 
-    // Columns written for a row whose spine record is not yet committed.
+    // Columns written for a record whose spine entry is not yet committed.
     using lane_t = schema::pool::witness_lane;
     const auto words = system::from_little_endians(system::array_cast<lane_t>(test::tx5.hash(true)));
-    const auto row = store.pool.allocate(1);
-    BOOST_REQUIRE(!row.is_terminal());
-    BOOST_REQUIRE(store.pool.id0.put(row, table::pool_word{ {}, std::get<0>(words) }));
-    BOOST_REQUIRE(store.pool.id1.put(row, table::pool_word{ {}, std::get<1>(words) }));
-    BOOST_REQUIRE(store.pool.id2.put(row, table::pool_word{ {}, std::get<2>(words) }));
-    BOOST_REQUIRE(store.pool.id3.put(row, table::pool_word{ {}, std::get<3>(words) }));
+    const auto link = store.pool.allocate(1);
+    BOOST_REQUIRE(!link.is_terminal());
+    BOOST_REQUIRE(store.pool.id0.put(link, table::pool_word{ {}, std::get<0>(words) }));
+    BOOST_REQUIRE(store.pool.id1.put(link, table::pool_word{ {}, std::get<1>(words) }));
+    BOOST_REQUIRE(store.pool.id2.put(link, table::pool_word{ {}, std::get<2>(words) }));
+    BOOST_REQUIRE(store.pool.id3.put(link, table::pool_word{ {}, std::get<3>(words) }));
 
     tx_links out{};
     const std::vector<uint64_t> ids{ to_short_id(test::tx5) };

@@ -57,7 +57,7 @@ static header_link archive_confirm(test::query_accessor& query, const transactio
 
 // get_pooled
 
-BOOST_AUTO_TEST_CASE(query_pool__get_pooled__no_row__unvalidated)
+BOOST_AUTO_TEST_CASE(query_pool__get_pooled__no_record__unvalidated)
 {
     settings settings{};
     settings.path = TEST_DIRECTORY;
@@ -142,7 +142,7 @@ BOOST_AUTO_TEST_CASE(query_pool__get_pooled__without_bip113__unvalidated)
 
 // set_pooled
 
-BOOST_AUTO_TEST_CASE(query_pool__set_pooled__disabled__no_row)
+BOOST_AUTO_TEST_CASE(query_pool__set_pooled__disabled__no_record)
 {
     settings settings{};
     settings.path = TEST_DIRECTORY;
@@ -332,7 +332,7 @@ BOOST_AUTO_TEST_CASE(query_pool__get_confirmable_txs__confirmed__skipped)
     BOOST_REQUIRE_EQUAL(cursor, 2u);
 }
 
-BOOST_AUTO_TEST_CASE(query_pool__get_confirmable_txs__duplicate_row__first_only)
+BOOST_AUTO_TEST_CASE(query_pool__get_confirmable_txs__duplicate_record__first_only)
 {
     settings settings{};
     settings.path = TEST_DIRECTORY;

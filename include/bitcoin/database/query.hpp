@@ -1008,7 +1008,7 @@ protected:
 
     /// Pool.
     /// -----------------------------------------------------------------------
-    tx_link to_pool_tx(const pool_link& row) const NOEXCEPT;
+    tx_link to_pool_tx(const pool_link& link) const NOEXCEPT;
     bool get_pooled_fee(uint64_t& out, const tx_link& link) const NOEXCEPT;
     bool get_pooled_fee(uint64_t& fee, size_t& height,
         const tx_link& link) const NOEXCEPT;
@@ -1205,8 +1205,8 @@ private:
     // This value should never be read, but may be useful in debugging.
     static constexpr uint32_t unspecified_timestamp = max_uint32;
 
-    // Fewest pool rows hashed by one task of the compact block short id scan.
-    static constexpr size_t short_id_minimum_rows = system::power2(10u);
+    // Fewest pool records hashed by one task of the compact short id scan.
+    static constexpr size_t short_id_minimum_records = system::power2(10u);
 
     // Chain objects.
     template <typename Bool>

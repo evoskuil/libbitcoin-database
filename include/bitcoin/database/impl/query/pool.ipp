@@ -78,15 +78,15 @@ code CLASS::get_pooled(pooled_tx& out, const tx_link& link,
     return error::success;
 }
 
-// A terminal cursor starts at the first row, and the cursor is set to end
-// once the rows are exhausted.
+// A terminal cursor starts at the first record, and the cursor is set to end
+// once the records are exhausted.
 TEMPLATE
 code CLASS::get_confirmable_txs(pool_link& cursor, tx_links& out,
     const pool_link& end, size_t limit) const NOEXCEPT
 {
     out.clear();
-    auto row = cursor.is_terminal() ? pool_link::integer{} : cursor.value;
-    if (row > end.value)
+    pool_link fk{ cursor.is_terminal() ? pool_link::integer{} : cursor.value };
+    if (fk.value > end.value)
         return error::invalid_cursor;
 
     if (!store_.pool.enabled())
@@ -96,15 +96,15 @@ code CLASS::get_confirmable_txs(pool_link& cursor, tx_links& out,
     }
 
     confirmables memo{};
-    const auto stop = std::min(end.value, store_.pool.count().value);
-    for (; row < stop && out.size() < limit; ++row)
+    const pool_link stop{ std::min(end.value, store_.pool.count().value) };
+    for (; fk.value < stop.value && out.size() < limit; ++fk)
     {
-        const auto link = to_pool_tx(row);
+        const auto link = to_pool_tx(fk);
         if (!link.is_terminal() && is_confirmable_tx(memo, link))
             out.push_back(link);
     }
 
-    cursor = row == stop ? end : pool_link{ row };
+    cursor = fk == stop ? end : fk;
     return error::success;
 }
 
@@ -176,13 +176,13 @@ bool CLASS::get_block_conflict_fees(fee_rates& out,
 }
 
 // protected
-// The first row of a tx is its last committed, so the tx of any earlier or
-// uncommitted row (its key does not resolve to it) is terminal.
+// The first record of a tx is its last committed, so the tx of any earlier or
+// uncommitted record (its key does not resolve to it) is terminal.
 TEMPLATE
-tx_link CLASS::to_pool_tx(const pool_link& row) const NOEXCEPT
+tx_link CLASS::to_pool_tx(const pool_link& link) const NOEXCEPT
 {
-    const tx_link link{ store_.pool.get_key(row) };
-    return store_.pool.first(link) == row ? link : tx_link{};
+    const tx_link tx{ store_.pool.get_key(link) };
+    return store_.pool.first(tx) == link ? tx : tx_link{};
 }
 
 TEMPLATE
@@ -340,27 +340,27 @@ bool CLASS::set_pooled(const tx_link& link, const transaction& tx,
         return false;
 
     auto& vtx = store_.pool;
-    const auto row = vtx.allocate(1);
-    if (row.is_terminal())
+    const auto fk = vtx.allocate(1);
+    if (fk.is_terminal())
         return false;
 
-    if (!store_.wtxid.put(row, hash))
+    if (!store_.wtxid.put(fk, hash))
         return false;
 
     // Column puts are unguarded, the accessor guards their rows against remap.
     using word = table::pool_word;
     auto guard = vtx.get_memory();
     if (!guard ||
-        !vtx.id0.put(row, word{ {}, std::get<0>(words) }) ||
-        !vtx.id1.put(row, word{ {}, std::get<1>(words) }) ||
-        !vtx.id2.put(row, word{ {}, std::get<2>(words) }) ||
-        !vtx.id3.put(row, word{ {}, std::get<3>(words) }))
+        !vtx.id0.put(fk, word{ {}, std::get<0>(words) }) ||
+        !vtx.id1.put(fk, word{ {}, std::get<1>(words) }) ||
+        !vtx.id2.put(fk, word{ {}, std::get<2>(words) }) ||
+        !vtx.id3.put(fk, word{ {}, std::get<3>(words) }))
         return false;
 
     guard.reset();
 
     // Commit is deferred until the columns are set.
-    return vtx.put(row, link, table::pool::record
+    return vtx.put(fk, link, table::pool::record
     {
         {},
         ctx,
