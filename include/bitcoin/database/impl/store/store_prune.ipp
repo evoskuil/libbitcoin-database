@@ -294,7 +294,7 @@ bool CLASS::is_retained(bool& out, const tx_link& link,
     std::unordered_set<tx_link::integer> visited{ link };
 
     out = false;
-    if (reader.is_unconfirmable(link))
+    if (!reader.is_confirmable_tx(link))
         return true;
 
     while (!pending.empty())

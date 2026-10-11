@@ -686,8 +686,8 @@ public:
     code get_pooled(pooled_tx& out, const tx_link& link,
         const context& ctx) const NOEXCEPT;
 
-    /// Confirmed, or conflicted by a confirmed tx (directly or by ancestry).
-    bool is_unconfirmable(const tx_link& link) const NOEXCEPT;
+    /// Unconfirmed, and not conflicted by a confirmed tx (or via ancestry).
+    bool is_confirmable_tx(const tx_link& link) const NOEXCEPT;
 
     /// Confirmable tx links, from cursor toward end, at most limit.
     code get_confirmable_txs(pool_link& cursor, tx_links& out,
@@ -1014,9 +1014,9 @@ protected:
         const tx_link& link) const NOEXCEPT;
     hash_digest get_pooled_wtxid(const table::pool::link& link) const NOEXCEPT;
 
-    /// Unconfirmability memoized across the txs of a scan.
-    using unconfirmables = std::unordered_map<tx_link::integer, bool>;
-    bool is_unconfirmable(unconfirmables& memo,
+    /// Confirmability memoized across the txs of a scan.
+    using confirmables = std::unordered_map<tx_link::integer, bool>;
+    bool is_confirmable_tx(confirmables& memo,
         const tx_link& link) const NOEXCEPT;
 
     /// Setters.

@@ -34,10 +34,10 @@ bool CLASS::is_pooled(const tx_link& link) const NOEXCEPT
 }
 
 TEMPLATE
-bool CLASS::is_unconfirmable(const tx_link& link) const NOEXCEPT
+bool CLASS::is_confirmable_tx(const tx_link& link) const NOEXCEPT
 {
-    unconfirmables memo{};
-    return is_unconfirmable(memo, link);
+    confirmables memo{};
+    return is_confirmable_tx(memo, link);
 }
 
 TEMPLATE
@@ -95,12 +95,12 @@ code CLASS::get_confirmable_txs(pool_link& cursor, tx_links& out,
         return error::success;
     }
 
-    unconfirmables memo{};
+    confirmables memo{};
     const auto stop = std::min(end.value, store_.pool.count().value);
     for (; row < stop && out.size() < limit; ++row)
     {
         const auto link = to_pool_tx(row);
-        if (!link.is_terminal() && !is_unconfirmable(memo, link))
+        if (!link.is_terminal() && is_confirmable_tx(memo, link))
             out.push_back(link);
     }
 
@@ -235,7 +235,7 @@ hash_digest CLASS::get_pooled_wtxid(const table::pool::link& link) const NOEXCEP
 
 // A walk that finds no confirmed spend proves each tx visited confirmable.
 TEMPLATE
-bool CLASS::is_unconfirmable(unconfirmables& memo,
+bool CLASS::is_confirmable_tx(confirmables& memo,
     const tx_link& link) const NOEXCEPT
 {
     if (const auto it = memo.find(link.value); it != memo.cend())
@@ -243,8 +243,8 @@ bool CLASS::is_unconfirmable(unconfirmables& memo,
 
     const auto unconfirmable = [&]() NOEXCEPT
     {
-        memo.emplace(link.value, true);
-        return true;
+        memo.emplace(link.value, false);
+        return false;
     };
 
     if (is_confirmed_tx(link))
@@ -259,7 +259,7 @@ bool CLASS::is_unconfirmable(unconfirmables& memo,
 
         if (const auto it = memo.find(next.value); it != memo.cend())
         {
-            if (it->second)
+            if (!it->second)
                 return unconfirmable();
 
             continue;
@@ -279,9 +279,9 @@ bool CLASS::is_unconfirmable(unconfirmables& memo,
     }
 
     for (const auto tx: visited)
-        memo.emplace(tx, false);
+        memo.emplace(tx, true);
 
-    return false;
+    return true;
 }
 
 // writers

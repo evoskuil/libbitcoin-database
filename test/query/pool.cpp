@@ -203,9 +203,9 @@ BOOST_AUTO_TEST_CASE(query_pool__set_pooled__missing_parent__false)
     BOOST_REQUIRE_EQUAL(query.get_pooled(pooled, 1, context{ bip113, 8, 9 }), error::unvalidated);
 }
 
-// is_unconfirmable
+// is_confirmable_tx
 
-BOOST_AUTO_TEST_CASE(query_pool__is_unconfirmable__unconflicted_chain__false)
+BOOST_AUTO_TEST_CASE(query_pool__is_confirmable_tx__unconflicted_chain__true)
 {
     settings settings{};
     settings.path = TEST_DIRECTORY;
@@ -219,11 +219,11 @@ BOOST_AUTO_TEST_CASE(query_pool__is_unconfirmable__unconflicted_chain__false)
     const auto child = to_spend(parent.hash(false), 1u);
     BOOST_REQUIRE(archive_pool(query, parent));
     BOOST_REQUIRE(archive_pool(query, child));
-    BOOST_REQUIRE(!query.is_unconfirmable(query.to_tx(parent.hash(false))));
-    BOOST_REQUIRE(!query.is_unconfirmable(query.to_tx(child.hash(false))));
+    BOOST_REQUIRE(query.is_confirmable_tx(query.to_tx(parent.hash(false))));
+    BOOST_REQUIRE(query.is_confirmable_tx(query.to_tx(child.hash(false))));
 }
 
-BOOST_AUTO_TEST_CASE(query_pool__is_unconfirmable__confirmed__true)
+BOOST_AUTO_TEST_CASE(query_pool__is_confirmable_tx__confirmed__false)
 {
     settings settings{};
     settings.path = TEST_DIRECTORY;
@@ -236,11 +236,11 @@ BOOST_AUTO_TEST_CASE(query_pool__is_unconfirmable__confirmed__true)
     const auto tx = to_spend(genesis_coinbase(), 1u);
     BOOST_REQUIRE(archive_pool(query, tx));
     BOOST_REQUIRE(!archive_confirm(query, tx).is_terminal());
-    BOOST_REQUIRE(query.is_unconfirmable(query.to_tx(tx.hash(false))));
-    BOOST_REQUIRE(query.is_unconfirmable(tx_link{ 0 }));
+    BOOST_REQUIRE(!query.is_confirmable_tx(query.to_tx(tx.hash(false))));
+    BOOST_REQUIRE(!query.is_confirmable_tx(tx_link{ 0 }));
 }
 
-BOOST_AUTO_TEST_CASE(query_pool__is_unconfirmable__conflicted_and_child__true)
+BOOST_AUTO_TEST_CASE(query_pool__is_confirmable_tx__conflicted_and_child__false)
 {
     settings settings{};
     settings.path = TEST_DIRECTORY;
@@ -255,8 +255,8 @@ BOOST_AUTO_TEST_CASE(query_pool__is_unconfirmable__conflicted_and_child__true)
     BOOST_REQUIRE(archive_pool(query, conflicted));
     BOOST_REQUIRE(archive_pool(query, child));
     BOOST_REQUIRE(!archive_confirm(query, to_spend(genesis_coinbase(), 1u)).is_terminal());
-    BOOST_REQUIRE(query.is_unconfirmable(query.to_tx(conflicted.hash(false))));
-    BOOST_REQUIRE(query.is_unconfirmable(query.to_tx(child.hash(false))));
+    BOOST_REQUIRE(!query.is_confirmable_tx(query.to_tx(conflicted.hash(false))));
+    BOOST_REQUIRE(!query.is_confirmable_tx(query.to_tx(child.hash(false))));
 }
 
 // get_confirmable_txs
