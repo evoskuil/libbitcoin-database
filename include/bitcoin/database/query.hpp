@@ -552,13 +552,6 @@ public:
     bool get_branch_fees(const stopper& cancel, fee_rate_sets& out, size_t start,
         size_t count) const NOEXCEPT;
 
-    /// Fee rate tuples of the confirmable txs.
-    bool get_confirmable_fees(fee_rates& out) const NOEXCEPT;
-
-    /// Fee rate tuples of the pooled txs conflicted by the block.
-    bool get_block_conflict_fees(fee_rates& out,
-        const header_link& link) const NOEXCEPT;
-
     /// Merkle.
     /// -----------------------------------------------------------------------
 
@@ -656,8 +649,6 @@ public:
     bool is_validateable(size_t height) const NOEXCEPT;
     code get_block_state(const header_link& link) const NOEXCEPT;
     code get_header_state(const header_link& link) const NOEXCEPT;
-    code get_pooled(pooled_tx& out, const tx_link& link,
-        const context& ctx) const NOEXCEPT;
 
     /// Validate a block whose txs are pooled under a context sufficient for
     /// the block, writing its prevouts. Unvalidated implies a tx is not
@@ -670,10 +661,6 @@ public:
     code get_compact_links(tx_links& out,
         const std::vector<short_id>& short_ids,
         const system::siphash_key& key) const NOEXCEPT;
-
-    /// Confirmable tx links, from cursor toward end, at most limit.
-    code get_confirmable_txs(pool_link& cursor, tx_links& out,
-        const pool_link& end, size_t limit) const NOEXCEPT;
 
     /// Header properties.
     uint32_t get_top_timestamp(bool confirmed) const NOEXCEPT;
@@ -691,14 +678,33 @@ public:
     bool set_block_unconfirmable(const header_link& link) NOEXCEPT;
     bool set_block_confirmable(const header_link& link) NOEXCEPT;
     bool set_block_unknown(const header_link& link) NOEXCEPT;
+
+    /// Pool.
+    /// -----------------------------------------------------------------------
+
+    bool is_pooled(const tx_link& link) const NOEXCEPT;
+    code get_pooled(pooled_tx& out, const tx_link& link,
+        const context& ctx) const NOEXCEPT;
+
+    /// Confirmed, or conflicted by a confirmed tx (directly or by ancestry).
+    bool is_unconfirmable(const tx_link& link) const NOEXCEPT;
+
+    /// Confirmable tx links, from cursor toward end, at most limit.
+    code get_confirmable_txs(pool_link& cursor, tx_links& out,
+        const pool_link& end, size_t limit) const NOEXCEPT;
+
+    /// Fee rate tuples of the confirmable txs.
+    bool get_confirmable_fees(fee_rates& out) const NOEXCEPT;
+
+    /// Fee rate tuples of the pooled txs conflicted by the block.
+    bool get_block_conflict_fees(fee_rates& out,
+        const header_link& link) const NOEXCEPT;
+
+    /// Setters.
     bool set_pooled(const tx_link& link, const transaction& tx,
         const context& ctx) NOEXCEPT;
     bool set_pooled(const tx_link& link, const transaction& tx,
         const chain_context& ctx) NOEXCEPT;
-    bool is_pooled(const tx_link& link) const NOEXCEPT;
-
-    /// Confirmed, or conflicted by a confirmed tx (directly or by ancestry).
-    bool is_unconfirmable(const tx_link& link) const NOEXCEPT;
 
     /// Batching.
     /// -----------------------------------------------------------------------
@@ -995,6 +1001,13 @@ protected:
     inline code to_block_code(linkage<schema::code>::integer value) const NOEXCEPT;
     inline bool is_sufficient(const context& current,
         const context& evaluated) const NOEXCEPT;
+
+    /// Called by confirmation chaser.
+    bool is_block_validated(code& ec, const header_link& link,
+        size_t height, size_t checkpoint) const NOEXCEPT;
+
+    /// Pool.
+    /// -----------------------------------------------------------------------
     bool get_pooled_fee(uint64_t& out, const tx_link& link) const NOEXCEPT;
     bool get_pooled_fee(uint64_t& fee, size_t& height,
         const tx_link& link) const NOEXCEPT;
@@ -1004,10 +1017,6 @@ protected:
     using unconfirmables = std::unordered_map<tx_link::integer, bool>;
     bool is_unconfirmable(unconfirmables& memo,
         const tx_link& link) const NOEXCEPT;
-
-    /// Called by confirmation chaser.
-    bool is_block_validated(code& ec, const header_link& link,
-        size_t height, size_t checkpoint) const NOEXCEPT;
 
     /// Setters.
     /// -----------------------------------------------------------------------
@@ -1275,6 +1284,7 @@ BC_PUSH_WARNING(NO_THROW_IN_NOEXCEPT)
 #include <bitcoin/database/impl/query/initialize.ipp>
 #include <bitcoin/database/impl/query/locator.ipp>
 #include <bitcoin/database/impl/query/merkle.ipp>
+#include <bitcoin/database/impl/query/pool.ipp>
 #include <bitcoin/database/impl/query/properties_block.ipp>
 #include <bitcoin/database/impl/query/properties_tx.ipp>
 #include <bitcoin/database/impl/query/query.ipp>

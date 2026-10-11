@@ -137,6 +137,7 @@ include_bitcoin_database_impl_query_HEADERS = \
     ${srcdir}/../../include/bitcoin/database/impl/query/initialize.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/query/locator.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/query/merkle.ipp \
+    ${srcdir}/../../include/bitcoin/database/impl/query/pool.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/query/properties_block.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/query/properties_tx.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/query/query.ipp \
