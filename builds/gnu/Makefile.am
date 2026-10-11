@@ -435,6 +435,7 @@ test_libbitcoin_database_test_SOURCES = \
     ${srcdir}/../../test/query/initialize.cpp \
     ${srcdir}/../../test/query/locator.cpp \
     ${srcdir}/../../test/query/merkle.cpp \
+    ${srcdir}/../../test/query/pool.cpp \
     ${srcdir}/../../test/query/properties_block.cpp \
     ${srcdir}/../../test/query/properties_tx.cpp \
     ${srcdir}/../../test/query/sequences.cpp \

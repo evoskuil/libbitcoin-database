@@ -234,6 +234,9 @@
     <ClCompile Include="..\..\..\..\test\query\merkle.cpp">
       <Filter>src\query</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\test\query\pool.cpp">
+      <Filter>src\query</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\..\test\query\navigate\navigate_arraymap.cpp">
       <Filter>src\query\navigate</Filter>
     </ClCompile>

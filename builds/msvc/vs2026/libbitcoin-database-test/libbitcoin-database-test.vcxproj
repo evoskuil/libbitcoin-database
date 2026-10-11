@@ -166,6 +166,7 @@
     <ClCompile Include="..\..\..\..\test\query\navigate\navigate_hashmap.cpp" />
     <ClCompile Include="..\..\..\..\test\query\navigate\navigate_natural.cpp" />
     <ClCompile Include="..\..\..\..\test\query\navigate\navigate_reverse.cpp" />
+    <ClCompile Include="..\..\..\..\test\query\pool.cpp" />
     <ClCompile Include="..\..\..\..\test\query\properties_block.cpp" />
     <ClCompile Include="..\..\..\..\test\query\properties_tx.cpp" />
     <ClCompile Include="..\..\..\..\test\query\sequences.cpp" />

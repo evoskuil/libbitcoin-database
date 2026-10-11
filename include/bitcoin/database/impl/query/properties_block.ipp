@@ -296,19 +296,6 @@ bool CLASS::is_witness_committed(const hash_digest& witness_root,
         (bitcoin_hash(witness_root, reservation) == commitment.get());
 }
 
-// The pool id columns hold the witness hash of a pooled tx, otherwise (such as
-// for any coinbase) the witness hash is computed from the stored tx.
-TEMPLATE
-hash_digest CLASS::get_wtxid(const tx_link& link) const NOEXCEPT
-{
-    if (store_.pool.enabled())
-        if (const auto fk = store_.pool.first(link); !fk.is_terminal())
-            return get_pooled_wtxid(fk);
-
-    const auto tx = get_transaction(link, true);
-    return tx ? tx->hash(true) : system::null_hash;
-}
-
 TEMPLATE
 size_t CLASS::get_tx_count(const header_link& link) const NOEXCEPT
 {
