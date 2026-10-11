@@ -1008,6 +1008,7 @@ protected:
 
     /// Pool.
     /// -----------------------------------------------------------------------
+    tx_link to_pool_tx(const pool_link& row) const NOEXCEPT;
     bool get_pooled_fee(uint64_t& out, const tx_link& link) const NOEXCEPT;
     bool get_pooled_fee(uint64_t& fee, size_t& height,
         const tx_link& link) const NOEXCEPT;

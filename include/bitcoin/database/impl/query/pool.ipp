@@ -99,13 +99,9 @@ code CLASS::get_confirmable_txs(pool_link& cursor, tx_links& out,
     const auto stop = std::min(end.value, store_.pool.count().value);
     for (; row < stop && out.size() < limit; ++row)
     {
-        // The first row of a tx is its last committed, so this skips both its
-        // earlier rows and any uncommitted row (its key does not resolve to it).
-        const tx_link link{ store_.pool.get_key(row) };
-        if (store_.pool.first(link) != row || is_unconfirmable(memo, link))
-            continue;
-
-        out.push_back(link);
+        const auto link = to_pool_tx(row);
+        if (!link.is_terminal() && !is_unconfirmable(memo, link))
+            out.push_back(link);
     }
 
     cursor = row == stop ? end : pool_link{ row };
@@ -119,17 +115,16 @@ bool CLASS::get_confirmable_fees(fee_rates& out) const NOEXCEPT
     if (!store_.pool.enabled())
         return true;
 
-    unconfirmables memo{};
-    const auto rows = store_.pool.count();
-    for (table::pool::link::integer row{}; row < rows; ++row)
-    {
-        const tx_link link{ store_.pool.get_key(row) };
-        if (store_.pool.first(link) != row || is_unconfirmable(memo, link))
-            continue;
+    tx_links links{};
+    pool_link cursor{};
+    if (get_confirmable_txs(cursor, links, store_.pool.count(), max_size_t))
+        return false;
 
-        if (!get_tx_fees(out.emplace_back(), link))
+    out.resize(links.size());
+    auto rate = out.begin();
+    for (const auto& link: links)
+        if (!get_tx_fees(*rate++, link))
             return false;
-    }
 
     return true;
 }
@@ -161,31 +156,19 @@ bool CLASS::get_block_conflict_fees(fee_rates& out,
             pending.push_back(tx.value);
     };
 
-    for (const auto& tx: txs)
-    {
-        table::transaction::only record{};
-        if (!store_.tx.get(tx, record))
-            return false;
-
-        const auto end = record.point_fk + record.ins_count;
-        for (auto fk = record.point_fk; fk < end; ++fk)
-            if (const auto prevout = get_point_key(fk); !prevout.is_null())
-                for (const auto& in: to_spenders(prevout))
-                    add(to_input_tx(in));
-    }
+    for (const auto& point: to_points(txs))
+        for (const auto& in: to_spenders(get_point_key(point)))
+            add(to_input_tx(in));
 
     while (!pending.empty())
     {
         const tx_link next{ pending.back() };
         pending.pop_back();
-
-        table::transaction::only record{};
-        if (!store_.tx.get(next, record) ||
-            !get_tx_fees(out.emplace_back(), next))
+        if (!get_tx_fees(out.emplace_back(), next))
             return false;
 
-        for (uint32_t index{}; index < record.outs_count; ++index)
-            for (const auto& in: to_spenders(next, index))
+        for (const auto& output: to_outputs(next))
+            for (const auto& in: to_spenders(output))
                 add(to_input_tx(in));
     }
 
@@ -193,6 +176,15 @@ bool CLASS::get_block_conflict_fees(fee_rates& out,
 }
 
 // protected
+// The first row of a tx is its last committed, so the tx of any earlier or
+// uncommitted row (its key does not resolve to it) is terminal.
+TEMPLATE
+tx_link CLASS::to_pool_tx(const pool_link& row) const NOEXCEPT
+{
+    const tx_link link{ store_.pool.get_key(row) };
+    return store_.pool.first(link) == row ? link : tx_link{};
+}
+
 TEMPLATE
 bool CLASS::get_pooled_fee(uint64_t& out, const tx_link& link) const NOEXCEPT
 {
@@ -273,20 +265,11 @@ bool CLASS::is_unconfirmable(unconfirmables& memo,
             continue;
         }
 
-        table::transaction::only tx{};
-        if (!store_.tx.get(next, tx))
-            return false;
-
-        const auto end = tx.point_fk + tx.ins_count;
-        for (auto fk = tx.point_fk; fk < end; ++fk)
+        for (const auto& point: to_points(next))
         {
-            const auto prevout = get_point_key(fk);
-            if (prevout.is_null())
-                continue;
-
-            for (const auto& in: to_spenders(prevout))
-                if (is_confirmed_input(in))
-                    return unconfirmable();
+            const auto prevout = get_point_key(point);
+            if (!find_confirmed_spender(prevout).is_terminal())
+                return unconfirmable();
 
             const auto parent = to_tx(prevout.hash());
             if (!parent.is_terminal() && !is_confirmed_tx(parent) &&

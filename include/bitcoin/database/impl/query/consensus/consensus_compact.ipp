@@ -58,8 +58,8 @@ code CLASS::get_compact_links(tx_links& out,
             continue;
 
         // The columns of a row are written before its spine record.
-        const tx_link link{ store_.pool.get_key(row) };
-        if (store_.pool.first(link) != row)
+        const auto link = to_pool_tx(row);
+        if (link.is_terminal())
             continue;
 
         auto& found = out.at(index);
