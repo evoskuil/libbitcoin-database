@@ -180,7 +180,7 @@ code CLASS::block_confirmable(const header_link& link, bool parallel) NOEXCEPT
                 const auto cell = store_.contested.at(ptr,
                     table::contested::to_cell(spend.outs));
                 spend.contested = is_nonzero(bit_and<uint8_t>(cell,
-                    table::contested::to_mask(spend.outs)));
+                    table::contested::to_contested(spend.outs)));
             });
     }
 

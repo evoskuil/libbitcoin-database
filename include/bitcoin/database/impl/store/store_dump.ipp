@@ -66,7 +66,6 @@ code CLASS::dump(const path& folder,
     dump(ec, confirmed_head_, schema::indexes::confirmed, table_t::confirmed_head);
     dump(ec, strong_head_, schema::indexes::strong, table_t::strong_head);
     dump(ec, address_head_, schema::indexes::address, table_t::address_head);
-    dump(ec, conflict_head_, schema::indexes::conflict, table_t::conflict_head);
     dump(ec, spender_head_, schema::indexes::spender, table_t::spender_head);
     dump(ec, contested_head_, schema::indexes::contested, table_t::contested_head);
     dump(ec, scan_head_, schema::indexes::scan, table_t::scan_head);

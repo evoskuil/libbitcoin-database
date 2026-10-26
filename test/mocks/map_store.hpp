@@ -189,19 +189,14 @@ public:
         return address_body_.file();
     }
 
-    inline const path& conflict_head_file() const NOEXCEPT
-    {
-        return conflict_head_.file();
-    }
-
-    inline const path& conflict_body_file() const NOEXCEPT
-    {
-        return conflict_body_.file();
-    }
-
     inline const path& spender_head_file() const NOEXCEPT
     {
         return spender_head_.file();
+    }
+
+    inline const path& spender_body_file() const NOEXCEPT
+    {
+        return spender_body_.file();
     }
 
     inline const path& contested_head_file() const NOEXCEPT

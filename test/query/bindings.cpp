@@ -71,24 +71,21 @@ BOOST_AUTO_TEST_CASE(query_bindings__spend__unspent_output__bound)
     BOOST_REQUIRE(!in.is_terminal());
 
     // Unbound (the point resolves by hash, but nothing spends the output).
-    BOOST_REQUIRE(!table::spender::is_spent(store.spender.at(spent.value).value));
+    BOOST_REQUIRE(!query.has_spender(spent));
     BOOST_REQUIRE(!query.is_spent(spent));
     BOOST_REQUIRE(query.to_spender_txs(spent).empty());
     BOOST_REQUIRE(query.to_spenders(spent).empty());
     BOOST_REQUIRE_EQUAL(query.to_spent(in), spent);
 
     BOOST_REQUIRE(query.spend(in, spent));
-
-    const auto cell = store.spender.at(spent.value).value;
-    BOOST_REQUIRE(table::spender::is_spent(cell));
+    BOOST_REQUIRE(query.has_spender(spent));
     BOOST_REQUIRE(!query.is_contested(spent));
-    BOOST_REQUIRE_EQUAL(cell, spender);
     BOOST_REQUIRE(query.is_spent(spent));
     BOOST_REQUIRE_EQUAL(query.to_spent(in), spent);
     BOOST_REQUIRE_EQUAL(query.to_spender_txs(spent), tx_links{ spender });
     BOOST_REQUIRE_EQUAL(query.to_spenders(spent), ins_links{ in });
     BOOST_REQUIRE_EQUAL(query.to_spending_input(spender, spent), in);
-    BOOST_REQUIRE_EQUAL(query.conflict_records(), zero);
+    BOOST_REQUIRE_EQUAL(query.spender_records(), one);
 }
 
 BOOST_AUTO_TEST_CASE(query_bindings__spend__rebind__unchanged)
@@ -108,12 +105,10 @@ BOOST_AUTO_TEST_CASE(query_bindings__spend__rebind__unchanged)
     const auto in = query.to_point(spender, 0);
     BOOST_REQUIRE(query.spend(in, spent));
     BOOST_REQUIRE(query.spend(in, spent));
-
-    const auto cell = store.spender.at(spent.value).value;
+    BOOST_REQUIRE(query.has_spender(spent));
     BOOST_REQUIRE(!query.is_contested(spent));
-    BOOST_REQUIRE_EQUAL(cell, spender);
     BOOST_REQUIRE_EQUAL(query.to_spender_txs(spent), tx_links{ spender });
-    BOOST_REQUIRE_EQUAL(query.conflict_records(), zero);
+    BOOST_REQUIRE_EQUAL(query.spender_records(), one);
 }
 
 BOOST_AUTO_TEST_CASE(query_bindings__spend__second_spender__contested)
@@ -138,19 +133,17 @@ BOOST_AUTO_TEST_CASE(query_bindings__spend__second_spender__contested)
     const auto in2 = query.to_point(spender2, 0);
     BOOST_REQUIRE(query.spend(in1, spent));
 
-    // The first spender holds the cell, the second is a conflict.
-    const auto cell = store.spender.at(spent.value).value;
-    BOOST_REQUIRE(table::spender::is_spent(cell));
+    // Each spender is a row, the second binding contests the output.
+    BOOST_REQUIRE(query.has_spender(spent));
     BOOST_REQUIRE(query.is_contested(spent));
-    BOOST_REQUIRE_EQUAL(cell, spender2);
-    BOOST_REQUIRE_EQUAL(query.conflict_records(), one);
-    BOOST_REQUIRE_EQUAL(query.to_spender_txs(spent), (tx_links{ spender2, spender1 }));
+    BOOST_REQUIRE_EQUAL(query.spender_records(), two);
+    BOOST_REQUIRE_EQUAL(query.to_spender_txs(spent), (tx_links{ spender1, spender2 }));
     BOOST_REQUIRE_EQUAL(query.to_spenders(spent), (ins_links{ in2, in1 }));
     BOOST_REQUIRE_EQUAL(query.to_spending_input(spender1, spent), in1);
 
-    // Rebinding the conflict does not duplicate it.
+    // Rebinding does not duplicate a row.
     BOOST_REQUIRE(query.spend(in1, spent));
-    BOOST_REQUIRE_EQUAL(query.conflict_records(), one);
+    BOOST_REQUIRE_EQUAL(query.spender_records(), two);
 }
 
 // bind

@@ -46,7 +46,7 @@ void envelope::set(const settings& database) NOEXCEPT
     header_buckets = database.header.buckets;
     address_buckets = database.address.buckets;
     tx_buckets = database.tx.buckets;
-    conflict_buckets = database.conflict.buckets;
+    spender_buckets = database.spender.buckets;
     pool_buckets = database.pool.buckets;
     wtxid_buckets = database.wtxid.buckets;
     provide_filters = to_bool(database.filter_bk.buckets) &&
@@ -105,7 +105,7 @@ string_list envelope::apply(system::settings& bitcoin, settings& database,
     assign(database.header.buckets, header_buckets, "header_buckets");
     assign(database.address.buckets, address_buckets, "address_buckets");
     assign(database.tx.buckets, tx_buckets, "tx_buckets");
-    assign(database.conflict.buckets, conflict_buckets, "conflict_buckets");
+    assign(database.spender.buckets, spender_buckets, "spender_buckets");
     assign(database.pool.buckets, pool_buckets, "pool_buckets");
     assign(database.wtxid.buckets, wtxid_buckets, "wtxid_buckets");
 
@@ -251,13 +251,13 @@ bool envelope::from_data(reader& source) NOEXCEPT
     header_buckets = source.read_little_endian<uint32_t>();
     address_buckets = source.read_little_endian<uint32_t>();
     tx_buckets = source.read_little_endian<uint32_t>();
-    conflict_buckets = source.read_little_endian<uint32_t>();
+    spender_buckets = source.read_little_endian<uint32_t>();
     pool_buckets = source.read_little_endian<uint32_t>();
     wtxid_buckets = source.read_little_endian<uint32_t>();
     header_k = source.read_byte();
     address_k = source.read_byte();
     tx_k = source.read_byte();
-    conflict_k = source.read_byte();
+    spender_k = source.read_byte();
     pool_k = source.read_byte();
     wtxid_k = source.read_byte();
 
@@ -345,13 +345,13 @@ bool envelope::to_data(flipper& sink) const NOEXCEPT
     sink.write_little_endian<uint32_t>(header_buckets);
     sink.write_little_endian<uint32_t>(address_buckets);
     sink.write_little_endian<uint32_t>(tx_buckets);
-    sink.write_little_endian<uint32_t>(conflict_buckets);
+    sink.write_little_endian<uint32_t>(spender_buckets);
     sink.write_little_endian<uint32_t>(pool_buckets);
     sink.write_little_endian<uint32_t>(wtxid_buckets);
     sink.write_byte(header_k);
     sink.write_byte(address_k);
     sink.write_byte(tx_k);
-    sink.write_byte(conflict_k);
+    sink.write_byte(spender_k);
     sink.write_byte(pool_k);
     sink.write_byte(wtxid_k);
 

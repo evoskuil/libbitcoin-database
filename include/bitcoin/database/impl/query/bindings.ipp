@@ -26,9 +26,10 @@ namespace database {
 
 // Binding.
 // An input is bound to the output it spends when its prevout is first
-// resolved, by writing its spend cell and the spender of the output. Binding
-// is content, so rebinding is idempotent and nothing here is written or
-// cleared by confirmation or reorganization (see consensus_block.ipp).
+// resolved, by writing its spend cell, and the first binding of the cell sets
+// the spent (and contested) bits of the output and puts its spender row.
+// Binding is content, so rebinding is idempotent and nothing here is written
+// or cleared by confirmation or reorganization (see consensus_block.ipp).
 // Each pass holds the accessor of one table.
 // ----------------------------------------------------------------------------
 
@@ -199,30 +200,49 @@ bool CLASS::set_spends(block_spends& spends) NOEXCEPT
         for (auto& spend: spends)
             spend.pending = !outs_link{ spend.outs }.is_terminal() &&
                 !store_.spend.set(ptr, spend.ins,
-                    table::spend::bind{ {}, spend.outs });
+                    table::spend::bind{ {}, spend.first, spend.outs });
+    }
+
+    // Cells beyond the accessor extend the count.
+    for (auto& spend: spends)
+        if (spend.pending && !store_.spend.set(spend.ins,
+            table::spend::bind{ {}, spend.first, spend.outs }))
+            return false;
+
+    {
+        const auto ptr = store_.contested.get_memory();
+        for (auto& spend: spends)
+            spend.pending = spend.first && !store_.contested.set(ptr,
+                table::contested::to_cell(spend.outs),
+                table::contested::spend{ {}, spend.outs });
     }
 
     // Cells beyond the accessor extend the count.
     for (const auto& spend: spends)
-        if (spend.pending && !store_.spend.set(spend.ins,
-            table::spend::bind{ {}, spend.outs }))
+        if (spend.pending && !store_.contested.set(
+            table::contested::to_cell(spend.outs),
+            table::contested::spend{ {}, spend.outs }))
             return false;
 
-    {
-        const auto ptr = store_.spender.get_memory();
-        for (auto& spend: spends)
-        {
-            table::spender::value::integer holder{};
-            spend.pending = !outs_link{ spend.outs }.is_terminal() &&
-                (!store_.spender.set(ptr, spend.outs,
-                    table::spender::spend{ {}, holder, spend.tx }) ||
-                (table::spender::is_spent(holder) && holder != spend.tx));
-        }
-    }
-
-    // Contested cells (and those beyond the accessor) are marked in full.
+    // Rows of first bindings are allocated together (one claim per call).
+    size_t rows{};
     for (const auto& spend: spends)
-        if (spend.pending && !mark(spend.tx, spend.outs))
+        rows += to_int<size_t>(spend.first);
+
+    if (is_zero(rows))
+        return true;
+
+    using count = table::spender::link::integer;
+    auto fk = store_.spender.allocate(
+        system::possible_narrow_cast<count>(rows));
+    if (fk.is_terminal())
+        return false;
+
+    const auto ptr = store_.spender.get_memory();
+    for (const auto& spend: spends)
+        if (spend.first && !store_.spender.put(ptr, fk++,
+            table::spender::to_key(spend.outs),
+            table::spender::record{ {}, spend.tx }))
             return false;
 
     return true;
@@ -254,36 +274,21 @@ bool CLASS::mark(const tx_link& spender, const outs_link& spent) NOEXCEPT
     if (spender.is_terminal())
         return false;
 
-    table::spender::value::integer holder{};
-    if (!store_.spender.set(spent.value,
-        table::spender::spend{ {}, holder, spender }))
-        return false;
-
-    // The first spender of the output.
-    if (!table::spender::is_spent(holder))
-        return true;
-
-    // The same tx (any instance) is not a conflict.
-    const tx_link other{ holder };
-    if ((other == spender) || (get_tx_key(other) == get_tx_key(spender)))
-        return true;
-
-    // A contested output, each additional spender is recorded once.
-    const auto key = table::conflict::to_key(spent);
-    for (auto it = store_.conflict.it(key); it; ++it)
+    // Each spender of an output is recorded once.
+    const auto key = table::spender::to_key(spent);
+    for (auto it = store_.spender.it(key); it; ++it)
     {
-        table::conflict::record conflict{};
-        if (!store_.conflict.get(*it, conflict))
+        table::spender::record record{};
+        if (!store_.spender.get(*it, record))
             return false;
 
-        if (conflict.spender_fk == spender)
+        if (record.spender_fk == spender)
             return true;
     }
 
-    return store_.conflict.put(key, table::conflict::record{ {}, spender }) &&
-        store_.contested.set(table::contested::to_cell(spent.value),
-            table::contested::contest{ {},
-                table::contested::to_mask(spent.value) });
+    return store_.contested.set(table::contested::to_cell(spent.value),
+        table::contested::spend{ {}, spent.value }) &&
+        store_.spender.put(key, table::spender::record{ {}, spender });
 }
 
 TEMPLATE

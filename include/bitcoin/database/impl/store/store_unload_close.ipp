@@ -63,9 +63,8 @@ code CLASS::unload_close(const event_handler& handler) NOEXCEPT
     unload(ec, strong_head_, table_t::strong_head);
     unload(ec, address_head_, table_t::address_head);
     unload(ec, address_body_, table_t::address_body);
-    unload(ec, conflict_head_, table_t::conflict_head);
-    unload(ec, conflict_body_, table_t::conflict_body);
     unload(ec, spender_head_, table_t::spender_head);
+    unload(ec, spender_body_, table_t::spender_body);
     unload(ec, contested_head_, table_t::contested_head);
     unload(ec, scan_head_, table_t::scan_head);
     unload(ec, scan_body_, table_t::scan_body);
@@ -144,9 +143,8 @@ code CLASS::unload_close(const event_handler& handler) NOEXCEPT
     close(ec, strong_head_, table_t::strong_head);
     close(ec, address_head_, table_t::address_head);
     close(ec, address_body_, table_t::address_body);
-    close(ec, conflict_head_, table_t::conflict_head);
-    close(ec, conflict_body_, table_t::conflict_body);
     close(ec, spender_head_, table_t::spender_head);
+    close(ec, spender_body_, table_t::spender_body);
     close(ec, contested_head_, table_t::contested_head);
     close(ec, scan_head_, table_t::scan_head);
     close(ec, scan_body_, table_t::scan_body);

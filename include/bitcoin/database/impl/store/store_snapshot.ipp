@@ -57,7 +57,7 @@ code CLASS::snapshot(const event_handler& handler, bool prune) NOEXCEPT
     flush(ec, scan_body_, table_t::scan_body);
     flush(ec, scan_prefix_body_, table_t::scan_prefix_body);
     flush(ec, address_body_, table_t::address_body);
-    flush(ec, conflict_body_, table_t::conflict_body);
+    flush(ec, spender_body_, table_t::spender_body);
 
     flush(ec, ecdsa0_body_, table_t::ecdsa0_body);
     flush(ec, ecdsa1_body_, table_t::ecdsa1_body);

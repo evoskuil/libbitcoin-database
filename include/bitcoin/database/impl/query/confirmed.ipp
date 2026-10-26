@@ -181,8 +181,7 @@ bool CLASS::is_spent(const point& prevout) const NOEXCEPT
     for (const auto& instance: to_duplicates(prevout.hash()))
     {
         const auto row = to_output(tx_link{ instance }, prevout.index());
-        if (!row.is_terminal() &&
-            table::spender::is_spent(store_.spender.at(row.value).value))
+        if (!row.is_terminal() && has_spender(row))
             return true;
     }
 

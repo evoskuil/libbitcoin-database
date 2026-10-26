@@ -27,28 +27,35 @@ namespace libbitcoin {
 namespace database {
 namespace table {
 
-/// Contested is a head-only array of bits indexed by outs.fk, eight to a
-/// cell. A set bit marks an output spent by more than one tx (its spenders
-/// beyond the first are in the conflict table). Bits are content: set at
-/// spend, never cleared.
+/// Contested is a head-only array of bit pairs indexed by outs.fk, four to a
+/// cell. The low bit of a pair marks an output spent (bound by any tx), the
+/// high bit marks it spent by more than one tx (all of its spenders are in
+/// the spender table). Bits are content: set at bind, never cleared.
 struct contested
   : public value_map<schema::contested>
 {
     using outs = schema::outs::link;
     using value_map<schema::contested>::headmap;
+    static constexpr size_t pairs = byte_bits / two;
 
     static constexpr size_t to_cell(outs::integer outs_fk) NOEXCEPT
     {
-        return outs_fk / byte_bits;
+        return outs_fk / pairs;
     }
 
-    static constexpr uint8_t to_mask(outs::integer outs_fk) NOEXCEPT
+    static constexpr uint8_t to_spent(outs::integer outs_fk) NOEXCEPT
     {
-        return system::bit_right<uint8_t>(outs_fk % byte_bits);
+        return system::bit_right<uint8_t>(two * (outs_fk % pairs));
     }
 
-    /// Merge the bit of an output into its cell.
-    struct contest
+    static constexpr uint8_t to_contested(outs::integer outs_fk) NOEXCEPT
+    {
+        return system::bit_right<uint8_t>(add1(two * (outs_fk % pairs)));
+    }
+
+    /// Merge the spent bit of an output into its cell, and the contested bit
+    /// if the spent bit is already set.
+    struct spend
       : public schema::contested
     {
         inline bool from_data(reader& source) NOEXCEPT
@@ -59,11 +66,15 @@ struct contested
 
         inline bool to_data(flipper& sink) const NOEXCEPT
         {
-            sink.write_byte(system::bit_or<value>(current, mask));
+            using namespace system;
+            const auto spent = to_spent(outs_fk);
+            const auto merged = is_zero(bit_and<value>(current, spent)) ?
+                spent : bit_or<value>(spent, to_contested(outs_fk));
+            sink.write_byte(bit_or<value>(current, merged));
             return sink;
         }
 
-        value mask{};
+        outs::integer outs_fk{};
         value current{};
     };
 };

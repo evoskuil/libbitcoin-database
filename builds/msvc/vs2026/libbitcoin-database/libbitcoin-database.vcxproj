@@ -193,7 +193,6 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\context.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\envelope.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\event.hpp" />
-    <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\indexes\conflict.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\indexes\contested.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\indexes\height.hpp" />
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\indexes\scan.hpp" />

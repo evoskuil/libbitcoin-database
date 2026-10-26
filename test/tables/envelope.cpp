@@ -107,7 +107,7 @@ BOOST_AUTO_TEST_CASE(envelope__set__default_settings__expected)
     BOOST_REQUIRE_EQUAL(instance.header_buckets, configuration.header.buckets);
     BOOST_REQUIRE_EQUAL(instance.address_buckets, configuration.address.buckets);
     BOOST_REQUIRE_EQUAL(instance.tx_buckets, configuration.tx.buckets);
-    BOOST_REQUIRE_EQUAL(instance.conflict_buckets, configuration.conflict.buckets);
+    BOOST_REQUIRE_EQUAL(instance.spender_buckets, configuration.spender.buckets);
     BOOST_REQUIRE_EQUAL(instance.pool_buckets, configuration.pool.buckets);
     BOOST_REQUIRE_EQUAL(instance.wtxid_buckets, configuration.wtxid.buckets);
     BOOST_REQUIRE(instance.provide_filters);
@@ -160,7 +160,7 @@ BOOST_AUTO_TEST_CASE(envelope__construct__mainnet__unset_filter_k)
     BOOST_REQUIRE_EQUAL(instance.header_k, 0u);
     BOOST_REQUIRE_EQUAL(instance.address_k, 0u);
     BOOST_REQUIRE_EQUAL(instance.tx_k, 0u);
-    BOOST_REQUIRE_EQUAL(instance.conflict_k, 0u);
+    BOOST_REQUIRE_EQUAL(instance.spender_k, 0u);
     BOOST_REQUIRE_EQUAL(instance.pool_k, 0u);
     BOOST_REQUIRE_EQUAL(instance.wtxid_k, 0u);
 }

@@ -23,29 +23,33 @@ BOOST_AUTO_TEST_SUITE(contested_tests)
 
 using namespace system;
 
-BOOST_AUTO_TEST_CASE(contested__to_cell__outs__eight_per_cell)
+BOOST_AUTO_TEST_CASE(contested__to_cell__outs__four_per_cell)
 {
     static_assert(table::contested::to_cell(0) == 0u);
-    static_assert(table::contested::to_cell(7) == 0u);
-    static_assert(table::contested::to_cell(8) == 1u);
-    static_assert(table::contested::to_mask(0) == 0x01u);
-    static_assert(table::contested::to_mask(10) == 0x04u);
-    static_assert(table::contested::to_mask(15) == 0x80u);
+    static_assert(table::contested::to_cell(3) == 0u);
+    static_assert(table::contested::to_cell(4) == 1u);
+    static_assert(table::contested::to_spent(0) == 0x01u);
+    static_assert(table::contested::to_contested(0) == 0x02u);
+    static_assert(table::contested::to_spent(6) == 0x10u);
+    static_assert(table::contested::to_contested(6) == 0x20u);
+    static_assert(table::contested::to_contested(7) == 0x80u);
 }
 
-BOOST_AUTO_TEST_CASE(contested__set__contest__bits_merged)
+BOOST_AUTO_TEST_CASE(contested__set__spend__second_spend_contests)
 {
     data_chunk head_file{};
     test::chunk_storage head_store{ head_file };
     table::contested instance{ head_store };
     BOOST_REQUIRE(instance.create());
-    BOOST_REQUIRE(instance.set(table::contested::to_cell(10), table::contested::contest{ {}, table::contested::to_mask(10) }));
-    BOOST_REQUIRE(instance.set(table::contested::to_cell(15), table::contested::contest{ {}, table::contested::to_mask(15) }));
-    BOOST_REQUIRE(instance.set(table::contested::to_cell(10), table::contested::contest{ {}, table::contested::to_mask(10) }));
+    BOOST_REQUIRE(instance.set(table::contested::to_cell(6), table::contested::spend{ {}, 6 }));
+    BOOST_REQUIRE(instance.set(table::contested::to_cell(7), table::contested::spend{ {}, 7 }));
+    BOOST_REQUIRE_EQUAL(head_file, base16_chunk("0050"));
+
+    BOOST_REQUIRE(instance.set(table::contested::to_cell(6), table::contested::spend{ {}, 6 }));
     BOOST_REQUIRE_EQUAL(instance.count(), 2u);
-    BOOST_REQUIRE_EQUAL(head_file, base16_chunk("0084"));
+    BOOST_REQUIRE_EQUAL(head_file, base16_chunk("0070"));
     BOOST_REQUIRE_EQUAL(instance.at(0), 0x00u);
-    BOOST_REQUIRE_EQUAL(instance.at(1), 0x84u);
+    BOOST_REQUIRE_EQUAL(instance.at(1), 0x70u);
 }
 
 BOOST_AUTO_TEST_CASE(contested__at__unallocated__clear)

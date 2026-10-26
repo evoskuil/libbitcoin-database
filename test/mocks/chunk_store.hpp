@@ -145,19 +145,14 @@ public:
         return address_body_.buffer();
     }
 
-    system::data_chunk& conflict_head() NOEXCEPT
-    {
-        return conflict_head_.buffer();
-    }
-
-    system::data_chunk& conflict_body() NOEXCEPT
-    {
-        return conflict_body_.buffer();
-    }
-
     system::data_chunk& spender_head() NOEXCEPT
     {
         return spender_head_.buffer();
+    }
+
+    system::data_chunk& spender_body() NOEXCEPT
+    {
+        return spender_body_.buffer();
     }
 
     system::data_chunk& contested_head() NOEXCEPT

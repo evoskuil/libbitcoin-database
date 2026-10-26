@@ -27,40 +27,40 @@ namespace libbitcoin {
 namespace database {
 namespace table {
 
-/// Spender is a head-only array of spender tx fks indexed by outs.fk (an
-/// output with other spenders is contested, its spenders beyond the first are
-/// in the conflict table). A terminal cell is unspent. Cells are content: set
-/// at spend, never cleared.
+/// Spender is a record hashmap of the spender tx fks of outputs, keyed by outs
+/// fk. An output has a row for each tx bound to it. Rows are content: put at
+/// bind, never removed.
 struct spender
-  : public value_map<schema::spender>
+  : public hash_map<schema::spender>
 {
     using tx = schema::transaction::link;
-    using value = schema::spender::value;
-    using value_map<schema::spender>::headmap;
+    using outs = schema::outs::link;
+    using hash_map<schema::spender>::hashmap;
 
-    static constexpr bool is_spent(value::integer spender_fk) NOEXCEPT
+    static inline key to_key(const outs& outs_fk) NOEXCEPT
     {
-        return spender_fk != value::terminal;
+        return outs_fk;
     }
 
-    /// Set the spender if the cell is unspent, holder is the prior cell.
-    struct spend
+    struct record
       : public schema::spender
     {
         inline bool from_data(reader& source) NOEXCEPT
         {
-            holder = source.read_little_endian<value::integer, cell>();
+            spender_fk = source.read_little_endian<tx::integer, tx::size>();
+            BC_ASSERT(!source || source.get_read_position() == minrow);
             return source;
         }
 
-        inline bool to_data(flipper& sink) const NOEXCEPT
+        inline bool to_data(finalizer& sink) const NOEXCEPT
         {
-            sink.write_little_endian<value::integer, cell>(is_spent(holder) ?
-                holder : spender_fk);
+            sink.write_little_endian<tx::integer, tx::size>(spender_fk);
+            BC_ASSERT(!sink || sink.get_write_position() == minrow);
             return sink;
         }
 
-        value::integer& holder;
+        inline bool operator==(const record&) const NOEXCEPT = default;
+
         tx::integer spender_fk{};
     };
 };

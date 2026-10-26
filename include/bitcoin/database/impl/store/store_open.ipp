@@ -78,7 +78,6 @@ code CLASS::open(const event_handler& handler) NOEXCEPT
     verify(ec, confirmed, table_t::confirmed_table);
     verify(ec, strong, table_t::strong_table);
     verify(ec, address, table_t::address_table);
-    verify(ec, conflict, table_t::conflict_table);
     verify(ec, spender, table_t::spender_table);
     verify(ec, contested, table_t::contested_table);
     verify(ec, scan, table_t::scan_table);
@@ -217,7 +216,7 @@ code CLASS::load_envelope() NOEXCEPT
     if (!header.set_buckets(envelope_.header_buckets) ||
         !address.set_buckets(envelope_.address_buckets) ||
         !tx.set_buckets(envelope_.tx_buckets) ||
-        !conflict.set_buckets(envelope_.conflict_buckets) ||
+        !spender.set_buckets(envelope_.spender_buckets) ||
         !pool.set_buckets(envelope_.pool_buckets) ||
         !wtxid.set_buckets(envelope_.wtxid_buckets))
     {
@@ -228,7 +227,7 @@ code CLASS::load_envelope() NOEXCEPT
     if (!header.set_filter_k(envelope_.header_k) ||
         !address.set_filter_k(envelope_.address_k) ||
         !tx.set_filter_k(envelope_.tx_k) ||
-        !conflict.set_filter_k(envelope_.conflict_k) ||
+        !spender.set_filter_k(envelope_.spender_k) ||
         !pool.set_filter_k(envelope_.pool_k) ||
         !wtxid.set_filter_k(envelope_.wtxid_k))
     {

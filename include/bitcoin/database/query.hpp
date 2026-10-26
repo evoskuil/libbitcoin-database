@@ -152,7 +152,6 @@ public:
     size_t confirmed_head_size() const NOEXCEPT;
     size_t strong_head_size() const NOEXCEPT;
     size_t address_head_size() const NOEXCEPT;
-    size_t conflict_head_size() const NOEXCEPT;
     size_t spender_head_size() const NOEXCEPT;
     size_t contested_head_size() const NOEXCEPT;
     size_t scan_head_size() const NOEXCEPT;
@@ -192,7 +191,6 @@ public:
     size_t confirmed_body_size() const NOEXCEPT;
     size_t strong_body_size() const NOEXCEPT;
     size_t address_body_size() const NOEXCEPT;
-    size_t conflict_body_size() const NOEXCEPT;
     size_t spender_body_size() const NOEXCEPT;
     size_t contested_body_size() const NOEXCEPT;
     size_t scan_body_size() const NOEXCEPT;
@@ -232,7 +230,6 @@ public:
     size_t confirmed_size() const NOEXCEPT;
     size_t strong_size() const NOEXCEPT;
     size_t address_size() const NOEXCEPT;
-    size_t conflict_size() const NOEXCEPT;
     size_t spender_size() const NOEXCEPT;
     size_t contested_size() const NOEXCEPT;
     size_t scan_size() const NOEXCEPT;
@@ -268,7 +265,6 @@ public:
     size_t confirmed_buckets() const NOEXCEPT;
     size_t strong_buckets() const NOEXCEPT;
     size_t address_buckets() const NOEXCEPT;
-    size_t conflict_buckets() const NOEXCEPT;
     size_t spender_buckets() const NOEXCEPT;
     size_t contested_buckets() const NOEXCEPT;
     size_t scan_buckets() const NOEXCEPT;
@@ -284,7 +280,7 @@ public:
     size_t outs_records() const NOEXCEPT;
     size_t tx_records() const NOEXCEPT;
     size_t address_records() const NOEXCEPT;
-    size_t conflict_records() const NOEXCEPT;
+    size_t spender_records() const NOEXCEPT;
 
     size_t scan_records() const NOEXCEPT;
     size_t scan_prefix_records() const NOEXCEPT;
@@ -371,7 +367,8 @@ public:
     /// input to spent output (bound, otherwise resolved by point)
     outs_link to_spent(const ins_link& link) const NOEXCEPT;
 
-    /// output to spender txs (the spender cell and conflict rows)
+    /// output to spent bit, contested bit, and spender txs (spender rows)
+    bool has_spender(const outs_link& link) const NOEXCEPT;
     bool is_contested(const outs_link& link) const NOEXCEPT;
     tx_links to_spender_txs(const outs_link& link) const NOEXCEPT;
     ins_link to_spending_input(const tx_link& spender,

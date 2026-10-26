@@ -247,11 +247,10 @@ protected:
     Storage<one> address_body_;
 
     // record hashmap
-    Storage<one> conflict_head_;
-    Storage<one> conflict_body_;
+    Storage<one> spender_head_;
+    Storage<one> spender_body_;
 
     // headmap
-    Storage<one> spender_head_;
     Storage<one> contested_head_;
     Storage<one> scan_head_;
     table::scan_storage<Storage> scan_body_;
@@ -342,16 +341,6 @@ private:
     static constexpr bool sequential = false;
 
     // Heads share the table growth rate and are filled (terminal for links).
-    /// Contested bits of the spender's outputs, eight to a cell.
-    static constexpr settings::bucket_table contested_settings(
-        const settings::bucket_table& spender) NOEXCEPT
-    {
-        auto table = spender;
-        table.buckets = system::possible_narrow_cast<uint32_t>(
-            system::ceilinged_divide(spender.buckets, byte_bits));
-        return table;
-    }
-
     static constexpr storage_settings head_settings(
         const settings::simple_table& table, uint64_t minimum=one,
         advice access=advice::random,
@@ -418,7 +407,6 @@ public:
     table::address address;
     table::height candidate;
     table::height confirmed;
-    table::conflict conflict;
     table::spender spender;
     table::contested contested;
     table::strong strong;

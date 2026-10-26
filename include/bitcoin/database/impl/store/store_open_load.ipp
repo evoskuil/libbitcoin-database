@@ -86,9 +86,8 @@ code CLASS::open_load(const event_handler& handler) NOEXCEPT
     open(ec, strong_head_, table_t::strong_head);
     open(ec, address_head_, table_t::address_head);
     open(ec, address_body_, table_t::address_body);
-    open(ec, conflict_head_, table_t::conflict_head);
-    open(ec, conflict_body_, table_t::conflict_body);
     open(ec, spender_head_, table_t::spender_head);
+    open(ec, spender_body_, table_t::spender_body);
     open(ec, contested_head_, table_t::contested_head);
     open(ec, scan_head_, table_t::scan_head);
     open(ec, scan_body_, table_t::scan_body);
@@ -157,9 +156,8 @@ code CLASS::open_load(const event_handler& handler) NOEXCEPT
     load(ec, strong_head_, table_t::strong_head);
     load(ec, address_head_, table_t::address_head);
     load(ec, address_body_, table_t::address_body);
-    load(ec, conflict_head_, table_t::conflict_head);
-    load(ec, conflict_body_, table_t::conflict_body);
     load(ec, spender_head_, table_t::spender_head);
+    load(ec, spender_body_, table_t::spender_body);
     load(ec, contested_head_, table_t::contested_head);
     load(ec, scan_head_, table_t::scan_head);
     load(ec, scan_body_, table_t::scan_body);

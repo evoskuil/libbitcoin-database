@@ -60,7 +60,6 @@ code CLASS::close(const event_handler& handler) NOEXCEPT
     close(ec, confirmed, table_t::confirmed_table);
     close(ec, strong, table_t::strong_table);
     close(ec, address, table_t::address_table);
-    close(ec, conflict, table_t::conflict_table);
     close(ec, spender, table_t::spender_table);
     close(ec, contested, table_t::contested_table);
     close(ec, scan, table_t::scan_table);

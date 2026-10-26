@@ -213,7 +213,6 @@
       <ObjectFileName>$(IntDir)test_tables_caches_schnorr.obj</ObjectFileName>
     </ClCompile>
     <ClCompile Include="..\..\..\..\test\tables\envelope.cpp" />
-    <ClCompile Include="..\..\..\..\test\tables\indexes\conflict.cpp" />
     <ClCompile Include="..\..\..\..\test\tables\indexes\contested.cpp" />
     <ClCompile Include="..\..\..\..\test\tables\indexes\height.cpp">
       <ObjectFileName>$(IntDir)test_tables_indexes_height.obj</ObjectFileName>

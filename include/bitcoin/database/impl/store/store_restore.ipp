@@ -141,7 +141,6 @@ code CLASS::restore(const event_handler& handler) NOEXCEPT
         restore(ec, confirmed, table_t::confirmed_table);
         restore(ec, strong, table_t::strong_table);
         restore(ec, address, table_t::address_table);
-        restore(ec, conflict, table_t::conflict_table);
         restore(ec, spender, table_t::spender_table);
         restore(ec, contested, table_t::contested_table);
         restore(ec, scan, table_t::scan_table);

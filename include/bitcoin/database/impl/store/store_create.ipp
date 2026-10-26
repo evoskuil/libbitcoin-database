@@ -102,9 +102,8 @@ code CLASS::create_load(const event_handler& handler) NOEXCEPT
     create(ec, strong_head_, table_t::strong_head);
     create(ec, address_head_, table_t::address_head);
     create(ec, address_body_, table_t::address_body);
-    create(ec, conflict_head_, table_t::conflict_head);
-    create(ec, conflict_body_, table_t::conflict_body);
     create(ec, spender_head_, table_t::spender_head);
+    create(ec, spender_body_, table_t::spender_body);
     create(ec, contested_head_, table_t::contested_head);
     create(ec, scan_head_, table_t::scan_head);
     create(ec, scan_body_, table_t::scan_body);
@@ -179,7 +178,6 @@ code CLASS::create_load(const event_handler& handler) NOEXCEPT
     populate(ec, confirmed, table_t::confirmed_table);
     populate(ec, strong, table_t::strong_table);
     populate(ec, address, table_t::address_table);
-    populate(ec, conflict, table_t::conflict_table);
     populate(ec, spender, table_t::spender_table);
     populate(ec, contested, table_t::contested_table);
     populate(ec, scan, table_t::scan_table);

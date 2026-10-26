@@ -31,7 +31,7 @@ BOOST_AUTO_TEST_CASE(settings__construct__default__expected)
     BOOST_REQUIRE_EQUAL(configuration.envelope.header_buckets, 128u);
     BOOST_REQUIRE_EQUAL(configuration.envelope.address_buckets, 128u);
     BOOST_REQUIRE_EQUAL(configuration.envelope.tx_buckets, 128u);
-    BOOST_REQUIRE_EQUAL(configuration.envelope.conflict_buckets, 128u);
+    BOOST_REQUIRE_EQUAL(configuration.envelope.spender_buckets, 128u);
     BOOST_REQUIRE_EQUAL(configuration.envelope.pool_buckets, 128u);
     BOOST_REQUIRE_EQUAL(configuration.envelope.wtxid_buckets, 128u);
     BOOST_REQUIRE_EQUAL(configuration.envelope.provide_filters, true);
@@ -72,13 +72,13 @@ BOOST_AUTO_TEST_CASE(settings__construct__default__expected)
     BOOST_REQUIRE_EQUAL(configuration.candidate.rate, 5u);
     BOOST_REQUIRE_EQUAL(configuration.confirmed.buckets, 128u);
     BOOST_REQUIRE_EQUAL(configuration.confirmed.rate, 5u);
-    BOOST_REQUIRE_EQUAL(configuration.conflict.buckets, 128u);
-    BOOST_REQUIRE_EQUAL(configuration.conflict.expected, 0u);
-    BOOST_REQUIRE_EQUAL(configuration.conflict.size, 1u);
-    BOOST_REQUIRE_EQUAL(configuration.conflict.rate, 5u);
     BOOST_REQUIRE_EQUAL(configuration.spender.buckets, 128u);
+    BOOST_REQUIRE_EQUAL(configuration.spender.expected, 0u);
     BOOST_REQUIRE_EQUAL(configuration.spender.size, 1u);
     BOOST_REQUIRE_EQUAL(configuration.spender.rate, 5u);
+    BOOST_REQUIRE_EQUAL(configuration.contested.buckets, 128u);
+    BOOST_REQUIRE_EQUAL(configuration.contested.size, 1u);
+    BOOST_REQUIRE_EQUAL(configuration.contested.rate, 5u);
     BOOST_REQUIRE_EQUAL(configuration.strong.buckets, 128u);
     BOOST_REQUIRE_EQUAL(configuration.strong.size, 1u);
     BOOST_REQUIRE_EQUAL(configuration.strong.rate, 5u);

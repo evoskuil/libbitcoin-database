@@ -92,13 +92,13 @@ struct BCD_API envelope
     uint32_t header_buckets{};
     uint32_t address_buckets{};
     uint32_t tx_buckets{};
-    uint32_t conflict_buckets{};
+    uint32_t spender_buckets{};
     uint32_t pool_buckets{};
     uint32_t wtxid_buckets{};
     uint8_t header_k{};
     uint8_t address_k{};
     uint8_t tx_k{};
-    uint8_t conflict_k{};
+    uint8_t spender_k{};
     uint8_t pool_k{};
     uint8_t wtxid_k{};
 

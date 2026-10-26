@@ -360,9 +360,6 @@
     <ClCompile Include="..\..\..\..\test\tables\envelope.cpp">
       <Filter>src\tables</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\test\tables\indexes\conflict.cpp">
-      <Filter>src\tables\indexes</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\..\test\tables\indexes\contested.cpp">
       <Filter>src\tables\indexes</Filter>
     </ClCompile>

@@ -107,8 +107,8 @@ struct BCD_API settings
     hash_table address{};
     bucket_table candidate{};
     bucket_table confirmed{};
-    hash_table conflict{};
-    bucket_table spender{};
+    hash_table spender{};
+    bucket_table contested{};
     bucket_table strong{};
     bucket_table scan{};
     hash_table wtxid{};

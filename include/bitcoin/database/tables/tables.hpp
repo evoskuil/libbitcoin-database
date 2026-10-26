@@ -38,7 +38,6 @@
 #include <bitcoin/database/tables/caches/silent.hpp>
 #include <bitcoin/database/tables/caches/pool.hpp>
 
-#include <bitcoin/database/tables/indexes/conflict.hpp>
 #include <bitcoin/database/tables/indexes/height.hpp>
 #include <bitcoin/database/tables/indexes/scan.hpp>
 #include <bitcoin/database/tables/indexes/spender.hpp>

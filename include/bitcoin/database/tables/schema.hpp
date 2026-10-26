@@ -61,8 +61,8 @@ namespace schema {
 /// 4.0.15.0 Wtxid buckets and filter k in the envelope.
 /// 4.0.16.0 Strong headmap.
 /// 4.0.17.0 Signet fork and challenge in the envelope.
-/// 4.0.18.0 Spends, points and conflict tables, ins and outs as records with
-///          the outs spender head, prevout, spends cache and duplicate removed.
+/// 4.0.18.0 Spends, points, spender and contested tables, ins and outs as
+///          records with prevout, spends cache and duplicate removed.
 constexpr std::array<uint32_t, 4> version{ 4, 0, 18, 0 };
 
 /// Values.
@@ -85,7 +85,7 @@ constexpr size_t put = 5;       // ->input/output slab.
 constexpr size_t ins_ = 4;      // ->ins|spends|points record.
 constexpr size_t outs_ = 4;     // ->outs record.
 constexpr size_t unbound_ = 3;  // ->unbound record.
-constexpr size_t conflict_ = 4; // ->conflict record.
+constexpr size_t spender_ = 4;  // ->spender record.
 constexpr size_t txs_ = 5;      // ->txs slab.
 constexpr size_t tx = 4;        // ->tx record.
 constexpr size_t block = 3;     // ->header record.
@@ -353,25 +353,7 @@ struct strong
     bool operator==(const strong&) const NOEXCEPT = default;
 };
 
-// headmap (spender tx fk, by outs fk)
-struct spender
-{
-    static constexpr size_t pk = schema::outs::pk;
-    using link = schema::outs::link;
-    using value = linkage<sizeof(uint32_t)>;
-    static constexpr size_t minsize =
-        schema::transaction::pk;// spender->tx
-    static constexpr size_t minrow = minsize;
-    static constexpr size_t size = minsize;
-    static constexpr size_t cell = minsize;
-    static_assert(minsize == 4u);
-    static_assert(minrow == 4u);
-    static_assert(link::size == 4u);
-    static_assert(cell == 4u);
-    bool operator==(const spender&) const NOEXCEPT = default;
-};
-
-// headmap (contested bits, eight outs fks to a cell)
+// headmap (spent and contested bits, four outs fks to a cell)
 struct contested
 {
     static constexpr size_t pk = schema::outs::pk;
@@ -445,11 +427,11 @@ struct envelope
     bool operator==(const envelope&) const NOEXCEPT = default;
 };
 
-// record hashmap (spender tx fks of a contested output)
-struct conflict
+// record hashmap (spender tx fks, by outs fk)
+struct spender
 {
     static constexpr size_t sk = schema::outs_;
-    static constexpr size_t pk = schema::conflict_;
+    static constexpr size_t pk = schema::spender_;
     using link = linkage<pk, to_bits(pk)>;
     using key = system::data_array<sk>;
     static constexpr size_t minsize =
@@ -462,7 +444,7 @@ struct conflict
     static_assert(minrow == 12u);
     static_assert(link::size == 4u);
     static_assert(cell == 4u);
-    bool operator==(const conflict&) const NOEXCEPT = default;
+    bool operator==(const spender&) const NOEXCEPT = default;
 };
 
 // record arraymap (based, keyed by ins fk, dropped once bound)

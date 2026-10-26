@@ -73,9 +73,8 @@ code CLASS::reload(const event_handler& handler) NOEXCEPT
     reload(ec, strong_head_, table_t::strong_head);
     reload(ec, address_head_, table_t::address_head);
     reload(ec, address_body_, table_t::address_body);
-    reload(ec, conflict_head_, table_t::conflict_head);
-    reload(ec, conflict_body_, table_t::conflict_body);
     reload(ec, spender_head_, table_t::spender_head);
+    reload(ec, spender_body_, table_t::spender_body);
     reload(ec, contested_head_, table_t::contested_head);
     reload(ec, scan_head_, table_t::scan_head);
     reload(ec, scan_body_, table_t::scan_body);

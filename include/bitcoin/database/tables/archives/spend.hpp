@@ -56,23 +56,27 @@ struct spend
         return true;
     }
 
-    /// Set the spent outs fk.
+    /// Set the spent outs fk if unbound, first is set if this binds the cell.
     struct bind
       : public schema::spend
     {
         inline bool from_data(reader& source) NOEXCEPT
         {
-            source.skip_bytes(cell);
+            holder = source.read_little_endian<outs::integer, cell>();
             return source;
         }
 
         inline bool to_data(flipper& sink) const NOEXCEPT
         {
-            sink.write_little_endian<outs::integer, cell>(outs_fk);
+            first = !is_spent(holder);
+            sink.write_little_endian<outs::integer, cell>(first ? outs_fk :
+                holder);
             return sink;
         }
 
+        bool& first;
         outs::integer outs_fk{};
+        outs::integer holder{};
     };
 };
 

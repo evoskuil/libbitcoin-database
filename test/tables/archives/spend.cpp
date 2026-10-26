@@ -39,19 +39,27 @@ BOOST_AUTO_TEST_CASE(spend__bind__unbound__expected)
     test::chunk_storage head_store{ head_file, test::terminal_fill };
     table::spend instance{ head_store };
     BOOST_REQUIRE(instance.create());
-    BOOST_REQUIRE(instance.set(2u, table::spend::bind{ {}, first }));
-    BOOST_REQUIRE(instance.set(3u, table::spend::bind{ {}, second }));
+
+    bool first_bound{};
+    bool second_bound{};
+    BOOST_REQUIRE(instance.set(2u, table::spend::bind{ {}, first_bound, first }));
+    BOOST_REQUIRE(instance.set(3u, table::spend::bind{ {}, second_bound, second }));
+    BOOST_REQUIRE(first_bound);
+    BOOST_REQUIRE(second_bound);
     BOOST_REQUIRE_EQUAL(instance.count(), 4u);
     BOOST_REQUIRE_EQUAL(head_file, expected_head);
 }
 
-BOOST_AUTO_TEST_CASE(spend__bind__bound__rebound)
+BOOST_AUTO_TEST_CASE(spend__bind__bound__holder_retained)
 {
     auto head_file = expected_head;
     test::chunk_storage head_store{ head_file, test::terminal_fill };
     table::spend instance{ head_store };
     BOOST_REQUIRE(instance.verify());
-    BOOST_REQUIRE(instance.set(2u, table::spend::bind{ {}, first }));
+
+    bool bound{ true };
+    BOOST_REQUIRE(instance.set(2u, table::spend::bind{ {}, bound, second }));
+    BOOST_REQUIRE(!bound);
     BOOST_REQUIRE_EQUAL(head_file, expected_head);
 }
 

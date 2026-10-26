@@ -347,9 +347,6 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\event.hpp">
       <Filter>include\bitcoin\database\tables</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\indexes\conflict.hpp">
-      <Filter>include\bitcoin\database\tables\indexes</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\indexes\contested.hpp">
       <Filter>include\bitcoin\database\tables\indexes</Filter>
     </ClInclude>

@@ -63,7 +63,6 @@ namespace indexes
     constexpr auto address = "index_address";
     constexpr auto candidate = "index_candidate";
     constexpr auto confirmed = "index_confirmed";
-    constexpr auto conflict = "index_conflict";
     constexpr auto spender = "index_spender";
     constexpr auto contested = "index_contested";
     constexpr auto state = "index_state";

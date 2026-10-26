@@ -53,7 +53,6 @@ BOOST_AUTO_TEST_CASE(query_extent__body_sizes__genesis__expected)
     BOOST_REQUIRE_EQUAL(query.confirmed_body_size(), zero);
     BOOST_REQUIRE_EQUAL(query.strong_body_size(), zero);
     BOOST_REQUIRE_EQUAL(query.address_body_size(), schema::address::minrow);
-    BOOST_REQUIRE_EQUAL(query.conflict_body_size(), zero);
     BOOST_REQUIRE_EQUAL(query.spender_body_size(), zero);
     BOOST_REQUIRE_EQUAL(query.contested_body_size(), zero);
     BOOST_REQUIRE_EQUAL(query.scan_body_size(), zero);
@@ -102,9 +101,8 @@ BOOST_AUTO_TEST_CASE(query_extent__buckets__genesis__expected)
     BOOST_REQUIRE_EQUAL(query.confirmed_buckets(), one);
     BOOST_REQUIRE_EQUAL(query.strong_buckets(), 128u);
     BOOST_REQUIRE_EQUAL(query.address_buckets(), 128u);
-    BOOST_REQUIRE_EQUAL(query.conflict_buckets(), 128u);
     BOOST_REQUIRE_EQUAL(query.spender_buckets(), 128u);
-    BOOST_REQUIRE_EQUAL(query.contested_buckets(), 16u);
+    BOOST_REQUIRE_EQUAL(query.contested_buckets(), 128u);
     BOOST_REQUIRE_EQUAL(query.state_buckets(), 128u);
     BOOST_REQUIRE_EQUAL(query.pool_buckets(), 128u);
     BOOST_REQUIRE_EQUAL(query.wtxid_buckets(), 128u);
@@ -128,7 +126,7 @@ BOOST_AUTO_TEST_CASE(query_extent__records__genesis__expected)
     BOOST_REQUIRE_EQUAL(query.unbound_records(), zero);
     BOOST_REQUIRE_EQUAL(query.tx_records(), one);
     BOOST_REQUIRE_EQUAL(query.address_records(), one);
-    BOOST_REQUIRE_EQUAL(query.conflict_records(), zero);
+    BOOST_REQUIRE_EQUAL(query.spender_records(), zero);
 
     BOOST_REQUIRE_EQUAL(query.scan_records(), zero);
     BOOST_REQUIRE_EQUAL(query.ecdsa0_records(), zero);
@@ -266,7 +264,6 @@ BOOST_AUTO_TEST_CASE(query_extent__store_head_size__genesis__archive_plus_indexe
         + query.confirmed_head_size()
         + query.strong_head_size()
         + query.address_head_size()
-        + query.conflict_head_size()
         + query.spender_head_size()
         + query.contested_head_size()
         + query.scan_head_size()
@@ -305,7 +302,6 @@ BOOST_AUTO_TEST_CASE(query_extent__store_body_size__genesis__archive_plus_indexe
         + query.confirmed_body_size()
         + query.strong_body_size()
         + query.address_body_size()
-        + query.conflict_body_size()
         + query.spender_body_size()
         + query.contested_body_size()
         + query.scan_body_size()

@@ -52,7 +52,7 @@ void CLASS::report(const error_handler& handler) const NOEXCEPT
     report(scan_body_, table_t::scan_body);
     report(scan_prefix_body_, table_t::scan_prefix_body);
     report(address_body_, table_t::address_body);
-    report(conflict_body_, table_t::conflict_body);
+    report(spender_body_, table_t::spender_body);
     report(ecdsa0_body_, table_t::ecdsa0_body);
     report(ecdsa1_body_, table_t::ecdsa1_body);
     report(schnorr0_body_, table_t::schnorr0_body);
@@ -100,9 +100,8 @@ code CLASS::get_fault() const NOEXCEPT
     if ((ec = strong_head_.get_fault())) return ec;
     if ((ec = address_head_.get_fault())) return ec;
     if ((ec = address_body_.get_fault())) return ec;
-    if ((ec = conflict_head_.get_fault())) return ec;
-    if ((ec = conflict_body_.get_fault())) return ec;
     if ((ec = spender_head_.get_fault())) return ec;
+    if ((ec = spender_body_.get_fault())) return ec;
     if ((ec = contested_head_.get_fault())) return ec;
     if ((ec = scan_head_.get_fault())) return ec;
     if ((ec = scan_body_.get_fault())) return ec;
@@ -181,9 +180,8 @@ size_t CLASS::get_space() const NOEXCEPT
     space(strong_head_);
     space(address_head_);
     space(address_body_);
-    space(conflict_head_);
-    space(conflict_body_);
     space(spender_head_);
+    space(spender_body_);
     space(contested_head_);
     space(scan_head_);
     space(scan_body_);

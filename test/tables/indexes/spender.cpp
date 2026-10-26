@@ -22,56 +22,47 @@
 BOOST_AUTO_TEST_SUITE(spender_tests)
 
 using namespace system;
-constexpr auto terminal = table::spender::value::terminal;
-constexpr auto first = 0x00112233_u32;
-constexpr auto second = 0x00445566_u32;
-const auto expected_head = base16_chunk
-(
-    "ffffffff" // bucket[0] (fill)
-    "33221100" // bucket[1] first
-);
+constexpr auto buckets = 8u;
+const table::spender::record spender1{ {}, 0x11111111_u32 };
+const table::spender::record spender2{ {}, 0x22222222_u32 };
+const auto outs_fk = table::spender::outs{ 0x00000007_u32 };
 
-BOOST_AUTO_TEST_CASE(spender__spend__unspent__spent_by_first)
+BOOST_AUTO_TEST_CASE(spender__put__two_same_key__both_found)
 {
-    data_chunk head_file{};
-    test::chunk_storage head_store{ head_file, test::terminal_fill };
-    table::spender instance{ head_store };
+    test::chunk_storage head_store{ test::terminal_fill };
+    test::chunk_storage body_store{};
+    table::spender instance{ head_store, body_store, buckets };
     BOOST_REQUIRE(instance.create());
 
-    table::spender::value::integer holder{};
-    BOOST_REQUIRE(instance.set(1u, table::spender::spend{ {}, holder, first }));
-    BOOST_REQUIRE_EQUAL(holder, terminal);
+    const auto key = table::spender::to_key(outs_fk);
+    BOOST_REQUIRE(instance.put(key, spender1));
+    BOOST_REQUIRE(instance.put(key, spender2));
     BOOST_REQUIRE_EQUAL(instance.count(), 2u);
-    BOOST_REQUIRE_EQUAL(head_file, expected_head);
 
-    const auto cell = instance.at(1u).value;
-    BOOST_REQUIRE(table::spender::is_spent(cell));
-    BOOST_REQUIRE_EQUAL(cell, first);
+    std::vector<table::spender::record> found{};
+    for (auto it = instance.it(key); it; ++it)
+    {
+        table::spender::record out{};
+        BOOST_REQUIRE(instance.get(*it, out));
+        found.push_back(out);
+    }
+
+    BOOST_REQUIRE_EQUAL(found.size(), 2u);
+    BOOST_REQUIRE(found.at(0) == spender2);
+    BOOST_REQUIRE(found.at(1) == spender1);
 }
 
-BOOST_AUTO_TEST_CASE(spender__spend__spent__holder_retained)
+BOOST_AUTO_TEST_CASE(spender__it__other_key__none)
 {
-    auto head_file = expected_head;
-    test::chunk_storage head_store{ head_file, test::terminal_fill };
-    table::spender instance{ head_store };
-    BOOST_REQUIRE(instance.verify());
+    test::chunk_storage head_store{ test::terminal_fill };
+    test::chunk_storage body_store{};
+    table::spender instance{ head_store, body_store, buckets };
+    BOOST_REQUIRE(instance.create());
+    BOOST_REQUIRE(instance.put(table::spender::to_key(outs_fk), spender1));
 
-    table::spender::value::integer holder{};
-    BOOST_REQUIRE(instance.set(1u, table::spender::spend{ {}, holder, second }));
-    BOOST_REQUIRE_EQUAL(holder, first);
-    BOOST_REQUIRE_EQUAL(head_file, expected_head);
-    BOOST_REQUIRE_EQUAL(instance.at(1u).value, first);
-}
-
-BOOST_AUTO_TEST_CASE(spender__at__unallocated__unspent)
-{
-    auto head_file = expected_head;
-    test::chunk_storage head_store{ head_file, test::terminal_fill };
-    table::spender instance{ head_store };
-    BOOST_REQUIRE(instance.verify());
-    BOOST_REQUIRE(!table::spender::is_spent(instance.at(0u).value));
-    BOOST_REQUIRE(!table::spender::is_spent(instance.at(2u).value));
-    BOOST_REQUIRE(instance.at(42u).is_terminal());
+    const auto other = table::spender::to_key(table::spender::outs{ 0x00000008_u32 });
+    BOOST_REQUIRE(!instance.exists(other));
+    BOOST_REQUIRE(instance.exists(table::spender::to_key(outs_fk)));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

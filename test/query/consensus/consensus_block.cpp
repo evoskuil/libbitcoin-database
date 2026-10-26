@@ -292,7 +292,7 @@ BOOST_AUTO_TEST_CASE(query_consensus__block_confirmable__confirmed_double_spend_
     const auto spent = query.to_output(1, 0);
     const auto first = query.to_tx(test::block2a.transactions_ptr()->front()->hash(false));
     const auto second = query.to_tx(test::block_coinbase_spend_1a.transactions_ptr()->back()->hash(false));
-    BOOST_REQUIRE_EQUAL(query.to_spender_txs(spent), (tx_links{ first, second }));
+    BOOST_REQUIRE_EQUAL(query.to_spender_txs(spent), (tx_links{ second, first }));
     BOOST_REQUIRE(query.is_strong_tx(first));
     BOOST_REQUIRE(query.is_strong_tx(second));
 

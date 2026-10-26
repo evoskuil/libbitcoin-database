@@ -289,34 +289,39 @@ outs_link CLASS::to_spent(const ins_link& link) const NOEXCEPT
 // rows are enumerated.
 
 TEMPLATE
+bool CLASS::has_spender(const outs_link& link) const NOEXCEPT
+{
+    using namespace system;
+    const auto cell = store_.contested.at(
+        table::contested::to_cell(link.value));
+    return is_nonzero(bit_and<uint8_t>(cell,
+        table::contested::to_spent(link.value)));
+}
+
+TEMPLATE
 bool CLASS::is_contested(const outs_link& link) const NOEXCEPT
 {
     using namespace system;
     const auto cell = store_.contested.at(
         table::contested::to_cell(link.value));
     return is_nonzero(bit_and<uint8_t>(cell,
-        table::contested::to_mask(link.value)));
+        table::contested::to_contested(link.value)));
 }
 
 TEMPLATE
 tx_links CLASS::to_spender_txs(const outs_link& link) const NOEXCEPT
 {
     tx_links out{};
-    const auto cell = store_.spender.at(link.value).value;
-    if (!table::spender::is_spent(cell))
+    if (!has_spender(link))
         return out;
 
-    out.push_back(cell);
-    if (!is_contested(link))
-        return out;
-
-    for (auto it = store_.conflict.it(table::conflict::to_key(link)); it; ++it)
+    for (auto it = store_.spender.it(table::spender::to_key(link)); it; ++it)
     {
-        table::conflict::record conflict{};
-        if (!store_.conflict.get(*it, conflict))
+        table::spender::record record{};
+        if (!store_.spender.get(*it, record))
             return {};
 
-        out.push_back(conflict.spender_fk);
+        out.push_back(record.spender_fk);
     }
 
     return out;

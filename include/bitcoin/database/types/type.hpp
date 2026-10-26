@@ -68,6 +68,7 @@ struct block_spend
     outs_link::integer outs{ outs_link::terminal };
     system::chain::point key{};
     bool pending{};
+    bool first{};
     size_t block{};
 };
 
