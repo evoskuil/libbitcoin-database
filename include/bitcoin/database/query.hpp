@@ -1196,7 +1196,7 @@ protected:
 
     /// Called by spendable (other spenders of the output, any instance).
     system::error::transaction_error_t contested(const tx_link& spender,
-        const hash_digest& spender_hash, const outs_link& spent) const NOEXCEPT;
+        const outs_link& spent) const NOEXCEPT;
 
     input::cptr get_input(const ins_link& link, bool witness,
         bool coinbase) const NOEXCEPT;

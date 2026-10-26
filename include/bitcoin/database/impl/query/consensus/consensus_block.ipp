@@ -349,10 +349,9 @@ system::error::transaction_error_t CLASS::spendable(const tx_link& spender,
     if (link.is_terminal())
         return system::error::unconfirmed_spend;
 
-    const auto hash = get_tx_key(spender);
     if (strong_fk == out.parent_fk)
     {
-        if (const auto ec = contested(spender, hash, spent))
+        if (const auto ec = contested(spender, spent))
             return ec;
     }
     else
@@ -369,7 +368,7 @@ system::error::transaction_error_t CLASS::spendable(const tx_link& spender,
             if (row.is_terminal())
                 return system::error::previous_output_null;
 
-            if (const auto ec = contested(spender, hash, row))
+            if (const auto ec = contested(spender, row))
                 return ec;
 
             if ((instance == strong_fk) && !mark(spender, row))
@@ -402,12 +401,24 @@ system::error::transaction_error_t CLASS::spendable(const tx_link& spender,
 
 TEMPLATE
 system::error::transaction_error_t CLASS::contested(const tx_link& spender,
-    const hash_digest& spender_hash, const outs_link& spent) const NOEXCEPT
+    const outs_link& spent) const NOEXCEPT
 {
     // Only a strong spender of another tx conflicts (instances are one tx).
+    const auto conflicts = [&](const tx_link& other) NOEXCEPT
+    {
+        return (other != spender) && (get_tx_key(other) !=
+            get_tx_key(spender)) && is_strong_tx(other);
+    };
+
+    const auto cell = store_.spender.at(spent.value).value;
+    if (!table::spender::is_contested(cell))
+        return table::spender::is_spent(cell) &&
+            conflicts(table::spender::spender_fk(cell)) ?
+            system::error::confirmed_double_spend :
+            system::error::transaction_success;
+
     for (const auto& other: to_spender_txs(spent))
-        if ((other != spender) && (get_tx_key(other) != spender_hash) &&
-            is_strong_tx(other))
+        if (conflicts(other))
             return system::error::confirmed_double_spend;
 
     return system::error::transaction_success;
