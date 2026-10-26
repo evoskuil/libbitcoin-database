@@ -55,8 +55,19 @@ TEMPLATE
 inline Link CLASS::index(size_t key) const NOEXCEPT
 {
     // Does not validate, allowing for head expansion.
-    // Key is the logical bucket index (no-hash).
-    return body::cast_link(key);
+    // Key is the logical bucket index (no-hash), less the base if based.
+    if constexpr (!Based)
+    {
+        return body::cast_link(key);
+    }
+    else
+    {
+        const auto base = base_.load(std::memory_order_relaxed);
+        if (key < base)
+            return {};
+
+        return body::cast_link(key - base);
+    }
 }
 
 TEMPLATE
@@ -73,7 +84,7 @@ bool CLASS::clear() NOEXCEPT
     file_.prepare(zero, size());
     std::fill_n(ptr.data(), size(), system::bit_all<uint8_t>);
     file_.mark(zero, size());
-    return set_body_count(zero);
+    return set_body_count(zero) && set_base(base());
 }
 
 TEMPLATE
@@ -88,7 +99,7 @@ bool CLASS::create() NOEXCEPT
         return false;
 
     BC_ASSERT_MSG(verify(), "unexpected head size");
-    return set_body_count(zero);
+    return set_body_count(zero) && set_base(zero);
 }
 
 TEMPLATE
@@ -106,7 +117,21 @@ size_t CLASS::get_space() const NOEXCEPT
 TEMPLATE
 bool CLASS::verify() const NOEXCEPT
 {
-    return buckets() >= initial_buckets_;
+    if (buckets() < initial_buckets_)
+        return false;
+
+    if constexpr (Based)
+    {
+        const auto ptr = file_.get();
+        if (!ptr || words * bucket_size > size())
+            return false;
+
+        const Link base = to_array<Link::size>(std::next(ptr.data(),
+            bucket_size));
+        base_.store(base.value, std::memory_order_relaxed);
+    }
+
+    return true;
 }
 
 TEMPLATE
@@ -137,6 +162,33 @@ bool CLASS::set_body_count(const Link& count) NOEXCEPT
     to_array<Link::size>(ptr.data()) = count;
     file_.mark(zero, Link::size);
     return true;
+}
+
+TEMPLATE
+Link CLASS::base() const NOEXCEPT
+{
+    return { base_.load(std::memory_order_relaxed) };
+}
+
+TEMPLATE
+bool CLASS::set_base(const Link& base) NOEXCEPT
+{
+    if constexpr (!Based)
+    {
+        return is_zero(base.value);
+    }
+    else
+    {
+        const auto ptr = file_.get();
+        if (!ptr || words * bucket_size > size())
+            return false;
+
+        file_.prepare(bucket_size, Link::size);
+        to_array<Link::size>(std::next(ptr.data(), bucket_size)) = base;
+        file_.mark(bucket_size, Link::size);
+        base_.store(base.value, std::memory_order_relaxed);
+        return true;
+    }
 }
 
 TEMPLATE

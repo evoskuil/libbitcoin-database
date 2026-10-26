@@ -36,6 +36,7 @@ static_assert(buckets == 20u);
 
 using link = linkage<link_size>;
 using test_header = arrayhead<link, false>;
+using based_header = arrayhead<link, false, true>;
 
 // TODO: see hashhead.
 ////class nullptr_storage
@@ -141,6 +142,85 @@ BOOST_AUTO_TEST_CASE(arrayhead__at__past_end__terminal)
     // create() allocates and fills buckets with terminal.
     BOOST_REQUIRE(head.create());
     BOOST_REQUIRE(head.at(buckets).is_terminal());
+}
+
+// based
+
+BOOST_AUTO_TEST_CASE(arrayhead__based_create__size__expected)
+{
+    data_chunk data{};
+    test::chunk_storage store{ data, test::terminal_fill };
+    based_header head{ store, buckets };
+    BOOST_REQUIRE(head.create());
+    BOOST_REQUIRE_EQUAL(data.size(), head_size + link_size);
+    BOOST_REQUIRE_EQUAL(head.buckets(), buckets);
+}
+
+BOOST_AUTO_TEST_CASE(arrayhead__based_base__created__zero)
+{
+    test::chunk_storage store{ test::terminal_fill };
+    based_header head{ store, buckets };
+    BOOST_REQUIRE(head.create());
+    BOOST_REQUIRE_EQUAL(head.base(), zero);
+}
+
+BOOST_AUTO_TEST_CASE(arrayhead__set_base__unbased_nonzero__false)
+{
+    test::chunk_storage store{ test::terminal_fill };
+    test_header head{ store, buckets };
+    BOOST_REQUIRE(head.create());
+    BOOST_REQUIRE(!head.set_base(42u));
+    BOOST_REQUIRE(head.set_base(zero));
+}
+
+BOOST_AUTO_TEST_CASE(arrayhead__set_base__verify__expected)
+{
+    data_chunk data{};
+    test::chunk_storage store{ data, test::terminal_fill };
+    based_header head{ store, buckets };
+    BOOST_REQUIRE(head.create());
+    BOOST_REQUIRE(head.set_base(42u));
+    BOOST_REQUIRE_EQUAL(head.base(), 42u);
+
+    test::chunk_storage reopened{ data, test::terminal_fill };
+    based_header copy{ reopened, buckets };
+    BOOST_REQUIRE(copy.verify());
+    BOOST_REQUIRE_EQUAL(copy.base(), 42u);
+}
+
+BOOST_AUTO_TEST_CASE(arrayhead__index__based__offset)
+{
+    test::chunk_storage store{ test::terminal_fill };
+    based_header head{ store, buckets };
+    BOOST_REQUIRE(head.create());
+    BOOST_REQUIRE(head.set_base(42u));
+    BOOST_REQUIRE(head.index(41u).is_terminal());
+    BOOST_REQUIRE_EQUAL(head.index(42u), zero);
+    BOOST_REQUIRE_EQUAL(head.index(45u), 3u);
+}
+
+BOOST_AUTO_TEST_CASE(arrayhead__push__based__at_expected)
+{
+    test::chunk_storage store{ test::terminal_fill };
+    based_header head{ store, buckets };
+    BOOST_REQUIRE(head.create());
+    BOOST_REQUIRE(head.set_base(42u));
+    BOOST_REQUIRE(head.push(7u, head.index(43u)));
+    BOOST_REQUIRE_EQUAL(head.at(43u), 7u);
+    BOOST_REQUIRE(head.at(42u).is_terminal());
+    BOOST_REQUIRE(head.at(1u).is_terminal());
+}
+
+BOOST_AUTO_TEST_CASE(arrayhead__clear__based__base_retained)
+{
+    test::chunk_storage store{ test::terminal_fill };
+    based_header head{ store, buckets };
+    BOOST_REQUIRE(head.create());
+    BOOST_REQUIRE(head.set_base(42u));
+    BOOST_REQUIRE(head.push(7u, head.index(43u)));
+    BOOST_REQUIRE(head.clear());
+    BOOST_REQUIRE_EQUAL(head.base(), 42u);
+    BOOST_REQUIRE(head.at(43u).is_terminal());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

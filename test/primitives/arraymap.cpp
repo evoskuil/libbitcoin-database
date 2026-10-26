@@ -23,13 +23,12 @@ BOOST_AUTO_TEST_SUITE(arraymap_tests)
 
 using namespace system;
 
-template <typename Link, size_t Size, bool Align = false>
+template <typename Link, size_t Size, bool Align = false, bool Based = false>
 class arraymap_
-  : public arraymap<Link, Size, Align>
+  : public arraymap<Link, Size, Align, Based>
 {
 public:
-    using base = arraymap<Link, Size, Align>;
-    using arraymap<Link, Size, Align>::arraymap;
+    using arraymap<Link, Size, Align, Based>::arraymap;
 };
 
 using link3 = linkage<3>;
@@ -885,6 +884,86 @@ BOOST_AUTO_TEST_CASE(arraymap__record_body_count__non_empty_restore__truncates)
     BOOST_REQUIRE_EQUAL(instance.body_size(), 9u * record4::size);
     BOOST_REQUIRE_EQUAL(instance.capacity(), 44u);
     BOOST_REQUIRE(!instance.get_fault());
+}
+
+// based
+// ----------------------------------------------------------------------------
+
+using based_table = arraymap_<link3, little_record::size, false, true>;
+
+BOOST_AUTO_TEST_CASE(arraymap__based_base__created__zero)
+{
+    test::chunk_storage head_store{ test::terminal_fill };
+    test::chunk_storage body_store{};
+    based_table instance{ head_store, body_store, initial_buckets };
+    BOOST_REQUIRE(instance.create());
+    BOOST_REQUIRE_EQUAL(instance.base(), zero);
+}
+
+BOOST_AUTO_TEST_CASE(arraymap__based_put__at_base__at_expected)
+{
+    test::chunk_storage head_store{ test::terminal_fill };
+    test::chunk_storage body_store{};
+    based_table instance{ head_store, body_store, initial_buckets };
+    BOOST_REQUIRE(instance.create());
+    BOOST_REQUIRE(instance.drop(100u));
+    BOOST_REQUIRE(instance.put(100u, little_record{ 0x01020304_u32 }));
+    BOOST_REQUIRE(instance.put(102u, little_record{ 0x05060708_u32 }));
+
+    little_record record{};
+    BOOST_REQUIRE(instance.at(100u, record));
+    BOOST_REQUIRE_EQUAL(record.value, 0x01020304_u32);
+    BOOST_REQUIRE(instance.at(102u, record));
+    BOOST_REQUIRE_EQUAL(record.value, 0x05060708_u32);
+    BOOST_REQUIRE(instance.at(101u).is_terminal());
+}
+
+BOOST_AUTO_TEST_CASE(arraymap__based_put__below_base__false)
+{
+    test::chunk_storage head_store{ test::terminal_fill };
+    test::chunk_storage body_store{};
+    based_table instance{ head_store, body_store, initial_buckets };
+    BOOST_REQUIRE(instance.create());
+    BOOST_REQUIRE(instance.drop(100u));
+    BOOST_REQUIRE(!instance.put(99u, little_record{ 42 }));
+    BOOST_REQUIRE_EQUAL(instance.count(), zero);
+}
+
+BOOST_AUTO_TEST_CASE(arraymap__based_drop__populated__empty_rebased)
+{
+    test::chunk_storage head_store{ test::terminal_fill };
+    test::chunk_storage body_store{};
+    based_table instance{ head_store, body_store, initial_buckets };
+    BOOST_REQUIRE(instance.create());
+    BOOST_REQUIRE(instance.put(1u, little_record{ 42 }));
+    BOOST_REQUIRE_EQUAL(instance.count(), one);
+
+    BOOST_REQUIRE(instance.drop(10u));
+    BOOST_REQUIRE_EQUAL(instance.base(), 10u);
+    BOOST_REQUIRE_EQUAL(instance.count(), zero);
+    BOOST_REQUIRE(instance.at(1u).is_terminal());
+    BOOST_REQUIRE(instance.at(10u).is_terminal());
+    BOOST_REQUIRE(instance.verify());
+}
+
+BOOST_AUTO_TEST_CASE(arraymap__based_restore__dropped__base_restored)
+{
+    test::chunk_storage head_store{ test::terminal_fill };
+    test::chunk_storage body_store{};
+    based_table instance{ head_store, body_store, initial_buckets };
+    BOOST_REQUIRE(instance.create());
+    BOOST_REQUIRE(instance.drop(10u));
+    BOOST_REQUIRE(instance.put(11u, little_record{ 42 }));
+    BOOST_REQUIRE(instance.close());
+
+    based_table reopened{ head_store, body_store, initial_buckets };
+    BOOST_REQUIRE(reopened.restore());
+    BOOST_REQUIRE_EQUAL(reopened.base(), 10u);
+    BOOST_REQUIRE_EQUAL(reopened.count(), one);
+
+    little_record record{};
+    BOOST_REQUIRE(reopened.at(11u, record));
+    BOOST_REQUIRE_EQUAL(record.value, 42u);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

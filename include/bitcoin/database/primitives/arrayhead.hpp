@@ -28,8 +28,9 @@
 namespace libbitcoin {
 namespace database {
 
-/// Dynamically expanding array map header.
-template <class Link, bool Align>
+/// Dynamically expanding array map header. A based header indexes keys less
+/// its base, keys below the base are terminal.
+template <class Link, bool Align, bool Based = false>
 class arrayhead
 {
 public:
@@ -66,6 +67,12 @@ public:
     bool get_body_count(Link& count) const NOEXCEPT;
     bool set_body_count(const Link& count) NOEXCEPT;
 
+    /// The key of the first bucket (zero unless based).
+    Link base() const NOEXCEPT;
+
+    /// Set the key of the first bucket (based only, not thread safe).
+    bool set_base(const Link& base) NOEXCEPT;
+
     /// Convert natural key to head bucket index (unvalidated).
     inline Link index(size_t key) const NOEXCEPT;
 
@@ -82,6 +89,7 @@ private:
     static_assert(is_nonzero(Link::size));
     static constexpr auto bucket_size = Align ? sizeof(link) : Link::size;
     static constexpr bool aligned = (bucket_size == sizeof(link));
+    static constexpr auto words = Based ? two : one;
 
     template <size_t Bytes>
     INLINE static auto& to_array(memory::iterator it) NOEXCEPT
@@ -93,30 +101,33 @@ private:
     {
         using namespace system;
         const auto offset = floored_divide(position, bucket_size);
-        return possible_narrow_cast<link>(floored_subtract(offset, one));
+        return possible_narrow_cast<link>(floored_subtract(offset, words));
     }
 
     // Byte offset of bucket index within head file.
-    // [body_size][[bucket[0]...bucket[buckets-1]]]
+    // [body_size][base][[bucket[0]...bucket[buckets-1]]], base if based.
     INLINE static constexpr size_t link_to_position(const Link& index) NOEXCEPT
     {
         using namespace system;
-        BC_ASSERT(!is_multiply_overflow<size_t>(index, bucket_size));
-        BC_ASSERT(!is_add_overflow<size_t>(bucket_size, index * bucket_size));
-        return possible_narrow_cast<size_t>(add1<size_t>(index) * bucket_size);
+        BC_ASSERT(!is_add_overflow<size_t>(index, words));
+        BC_ASSERT(!is_multiply_overflow<size_t>(index + words, bucket_size));
+        return possible_narrow_cast<size_t>((index + words) * bucket_size);
     }
 
     // These are thread safe.
     storage& file_;
     const Link initial_buckets_;
     mutable shared_mutex mutex_{};
+
+    // Loaded at create/verify, written by set_base.
+    mutable std::atomic<link> base_{ zero };
 };
 
 } // namespace database
 } // namespace libbitcoin
 
-#define TEMPLATE template <class Link, bool Align>
-#define CLASS arrayhead<Link, Align>
+#define TEMPLATE template <class Link, bool Align, bool Based>
+#define CLASS arrayhead<Link, Align, Based>
 
 #include <bitcoin/database/impl/primitives/arrayhead.ipp>
 

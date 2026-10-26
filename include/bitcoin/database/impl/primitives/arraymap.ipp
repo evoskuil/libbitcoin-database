@@ -126,6 +126,19 @@ bool CLASS::expand(const Link& count) NOEXCEPT
     return body_.expand(count);
 }
 
+TEMPLATE
+Link CLASS::base() const NOEXCEPT
+{
+    return head_.base();
+}
+
+TEMPLATE
+bool CLASS::drop(const Link& base) NOEXCEPT
+{
+    static_assert(Based);
+    return head_.clear() && head_.set_base(base) && body_.truncate(zero);
+}
+
 // query interface
 // ----------------------------------------------------------------------------
 
@@ -194,6 +207,11 @@ bool CLASS::put(size_t key, const Element& element) NOEXCEPT
     if (key >= Link::terminal)
         return false;
 
+    // A key below the base has no bucket.
+    const auto index = head_.index(key);
+    if (index.is_terminal())
+        return false;
+
     const auto link = body_.allocate(element.count());
     const auto ptr = body_.get(link);
     if (!ptr)
@@ -205,7 +223,7 @@ bool CLASS::put(size_t key, const Element& element) NOEXCEPT
     finalizer sink{ stream };
 
     if constexpr (!is_slab) { BC_DEBUG_ONLY(sink.set_limit(RowSize * element.count());) }
-    if (!element.to_data(sink) || !head_.push(link, head_.index(key)))
+    if (!element.to_data(sink) || !head_.push(link, index))
         return false;
 
     body_.complete(link, element.count());

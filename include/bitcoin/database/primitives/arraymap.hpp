@@ -34,7 +34,9 @@ namespace database {
 /// Readers and writers are always prepositioned at data, and are limited to
 /// the extent the record/slab size is known (limit can always be removed).
 /// Streams are always initialized from first element byte up to file limit.
-template <class Link, size_t RowSize, bool Align>
+/// A based map keys its head less the base: keys below it are terminal, and
+/// the drop empties the table and advances the base.
+template <class Link, size_t RowSize, bool Align, bool Based = false>
 class arraymap
 {
 public:
@@ -78,6 +80,12 @@ public:
     /// Increase count as necessary to specified.
     bool expand(const Link& count) NOEXCEPT;
 
+    /// The key of the first bucket (zero unless based).
+    Link base() const NOEXCEPT;
+
+    /// Empty the table and advance the base (based only, not thread safe).
+    bool drop(const Link& base) NOEXCEPT;
+
     /// Errors.
     /// -----------------------------------------------------------------------
 
@@ -114,7 +122,7 @@ public:
 
 private:
     static constexpr auto is_slab = (RowSize == max_size_t);
-    using head = database::arrayhead<Link, Align>;
+    using head = database::arrayhead<Link, Align, Based>;
     using body = database::body<Link, system::data_array<zero>, RowSize>;
 
     // Thread safe (index/top/push).
@@ -128,11 +136,15 @@ private:
 template <typename Schema>
 using array_map = arraymap<typename Schema::link, Schema::size, Schema::align>;
 
+template <typename Schema>
+using based_array_map = arraymap<typename Schema::link, Schema::size,
+    Schema::align, true>;
+
 } // namespace database
 } // namespace libbitcoin
 
-#define TEMPLATE template <class Link, size_t RowSize, bool Align>
-#define CLASS arraymap<Link, RowSize, Align>
+#define TEMPLATE template <class Link, size_t RowSize, bool Align, bool Based>
+#define CLASS arraymap<Link, RowSize, Align, Based>
 #define ELEMENT_CONSTRAINT template <class Element, \
     if_equal<Element::size, RowSize>>
 
