@@ -67,7 +67,6 @@ struct block_spend
     table::points::link::integer row{ table::points::link::terminal };
     outs_link::integer outs{ outs_link::terminal };
     system::chain::point key{};
-    bool bank{};
     bool pending{};
     size_t block{};
 };

@@ -360,68 +360,16 @@ bool CLASS::copy_pool(table::pool& to, table::pool& from, const Keep& keep,
 }
 
 // protected
-// An input of the bank without a binding is unbound.
+// Every input of the bank is bound, or unbound by its binder. The base is
+// retained, as it advances only with a swap.
 TEMPLATE
-bool CLASS::save_unbound(const table::points& bank, size_t end) NOEXCEPT
+code CLASS::drain_points(table::points& bank) NOEXCEPT
 {
-    using row_t = table::points::link::integer;
-    std::vector<std::pair<table::ins::link::integer, row_t>> rows{};
-    {
-        const auto ptr = spend.get_memory();
-        for (auto fk = bank.base().value; fk < end; ++fk)
-            if (spend.at(ptr, fk).is_terminal())
-                rows.emplace_back(fk, table::points::link::terminal);
-    }
-
-    {
-        const auto head = bank.get_head_memory();
-        for (auto& [fk, row]: rows)
-            row = bank.at(head, fk).value;
-    }
-
-    std::vector<table::points::record> points(rows.size());
-    {
-        const auto body = bank.get_memory();
-        for (size_t index{}; index < rows.size(); ++index)
-        {
-            const table::points::link row{ rows.at(index).second };
-            if (!row.is_terminal() && !bank.get(body, row, points.at(index)))
-                return false;
-        }
-    }
-
-    for (size_t index{}; index < rows.size(); ++index)
-    {
-        if (table::points::link{ rows.at(index).second }.is_terminal())
-            continue;
-
-        const auto& point = points.at(index);
-        const auto key = table::unbound::to_key(rows.at(index).first);
-        if (unbound.first(key).is_terminal() && !unbound.put(key,
-            table::unbound::record{ {}, { point.hash, point.index } }))
-            return false;
-    }
-
-    return true;
+    return bank.drop(bank.base()) ? error::success : error::prune_table;
 }
 
-// protected
-// The keys of a bank end at the base of a later bank, or the ins count.
-TEMPLATE
-code CLASS::drain_points(table::points& bank,
-    const table::points& other) NOEXCEPT
-{
-    const auto count = ins.count().value;
-    const auto later = other.base().value;
-    const auto end = later > bank.base().value ? later : count;
-    if (!save_unbound(bank, end))
-        return error::unbound_put;
-
-    return bank.drop(count) ? error::success : error::prune_table;
-}
-
-// Block archives are not in flight at a flip or drop (the download chaser
-// flips at its window gate) and pooled txs do not write points.
+// Archives select a bank and allocate its ins under a shared selector, so the
+// base advanced by a swap is above every ins of the bank swapped out.
 TEMPLATE
 code CLASS::flip_points(const event_handler& handler) NOEXCEPT
 {
@@ -432,8 +380,12 @@ code CLASS::flip_points(const event_handler& handler) NOEXCEPT
     handler(event_t::prune_table, bank ? table_t::points1_table :
         table_t::points0_table);
 
-    if (const auto ec = drain_points(points_bank(bank), points_bank(!bank)))
+    if (const auto ec = drain_points(points_bank(bank)))
         return ec;
+
+    std::unique_lock swap{ selector_mutex_ };
+    if (!points_bank(bank).drop(ins.count()))
+        return error::prune_table;
 
     points_bank_.store(bank, std::memory_order_relaxed);
     return error::success;
@@ -447,11 +399,16 @@ code CLASS::drop_points(const event_handler& handler) NOEXCEPT
     const transactor scope{ transactor_mutex_ };
 
     handler(event_t::prune_table, table_t::points0_table);
-    if (const auto ec = drain_points(points0, points1))
+    if (const auto ec = drain_points(points0))
         return ec;
 
     handler(event_t::prune_table, table_t::points1_table);
-    return drain_points(points1, points0);
+    if (const auto ec = drain_points(points1))
+        return ec;
+
+    std::unique_lock swap{ selector_mutex_ };
+    return points0.drop(ins.count()) && points1.drop(ins.count()) ?
+        error::success : error::prune_table;
     // ========================================================================
 }
 

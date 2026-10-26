@@ -1228,6 +1228,7 @@ protected:
 
     /// Caller holds transactor.
     bool set_spends(block_spends& spends) NOEXCEPT;
+    bool set_unbound(const block_spends& spends) NOEXCEPT;
     bool mark(const tx_link& spender, const outs_link& spent) NOEXCEPT;
 
     /// Context.

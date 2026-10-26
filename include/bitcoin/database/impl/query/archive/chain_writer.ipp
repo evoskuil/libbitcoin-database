@@ -153,15 +153,28 @@ code CLASS::set_code(const tx_link& tx_fk, const transaction& tx, bool block,
     if (!store_.output.put_link(out_fk, table::output::put_ref{ {}, tx }))
         return error::tx_output_put;
 
+    // The bank is selected with the ins allocation, excluding a bank swap.
     // Allocate contiguously and store ins (spends and points share the link).
+    auto bank_index = false;
     ins_link ins_fk{};
-    if (!store_.ins.put_link(ins_fk,
-        table::ins::put_ref{ {}, in_fk, tx_fk, tx }))
-        return error::tx_ins_put;
+    {
+        const auto selector = store_.get_selector();
+        bank_index = store_.get_points_bank();
+        if (!store_.ins.put_link(ins_fk,
+            table::ins::put_ref{ {}, in_fk, tx_fk, tx }))
+            return error::tx_ins_put;
+    }
 
-    // A block tx stores points keyed by its ins, a free tx is bound below.
-    if (block && !coinbase && !store_.points_bank(store_.get_points_bank()).put(
-        ins_fk.value, table::points::put_ref{ {}, tx }))
+    auto& bank = store_.points_bank(bank_index);
+
+    // Points rows are positioned with ins less the base, by expansion.
+    const auto base = bank.base().value;
+    if (ins_fk.value < base)
+        return error::tx_points_put;
+
+    const table::points::link row{ ins_fk.value - base };
+    if (!bank.expand(row.value + inputs) || !bank.put(bank.get_memory(), row,
+        table::points::put_ref{ {}, tx }))
         return error::tx_points_put;
 
     // Allocate contiguously and store outs.

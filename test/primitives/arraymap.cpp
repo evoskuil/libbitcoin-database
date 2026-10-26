@@ -1036,24 +1036,24 @@ BOOST_AUTO_TEST_CASE(arraymap__based_restore__dropped__base_restored)
     BOOST_REQUIRE_EQUAL(record.value, 42u);
 }
 
-BOOST_AUTO_TEST_CASE(arraymap__get__accessors__expected)
+BOOST_AUTO_TEST_CASE(arraymap__put__expanded_link__expected)
 {
     test::chunk_storage head_store{ test::terminal_fill };
     test::chunk_storage body_store{};
     arraymap_<link3, little_record::size> instance{ head_store, body_store, initial_buckets };
     BOOST_REQUIRE(instance.create());
-    BOOST_REQUIRE(instance.put(5u, pair_record{ 0x01020304_u32, 0x05060708_u32 }));
+    BOOST_REQUIRE(instance.expand(3u));
 
-    const auto head = instance.get_head_memory();
-    const auto link = instance.at(head, 6u);
-    BOOST_REQUIRE_EQUAL(link, 1u);
-    BOOST_REQUIRE(instance.at(head, 7u).is_terminal());
+    const auto body = instance.get_memory();
+    BOOST_REQUIRE(instance.put(body, 2u, little_record{ 0x05060708_u32 }));
+    BOOST_REQUIRE(!instance.put(body, 3u, little_record{ 0x05060708_u32 }));
+    BOOST_REQUIRE_EQUAL(instance.count(), 3u);
+    BOOST_REQUIRE(instance.at(2u).is_terminal());
 
     little_record record{};
-    const auto body = instance.get_memory();
-    BOOST_REQUIRE(instance.get(body, link, record));
+    BOOST_REQUIRE(instance.get(body, 2u, record));
     BOOST_REQUIRE_EQUAL(record.value, 0x05060708_u32);
-    BOOST_REQUIRE(!instance.get(body, 2u, record));
+    BOOST_REQUIRE(!instance.get(body, 3u, record));
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -62,7 +62,7 @@ BOOST_AUTO_TEST_CASE(query_wire_writer__set_block_view__genesis__expected)
         "ffffffff"     // sequence
         "0000000000"   // input_fk-> (coinbase)
         "00000000");   // parent_fk->
-    const system::data_chunk genesis_points_body{};
+    const auto genesis_points_body = system::base16_chunk("0000000000000000000000000000000000000000000000000000000000000000ffffff");
     const auto genesis_input_body = system::base16_chunk(
         "4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73" // script
         "00");         // witness

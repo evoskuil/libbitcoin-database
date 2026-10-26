@@ -261,7 +261,8 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_link_tx__null_input__expected)
         "00000000"     // sequence
         "0000000000"   // input_fk->
         "00000000");   // parent_fk->
-    const system::data_chunk expected_points_body{};
+    const auto expected_points_body = system::base16_chunk(
+        "0000000000000000000000000000000000000000000000000000000000000000ffffff");
     ////const auto expected_spend_body = system::base16_chunk(
     ////    "ffffffff"     // terminal->
     ////    "00000000"     // fp: point_stub
@@ -388,7 +389,9 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_tx__get_tx__expected)
         "18000000"     // sequence
         "0800000000"   // input_fk->
         "00000000");   // parent_fk->
-    const system::data_chunk expected_points_body{};
+    const auto expected_points_body = system::base16_chunk(
+        "0100000000000000000000000000000000000000000000000000000000000000180000"
+        "01000000000000000000000000000000000000000000000000000000000000002a0000");
     ////const auto expected_spend_body = system::base16_chunk(
     ////    "ffffffff"     // terminal->
     ////    "01000000"     // fp: point_stub
@@ -427,8 +430,10 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_tx__get_tx__expected)
     BOOST_CHECK(query.set(tx));
     BOOST_CHECK(query.is_tx(tx.hash(false)));
 
-    // A pooled tx has no point until bound, and its parent is not archived.
-    BOOST_CHECK(!query.get_transaction(query.to_tx(tx_hash), true));
+    // A pooled tx keeps its points in the bank until the bank is dropped.
+    const auto pointer = query.get_transaction(query.to_tx(tx_hash), true);
+    BOOST_REQUIRE(pointer);
+    BOOST_CHECK(*pointer == tx);
     BOOST_CHECK(!store.close(test::events_handler));
 
     BOOST_CHECK_EQUAL(store.tx_head(), expected_tx_head);
@@ -514,7 +519,7 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_block__get_block__expected)
         "ffffffff"     // sequence
         "0000000000"   // input_fk-> (coinbase)
         "00000000");   // parent_fk->
-    const system::data_chunk genesis_points_body{};
+    const auto genesis_points_body = system::base16_chunk("0000000000000000000000000000000000000000000000000000000000000000ffffff");
     const auto genesis_input_body = system::base16_chunk(
         "4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73" // script
         "00");         // witness
@@ -656,7 +661,7 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_block_txs__get_block__expected)
         "ffffffff"     // sequence
         "0000000000"   // input_fk-> (coinbase)
         "00000000");   // parent_fk->
-    const system::data_chunk genesis_points_body{};
+    const auto genesis_points_body = system::base16_chunk("0000000000000000000000000000000000000000000000000000000000000000ffffff");
     const auto genesis_input_body = system::base16_chunk(
         "4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73" // script
         "00");         // witness

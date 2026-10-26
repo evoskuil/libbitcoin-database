@@ -157,11 +157,18 @@ bool CLASS::get_spent_or_point(outs_link& spent, point& key,
         return !bound.is_terminal();
     };
 
+    // A banked input's point is positioned at its ins less the bank base.
+    table::points::get_composed row{};
+    const auto banked = [&](const table::points& bank) NOEXCEPT
+    {
+        const auto base = bank.base().value;
+        return link.value >= base &&
+            bank.get(table::points::link{ link.value - base }, row);
+    };
+
     if (!read())
     {
-        table::points::get_composed row{};
-        if (store_.points0.at(link.value, row) ||
-            store_.points1.at(link.value, row))
+        if (banked(store_.points0) || banked(store_.points1))
         {
             spent = outs_link{};
             key = std::move(row.key);

@@ -117,41 +117,40 @@ code CLASS::get_spends(block_spends& out,
 TEMPLATE
 code CLASS::get_spent_outs(block_spends& out) const NOEXCEPT
 {
+    // Pooled txs of the block are bound.
+    {
+        const auto ptr = store_.spend.get_memory();
+        for (auto& spend: out)
+            spend.outs = store_.spend.at(ptr, spend.ins).value;
+    }
+
+    // A banked input's point is positioned at its ins less the bank base.
     for (const auto bank: { false, true })
     {
         const auto& points = store_.points_bank(bank);
-        {
-            const auto head = points.get_head_memory();
-            for (auto& spend: out)
-            {
-                if (!table::points::link{ spend.row }.is_terminal())
-                    continue;
-
-                spend.row = points.at(head, spend.ins).value;
-                spend.bank = bank;
-            }
-        }
-
+        const auto base = points.base().value;
         const auto body = points.get_memory();
         for (auto& spend: out)
         {
-            table::points::get_composed point{};
-            if (spend.bank != bank ||
-                table::points::link{ spend.row }.is_terminal())
+            if (!outs_link{ spend.outs }.is_terminal() || spend.ins < base ||
+                !table::points::link{ spend.row }.is_terminal())
                 continue;
 
-            // A row dropped since its head read is resolved below.
-            if (points.get(body, spend.row, point))
+            table::points::get_composed point{};
+            const table::points::link row{ spend.ins - base };
+            if (points.get(body, row, point))
+            {
+                spend.row = row.value;
                 spend.key = std::move(point.key);
-            else
-                spend.row = table::points::link::terminal;
+            }
         }
     }
 
-    // Inputs without points are bound (free tx) or unbound (drained).
+    // Inputs neither bound nor banked are unbound (drained).
     for (auto& spend: out)
     {
-        if (!table::points::link{ spend.row }.is_terminal())
+        if (!outs_link{ spend.outs }.is_terminal() ||
+            !table::points::link{ spend.row }.is_terminal())
             continue;
 
         outs_link spent{};
@@ -231,6 +230,25 @@ bool CLASS::set_spends(block_spends& spends) NOEXCEPT
 }
 
 // protected
+// A banked input without a binding keeps its point across the bank drop.
+TEMPLATE
+bool CLASS::set_unbound(const block_spends& spends) NOEXCEPT
+{
+    for (const auto& spend: spends)
+    {
+        if (!outs_link{ spend.outs }.is_terminal())
+            continue;
+
+        const auto key = table::unbound::to_key(spend.ins);
+        if (store_.unbound.first(key).is_terminal() && !store_.unbound.put(key,
+            table::unbound::record{ {}, spend.key }))
+            return false;
+    }
+
+    return true;
+}
+
+// protected
 TEMPLATE
 bool CLASS::mark(const tx_link& spender, const outs_link& spent) NOEXCEPT
 {
@@ -296,13 +314,17 @@ code CLASS::bind(const header_link& link, const block_view& block) NOEXCEPT
         {
             spends.push_back({ links.at(index), in->metadata.input_link });
             spends.back().outs = in->metadata.output_link;
-            found &= !outs_link{ in->metadata.output_link }.is_terminal();
+            if (outs_link{ in->metadata.output_link }.is_terminal())
+            {
+                spends.back().key = { in->point_hash(), in->point_index() };
+                found = false;
+            }
         }
     }
 
     // ========================================================================
     const auto scope = get_transactor();
-    if (!set_spends(spends))
+    if (!set_spends(spends) || !set_unbound(spends))
         return error::integrity;
     // ========================================================================
 
@@ -358,7 +380,7 @@ code CLASS::bind(std::vector<code>& out, const header_links& links) NOEXCEPT
 
     // ========================================================================
     const auto scope = get_transactor();
-    if (!set_spends(spends))
+    if (!set_spends(spends) || !set_unbound(spends))
         return error::integrity;
     // ========================================================================
 
@@ -378,7 +400,7 @@ code CLASS::bind(const header_link& link) NOEXCEPT
 
     // ========================================================================
     const auto scope = get_transactor();
-    if (!set_spends(spends))
+    if (!set_spends(spends) || !set_unbound(spends))
         return error::integrity;
     // ========================================================================
 

@@ -45,6 +45,7 @@ public:
     typedef std::function<void(event_t, table_t)> event_handler;
     typedef std::function<void(const code&, table_t)> error_handler;
     typedef std::shared_lock<shared_timed_mutex> transactor;
+    typedef std::shared_lock<shared_timed_mutex> selector;
 
     /// Event and table names, useful for internal logging.
     using event_map = std::unordered_map<event_t, std::string>;
@@ -127,6 +128,9 @@ public:
     /// Get a transactor object.
     transactor get_transactor() NOEXCEPT;
 
+    /// Get a points bank selector object (excludes a bank swap).
+    selector get_selector() NOEXCEPT;
+
     /// Batch tables of a bank.
     table::ecdsa<Storage>& ecdsa_bank(bool bank) NOEXCEPT;
     table::schnorr<Storage>& schnorr_bank(bool bank) NOEXCEPT;
@@ -156,12 +160,8 @@ protected:
     code backup(const event_handler& handler, bool prune=false) NOEXCEPT;
     code dump(const path& folder, const event_handler& handler) NOEXCEPT;
 
-    /// Save the points of the unbound inputs of the bank (drain helper).
-    bool save_unbound(const table::points& bank, size_t end) NOEXCEPT;
-
     /// Drain the bank and advance its base to the ins count (drop helper).
-    code drain_points(table::points& bank,
-        const table::points& other) NOEXCEPT;
+    code drain_points(table::points& bank) NOEXCEPT;
 
     /// Retain the pool records of txs that can yet confirm (prune helpers).
     template <typename Reset>
@@ -328,6 +328,7 @@ protected:
     flush_lock flush_lock_;
     interprocess_lock process_lock_;
     shared_timed_mutex transactor_mutex_{};
+    shared_timed_mutex selector_mutex_{};
 
     // This is thread safe.
     stopper pooling_{ false };

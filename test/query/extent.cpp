@@ -60,7 +60,7 @@ BOOST_AUTO_TEST_CASE(query_extent__body_sizes__genesis__expected)
     BOOST_REQUIRE_EQUAL(query.schnorr0_body_size(), zero);
     BOOST_REQUIRE_EQUAL(query.prevalid0_body_size(), zero);
     BOOST_REQUIRE_EQUAL(query.presilent0_body_size(), zero);
-    BOOST_REQUIRE_EQUAL(query.points0_body_size(), zero);
+    BOOST_REQUIRE_EQUAL(query.points0_body_size(), schema::points::minrow);
     BOOST_REQUIRE_EQUAL(query.points1_body_size(), zero);
     BOOST_REQUIRE_EQUAL(query.state_body_size(), zero);
     BOOST_REQUIRE_EQUAL(query.pool_body_size(), zero);
@@ -133,7 +133,7 @@ BOOST_AUTO_TEST_CASE(query_extent__records__genesis__expected)
     BOOST_REQUIRE_EQUAL(query.schnorr0_records(), zero);
     BOOST_REQUIRE_EQUAL(query.prevalid0_records(), zero);
     BOOST_REQUIRE_EQUAL(query.presilent0_records(), zero);
-    BOOST_REQUIRE_EQUAL(query.points0_records(), zero);
+    BOOST_REQUIRE_EQUAL(query.points0_records(), one);
     BOOST_REQUIRE_EQUAL(query.points1_records(), zero);
     BOOST_REQUIRE_EQUAL(query.pool_records(), zero);
     BOOST_REQUIRE_EQUAL(query.wtxid_records(), zero);

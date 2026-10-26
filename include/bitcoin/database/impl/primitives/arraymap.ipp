@@ -177,21 +177,9 @@ inline memory CLASS::get_memory() const NOEXCEPT
 }
 
 TEMPLATE
-inline memory CLASS::get_head_memory() const NOEXCEPT
-{
-    return head_.get_memory();
-}
-
-TEMPLATE
 inline Link CLASS::at(size_t key) const NOEXCEPT
 {
     return head_.at(key);
-}
-
-TEMPLATE
-inline Link CLASS::at(const memory& head, size_t key) const NOEXCEPT
-{
-    return head_.at(head, key);
 }
 
 TEMPLATE
@@ -315,6 +303,40 @@ bool CLASS::put(const memory& ptr, const Link& link, size_t key,
             if (!head_.push(link.value + row, index.value + row))
                 return false;
     }
+
+    body_.complete(link, element.count());
+    return true;
+}
+
+TEMPLATE
+ELEMENT_CONSTRAINT
+bool CLASS::put(const memory& ptr, const Link& link,
+    const Element& element) NOEXCEPT
+{
+    using namespace system;
+    if (!ptr || link.is_terminal())
+        return false;
+
+    const auto start = body::link_to_position(link);
+    if (is_limited<ptrdiff_t>(start))
+        return false;
+
+    const auto size = ptr.size();
+    const auto position = possible_narrow_sign_cast<ptrdiff_t>(start);
+    if (position >= size)
+        return false;
+
+    const auto offset = ptr.offset(start);
+    if (is_null(offset))
+        return false;
+
+    // iostream.flush is a nop (direct copy).
+    iostream stream{ offset, size - position };
+    finalizer sink{ stream };
+
+    if constexpr (!is_slab) { BC_DEBUG_ONLY(sink.set_limit(RowSize * element.count());) }
+    if (!element.to_data(sink))
+        return false;
 
     body_.complete(link, element.count());
     return true;

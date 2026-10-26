@@ -61,9 +61,9 @@ code CLASS::set_code(const accessors& ptrs, const allocation& fks,
         table::ins::put_view{ {}, fks.in_fk, fks.tx_fk, tx }))
         return error::tx_ins_put;
 
-    // Contiguously store points (preallocated, keyed by ins).
-    if (!coinbase && !store_.points_bank(fks.bank).put(ptrs.points,
-        fks.points_fk, fks.ins_fk.value, table::points::put_view{ {}, tx }))
+    // Contiguously store points (expanded, positioned with ins).
+    if (!store_.points_bank(fks.bank).put(ptrs.points, fks.points_fk,
+        table::points::put_view{ {}, tx }))
         return error::tx_points_put;
 
     // Contiguously store outs (preallocated).
@@ -178,7 +178,6 @@ code CLASS::set_code(const block_view& block, const header_link& key,
 
     // Sum full block allocation for each table from cached view metadata.
     size_t points{};
-    size_t staged{};
     size_t outputs{};
     size_t input_bytes{};
     size_t output_bytes{};
@@ -198,7 +197,6 @@ code CLASS::set_code(const block_view& block, const header_link& key,
         }
 
         points += tx.inputs();
-        staged += tx.is_coinbase() ? zero : tx.inputs();
         outputs += tx.outputs();
         input_bytes += tx.input_table_size(prune);
         output_bytes += tx.output_table_size();
@@ -230,19 +228,28 @@ code CLASS::set_code(const block_view& block, const header_link& key,
     if (fks.out_fk.is_terminal())
         return error::tx_output_put;
 
-    fks.ins_fk = store_.ins.allocate(
-        possible_narrow_cast<ins_t>(points));
+    // The bank is selected with the ins allocation, excluding a bank swap.
+    {
+        const auto selector = store_.get_selector();
+        fks.bank = store_.get_points_bank();
+        fks.ins_fk = store_.ins.allocate(
+            possible_narrow_cast<ins_t>(points));
+    }
+
     if (fks.ins_fk.is_terminal())
         return error::tx_ins_put;
 
-    fks.bank = store_.get_points_bank();
     auto& bank = store_.points_bank(fks.bank);
-    if (is_nonzero(staged))
-    {
-        fks.points_fk = bank.allocate(possible_narrow_cast<ins_t>(staged));
-        if (fks.points_fk.is_terminal())
-            return error::tx_points_put;
-    }
+
+    // Points rows are positioned with ins less the bank base, by expansion.
+    const auto base = bank.base().value;
+    if (fks.ins_fk.value < base)
+        return error::tx_points_put;
+
+    fks.points_fk = fks.ins_fk.value - base;
+    if (!bank.expand(fks.points_fk.value +
+        possible_narrow_cast<ins_t>(points)))
+        return error::tx_points_put;
 
     fks.outs_fk = store_.outs.allocate(
         possible_narrow_cast<outs_t>(outputs));
@@ -260,7 +267,7 @@ code CLASS::set_code(const block_view& block, const header_link& key,
     accessors ptrs{};
     ptrs.tx = store_.tx.get_memory();
     ptrs.ins = store_.ins.get_memory();
-    if (is_nonzero(staged))
+    if (is_nonzero(points))
         ptrs.points = bank.get_memory();
 
     ptrs.outs = store_.outs.get_memory();
@@ -272,7 +279,7 @@ code CLASS::set_code(const block_view& block, const header_link& key,
     if (!ptrs.input ||
         !ptrs.output ||
         !ptrs.ins ||
-        (is_nonzero(staged) && !ptrs.points) ||
+        (is_nonzero(points) && !ptrs.points) ||
         !ptrs.outs ||
         !ptrs.tx ||
         (address && !ptrs.address))
@@ -289,8 +296,7 @@ code CLASS::set_code(const block_view& block, const header_link& key,
                 return ec;
 
             *it = fks.tx_fk++;
-            fks.points_fk += possible_narrow_cast<ins_t>(tx.is_coinbase() ?
-                zero : tx.inputs());
+            fks.points_fk += possible_narrow_cast<ins_t>(tx.inputs());
             fks.ins_fk    += possible_narrow_cast<ins_t>(tx.inputs());
             fks.outs_fk   += possible_narrow_cast<outs_t>(tx.outputs());
             fks.in_fk     += possible_narrow_cast<in_t>(tx.input_table_size(prune));

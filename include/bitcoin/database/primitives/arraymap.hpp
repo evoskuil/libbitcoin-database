@@ -107,14 +107,8 @@ public:
     /// Return ptr for batch processing, holds shared lock on storage remap.
     inline memory get_memory() const NOEXCEPT;
 
-    /// Head accessor (shared lock), for at(head, key) over many keys.
-    inline memory get_head_memory() const NOEXCEPT;
-
     /// Return element link at key, terminal if not found/error (unverified).
     inline Link at(size_t key) const NOEXCEPT;
-
-    /// Return element link at key using get_head_memory() ptr.
-    inline Link at(const memory& head, size_t key) const NOEXCEPT;
 
     /// True if an instance of object with key exists.
     inline Link exists(size_t key) const NOEXCEPT;
@@ -141,6 +135,11 @@ public:
     /// Each record is committed to its own key, from key.
     template <typename Element, if_equal<Element::size, RowSize> = true>
     bool put(const memory& ptr, const Link& link, size_t key,
+        const Element& element) NOEXCEPT;
+
+    /// Set/complete element at expanded link, using get_memory() ptr (no key).
+    template <typename Element, if_equal<Element::size, RowSize> = true>
+    bool put(const memory& ptr, const Link& link,
         const Element& element) NOEXCEPT;
 
 private:

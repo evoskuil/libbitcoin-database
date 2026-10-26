@@ -446,7 +446,7 @@ BOOST_AUTO_TEST_CASE(store__drop_points__genesis__dropped)
     query<store<database::mmap>> query_{ instance };
     BOOST_REQUIRE(!instance.create(test::events));
     BOOST_REQUIRE(query_.initialize(test::genesis));
-    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), zero);
+    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), schema::points::minrow);
     BOOST_REQUIRE(!instance.drop_points(test::events));
     BOOST_REQUIRE_EQUAL(query_.points0_body_size(), zero);
     BOOST_REQUIRE_EQUAL(instance.points0.base(), one);
@@ -464,19 +464,22 @@ BOOST_AUTO_TEST_CASE(store__drop_points__unbound__dropped)
     BOOST_REQUIRE(!instance.create(test::events));
     BOOST_REQUIRE(query_.initialize(test::genesis));
 
-    const auto tx = spend(genesis_coinbase(), 1u);
+    // The binder keeps the point of a missing prevout across the drop.
+    const auto tx = spend(system::one_hash, 1u);
     BOOST_REQUIRE(archive(query_, tx, 1u));
-    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), schema::points::minrow);
-    BOOST_REQUIRE(query_.get_point(2) == system::chain::point(genesis_coinbase(), 0));
+    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), 3u * schema::points::minrow);
+    BOOST_REQUIRE(query_.get_point(2) == system::chain::point(system::one_hash, 0));
+    BOOST_REQUIRE_EQUAL(query_.bind(header_link{ 1 }), system::error::missing_previous_output);
+    BOOST_REQUIRE_EQUAL(query_.unbound_records(), one);
     BOOST_REQUIRE(!instance.drop_points(test::events));
     BOOST_REQUIRE_EQUAL(instance.points0.base(), 3u);
     BOOST_REQUIRE_EQUAL(query_.points0_body_size(), zero);
     BOOST_REQUIRE_EQUAL(query_.unbound_records(), one);
-    BOOST_REQUIRE(query_.get_point(2) == system::chain::point(genesis_coinbase(), 0));
+    BOOST_REQUIRE(query_.get_point(2) == system::chain::point(system::one_hash, 0));
     BOOST_REQUIRE(!instance.close(test::events));
 }
 
-BOOST_AUTO_TEST_CASE(store__drop_points__pooled__no_points)
+BOOST_AUTO_TEST_CASE(store__drop_points__pooled__dropped)
 {
     settings configuration{};
     configuration.path = TEST_DIRECTORY;
@@ -485,10 +488,10 @@ BOOST_AUTO_TEST_CASE(store__drop_points__pooled__no_points)
     BOOST_REQUIRE(!instance.create(test::events));
     BOOST_REQUIRE(query_.initialize(test::genesis));
 
-    // A pooled tx writes no points, it is bound at archive.
+    // A pooled tx is bound at archive, its points are dropped with the bank.
     const auto tx = spend(genesis_coinbase(), 1u);
     BOOST_REQUIRE(query_.set(tx));
-    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), zero);
+    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), 2u * schema::points::minrow);
     BOOST_REQUIRE(query_.get_point(1) == system::chain::point(genesis_coinbase(), 0));
     BOOST_REQUIRE(!instance.drop_points(test::events));
     BOOST_REQUIRE_EQUAL(instance.points0.base(), 2u);
@@ -520,14 +523,15 @@ BOOST_AUTO_TEST_CASE(store__drop_points__bound__dropped_and_resolved)
     BOOST_REQUIRE_EQUAL(query_.to_spent(2), query_.to_output(0, 0));
     BOOST_REQUIRE(query_.to_spent(1).is_terminal());
 
-    // Later points are keyed from the new base.
+    // Later points are positioned from the new base.
     const auto child = spend(tx.hash(false), 1u);
     BOOST_REQUIRE(archive(query_, child, 2u));
-    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), schema::points::minrow);
+    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), 2u * schema::points::minrow);
     BOOST_REQUIRE(query_.get_point(4) == system::chain::point(tx.hash(false), 0));
+    BOOST_REQUIRE(test::bind(query_, child));
     BOOST_REQUIRE(!instance.drop_points(test::events));
     BOOST_REQUIRE_EQUAL(instance.points0.base(), 5u);
-    BOOST_REQUIRE_EQUAL(query_.unbound_records(), one);
+    BOOST_REQUIRE_EQUAL(query_.unbound_records(), zero);
     BOOST_REQUIRE(query_.get_point(4) == system::chain::point(tx.hash(false), 0));
     BOOST_REQUIRE(!instance.close(test::events));
 }
@@ -544,7 +548,7 @@ BOOST_AUTO_TEST_CASE(store__flip_points__archived__banks_alternate)
 
     const auto tx = spend(genesis_coinbase(), 1u);
     BOOST_REQUIRE(archive(query_, tx, 1u));
-    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), schema::points::minrow);
+    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), 3u * schema::points::minrow);
     BOOST_REQUIRE(!instance.flip_points(test::events));
     BOOST_REQUIRE(instance.get_points_bank());
     BOOST_REQUIRE_EQUAL(instance.points1.base(), 3u);
@@ -552,18 +556,19 @@ BOOST_AUTO_TEST_CASE(store__flip_points__archived__banks_alternate)
     // The next block writes the other bank, both banks are read.
     const auto child = spend(tx.hash(false), 1u);
     BOOST_REQUIRE(archive(query_, child, 2u));
-    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), schema::points::minrow);
-    BOOST_REQUIRE_EQUAL(query_.points1_body_size(), schema::points::minrow);
+    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), 3u * schema::points::minrow);
+    BOOST_REQUIRE_EQUAL(query_.points1_body_size(), 2u * schema::points::minrow);
     BOOST_REQUIRE(query_.get_point(2) == system::chain::point(genesis_coinbase(), 0));
     BOOST_REQUIRE(query_.get_point(4) == system::chain::point(tx.hash(false), 0));
 
-    // The flip drains the first bank, its unbound point is salvaged.
+    // The flip drains the first bank, its bound point resolves through spend.
+    BOOST_REQUIRE(test::bind(query_, tx));
     BOOST_REQUIRE(!instance.flip_points(test::events));
     BOOST_REQUIRE(!instance.get_points_bank());
     BOOST_REQUIRE_EQUAL(instance.points0.base(), 5u);
     BOOST_REQUIRE_EQUAL(query_.points0_body_size(), zero);
-    BOOST_REQUIRE_EQUAL(query_.points1_body_size(), schema::points::minrow);
-    BOOST_REQUIRE_EQUAL(query_.unbound_records(), one);
+    BOOST_REQUIRE_EQUAL(query_.points1_body_size(), 2u * schema::points::minrow);
+    BOOST_REQUIRE_EQUAL(query_.unbound_records(), zero);
     BOOST_REQUIRE(query_.get_point(2) == system::chain::point(genesis_coinbase(), 0));
     BOOST_REQUIRE(!instance.close(test::events));
 }
@@ -586,7 +591,7 @@ BOOST_AUTO_TEST_CASE(store__restore__bound_points__restored)
     BOOST_REQUIRE(test::create(test::flush_lock_file(configuration.path)));
     BOOST_REQUIRE(!instance.restore(test::events));
     BOOST_REQUIRE_EQUAL(instance.points0.base(), zero);
-    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), schema::points::minrow);
+    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), 3u * schema::points::minrow);
     BOOST_REQUIRE(query_.get_point(2) == system::chain::point(genesis_coinbase(), 0));
     BOOST_REQUIRE(!instance.close(test::events));
 }
@@ -634,7 +639,7 @@ BOOST_AUTO_TEST_CASE(store__drop_points__restore_to_prior_snapshot__points_resto
     BOOST_REQUIRE(test::create(test::flush_lock_file(configuration.path)));
     BOOST_REQUIRE(!instance.restore(test::events));
     BOOST_REQUIRE_EQUAL(instance.points0.base(), zero);
-    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), schema::points::minrow);
+    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), 3u * schema::points::minrow);
     BOOST_REQUIRE_EQUAL(query_.unbound_records(), zero);
     BOOST_REQUIRE(query_.get_point(2) == system::chain::point(genesis_coinbase(), 0));
     BOOST_REQUIRE(!instance.close(test::events));

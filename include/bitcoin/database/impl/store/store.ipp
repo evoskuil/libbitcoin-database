@@ -267,6 +267,12 @@ typename CLASS::transactor CLASS::get_transactor() NOEXCEPT
 }
 
 TEMPLATE
+typename CLASS::selector CLASS::get_selector() NOEXCEPT
+{
+    return selector{ selector_mutex_ };
+}
+
+TEMPLATE
 table::ecdsa<Storage>& CLASS::ecdsa_bank(bool bank) NOEXCEPT
 {
     return bank ? ecdsa1 : ecdsa0;
