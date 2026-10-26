@@ -111,9 +111,7 @@ code CLASS::set_code(tx_link& out_fk, bool& pooled,
 TEMPLATE
 tx_link CLASS::to_pooled(const transaction& tx) const NOEXCEPT
 {
-    // The same tx duplicates all of its points, so the first is sufficient.
-    if (tx.is_empty() || tx.is_coinbase() ||
-        !store_.ins.exists(tx.inputs_ptr()->front()->point()))
+    if (tx.is_empty() || tx.is_coinbase())
         return {};
 
     // A duplicate with another witness is not the same tx for validation.
@@ -125,8 +123,8 @@ tx_link CLASS::to_pooled(const transaction& tx) const NOEXCEPT
 }
 
 TEMPLATE
-code CLASS::set_code(const tx_link& tx_fk, const transaction& tx,
-    bool bypass, bool prune) NOEXCEPT
+code CLASS::set_code(const tx_link& tx_fk, const transaction& tx, bool block,
+    bool prune) NOEXCEPT
 {
     // This is the only multitable write query (except initialize/genesis).
 
@@ -152,41 +150,28 @@ code CLASS::set_code(const tx_link& tx_fk, const transaction& tx,
 
     // Allocate contiguously and store outputs.
     output_link out_fk{};
-    if (!store_.output.put_link(out_fk,
-        table::output::put_ref{ {}, tx_fk, tx }))
+    if (!store_.output.put_link(out_fk, table::output::put_ref{ {}, tx }))
         return error::tx_output_put;
 
-    // Allocate ins/point rows and contiguously store input links.
-    // Point elements are set into the same rows following tx set, below.
-    auto ins_fk = store_.ins.allocate(inputs);
-    if (ins_fk.is_terminal())
+    // Allocate contiguously and store ins (spends and points share the link).
+    ins_link ins_fk{};
+    if (!store_.ins.put_link(ins_fk,
+        table::ins::put_ref{ {}, in_fk, tx_fk, tx }))
         return error::tx_ins_put;
 
-    // Ins put is unguarded, the accessor guards its rows against remap.
-    auto insert = store_.ins.get_memory();
-    if (!insert || !store_.ins.sequence.put(ins_fk,
-        table::ins_sequence::put_ref{ {}, in_fk, tx_fk, tx }))
-        return error::tx_ins_put;
+    // A block tx stores points keyed by its ins, a free tx is bound below.
+    if (block && !coinbase && !store_.points_bank(store_.get_points_bank()).put(
+        ins_fk.value, table::points::put_ref{ {}, tx }))
+        return error::tx_points_put;
 
-    insert.reset();
-
-    // Allocate outs/address rows and contiguously store output links.
-    // Address spine elements are committed into the same rows, below.
-    auto outs_fk = store_.outs.allocate(outputs);
-    if (outs_fk.is_terminal())
+    // Allocate contiguously and store outs.
+    outs_link outs_fk{};
+    if (!store_.outs.put_link(outs_fk,
+        table::outs::put_ref{ {}, out_fk, tx_fk, coinbase, tx }))
         return error::tx_outs_put;
-
-    // Outs put is unguarded, the accessor guards its rows against remap
-    // (the puts column accessor, as the spine is unbacked when disabled).
-    auto outsert = store_.outs.template get_memory<one>();
-    if (!outsert || !store_.outs.puts.put(outs_fk,
-        table::outs::put_ref{ {}, out_fk, tx }))
-        return error::tx_outs_put;
-
-    outsert.reset();
 
     // Create tx record.
-    // Commit is deferred for point/address index consistency.
+    // Commit is deferred for address index consistency.
     if (!store_.tx.set(tx_fk, tx.get_hash(false), table::transaction::put_ref
     {
         {},
@@ -200,67 +185,37 @@ code CLASS::set_code(const tx_link& tx_fk, const transaction& tx,
         return error::tx_tx_set;
     }
 
-    // Commit points (hashmap).
-    if (coinbase)
-    {
-        // Should only be one input, but generalized anyway.
-        for (const auto& in: *ins)
-            if (!store_.ins.put(ins_fk++, in->point(),
-                table::ins_point::record{}))
-                return error::tx_null_point_put;
-    }
-    else
-    {
-        // If dirty we must guard against duplicates. Dirty is caused by disk,
-        // full, disorganized or reorganized block, and tx pooling. It is set
-        // to true at runtime by any of these and in case of header table with
-        // multiple rows at startup. disorg/reorg indicated by candidate pop.
-        // Must be set after tx.set and before tx.commit, since searchable and
-        // produces association to tx.link, and is also an integral part of tx.
-        if (store_.is_dirty() || !bypass)
-        {
-            // Collect duplicates to store in duplicate table.
-            std::vector<chain::point> twins{};
-            auto ptr = store_.ins.get_memory();
-            for (const auto& in: *ins)
-            {
-                bool duplicate{};
-                if (!store_.ins.put(duplicate, ptr, ins_fk++, in->point(),
-                    table::ins_point::record{}))
-                    return error::tx_point_put;
-
-                if (duplicate)
-                    twins.push_back(in->point());
-            }
-
-            ptr.reset();
-
-            // tx_duplicate_put implies link domain overflow (2^24).
-            for (const auto& twin: twins)
-                if (!store_.duplicate.exists(twin))
-                    if (!store_.duplicate.put(twin, table::duplicate::record{}))
-                        return error::tx_duplicate_put;
-        }
-        else
-        {
-            auto ptr = store_.ins.get_memory();
-            for (const auto& in: *ins)
-                if (!store_.ins.put(ptr, ins_fk++, in->point(),
-                    table::ins_point::record{}))
-                    return error::tx_point_put;
-
-            ptr.reset();
-        }
-    }
-
-    // Commit address index records (hashmap, rows shared with outs).
+    // Commit address index records (hashmap, rows positioned with outs).
     if (address_enabled())
     {
+        if (!store_.address.expand(outs_fk + outputs))
+            return error::tx_address_put;
+
         auto ad_fk = outs_fk;
-        const auto ptr = store_.outs.get_memory();
+        const auto ptr = store_.address.get_memory();
         for (const auto& output: *ous)
-            if (!store_.outs.commit(ptr, ad_fk++, { output->script().hash() }))
+            if (!store_.address.push(ptr, ad_fk++, { output->script().hash() }))
                 return error::tx_address_put;
+
+        store_.address.complete(outs_fk.value, outputs);
+    }
+
+    // A free tx is bound before it is committed to search.
+    if (!block && !coinbase)
+    {
+        binds values{};
+        values.reserve(inputs);
+        auto fk = ins_fk.value;
+        for (const auto& in: *ins)
+        {
+            const outs_link spent{ in->metadata.output_link };
+            values.emplace_back(fk++, spent.is_terminal() ?
+                to_output(in->point()).value : spent.value);
+        }
+
+        const auto ec = bind(tx_fk, values);
+        if (ec && (ec != system::error::missing_previous_output))
+            return ec;
     }
 
     // Commit tx to search (hashmap).
@@ -423,7 +378,7 @@ code CLASS::set_code(header_link& out_fk, const block& block, bool strong,
 
 TEMPLATE
 code CLASS::set_code(const block& block, const header_link& key,
-    bool strong, bool bypass, size_t height, bool prune) NOEXCEPT
+    bool strong, bool, size_t height, bool prune) NOEXCEPT
 {
     using namespace system;
     if (key.is_terminal())
@@ -453,7 +408,7 @@ code CLASS::set_code(const block& block, const header_link& key,
     {
         if (*it == tx_link::terminal)
         {
-            if ((ec = set_code(fk, *tx, bypass, prune)))
+            if ((ec = set_code(fk, *tx, true, prune)))
                 return ec;
 
             *it = fk++;

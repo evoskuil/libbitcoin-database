@@ -116,6 +116,41 @@ extern const system::chain::block block_spend_internal_locked_1a;
 extern const system::chain::block block_spend_internal_disabled_1a;
 extern const system::chain::block block_spend_internal_unlocked_1a;
 
+/// Bind each resolvable input of the archived tx/block (as validation would).
+template <typename Query>
+bool bind(Query& query, const system::chain::transaction& tx) NOEXCEPT
+{
+    if (tx.is_coinbase())
+        return true;
+
+    const auto link = query.to_tx(tx.hash(false));
+    if (link.is_terminal())
+        return false;
+
+    uint32_t index{};
+    for (const auto& in: *tx.inputs_ptr())
+    {
+        const auto spent = query.to_output(in->point());
+        const auto point = query.to_point(link, index);
+        if (!spent.is_terminal() && !query.spend(point, spent))
+            return false;
+
+        ++index;
+    }
+
+    return true;
+}
+
+template <typename Query>
+bool bind(Query& query, const system::chain::block& block) NOEXCEPT
+{
+    for (const auto& tx: *block.transactions_ptr())
+        if (!bind(query, *tx))
+            return false;
+
+    return true;
+}
+
 bool setup_three_block_store(query_t& query) NOEXCEPT;
 bool setup_three_block_witness_store(query_t& query) NOEXCEPT;
 bool setup_three_block_confirmed_address_store(query_t& query) NOEXCEPT;

@@ -53,19 +53,16 @@ BOOST_AUTO_TEST_CASE(query_wire_writer__set_block_view__genesis__expected)
         "00000000"     // point_fk-> (ins_fk)
         "00000000");   // outs_fk->
     const auto genesis_outs_body = system::base16_chunk(
-        "0000000000"); // output0_fk->
+        "0000000000"   // output0_fk->
+        "00000080");   // parent_fk-> (coinbase merged)
     const auto genesis_output_body = system::base16_chunk(
-        "00000000"     // parent_fk->
         "ff00f2052a01000000" // value
         "434104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac"); // script
     const auto genesis_ins_body = system::base16_chunk(
-        "ffffffff"     // next->
-        "0000000000000000000000000000000000000000000000000000000000000000"
-        "ffffff");     // index
-    const auto genesis_sequence_body = system::base16_chunk(
         "ffffffff"     // sequence
         "0000000000"   // input_fk-> (coinbase)
         "00000000");   // parent_fk->
+    const system::data_chunk genesis_points_body{};
     const auto genesis_input_body = system::base16_chunk(
         "4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73" // script
         "00");         // witness
@@ -81,7 +78,6 @@ BOOST_AUTO_TEST_CASE(query_wire_writer__set_block_view__genesis__expected)
     settings settings{};
     settings.header.buckets = 8;
     settings.tx.buckets = 8;
-    settings.ins.buckets = 8;
     settings.txs.buckets = 16;
     settings.path = TEST_DIRECTORY;
     test::chunk_store store{ settings };
@@ -99,7 +95,7 @@ BOOST_AUTO_TEST_CASE(query_wire_writer__set_block_view__genesis__expected)
     BOOST_CHECK_EQUAL(store.header_body(), genesis_header_body);
     BOOST_CHECK_EQUAL(store.tx_body(), genesis_tx_body);
     BOOST_CHECK_EQUAL(store.ins_body(), genesis_ins_body);
-    BOOST_CHECK_EQUAL(store.ins_sequence_body(), genesis_sequence_body);
+    BOOST_CHECK_EQUAL(store.points0_body(), genesis_points_body);
     BOOST_CHECK_EQUAL(store.input_body(), genesis_input_body);
     BOOST_CHECK_EQUAL(store.output_body(), genesis_output_body);
     BOOST_CHECK_EQUAL(store.outs_body(), genesis_outs_body);
@@ -133,14 +129,15 @@ BOOST_AUTO_TEST_CASE(query_wire_writer__set_block_view__not_pooling_pooled_tx__w
     BOOST_REQUIRE(view.is_valid());
     BOOST_REQUIRE_EQUAL(query.set_code(view, false, false), error::success);
     BOOST_REQUIRE_EQUAL(query.tx_records(), 4u);
-    BOOST_REQUIRE_EQUAL(query.duplicate_records(), 2u);
     BOOST_REQUIRE(query.to_tx(test::tx4.hash(false)) != pooled);
 }
 
 BOOST_AUTO_TEST_CASE(query_wire_writer__set_block_view__pooling_pooled_tx__substituted)
 {
     using namespace system::chain;
-    const block block{ header{ 0x31323334, test::block0_hash, system::hash_digest{ 0xf4 }, 0x41424344, 0x51525354, 0x61626364 }, transactions{ transaction{ 0xb1, inputs{ input{ point{}, script{ { { opcode::size } } }, witness{}, 0xb1 } }, outputs{ output{ 0x42, script{ { { opcode::pick } } } } }, 0xc1 }, test::tx4 } };
+    const auto& genesis_coinbase = *test::genesis.transactions_ptr()->front();
+    const transaction spender{ 1, inputs{ input{ point{ genesis_coinbase.hash(false), 0 }, script{}, witness{}, max_uint32 } }, outputs{ output{ 1, script{} } }, 0 };
+    const block block{ header{ 0x31323334, test::block0_hash, system::hash_digest{ 0xf4 }, 0x41424344, 0x51525354, 0x61626364 }, transactions{ transaction{ 0xb1, inputs{ input{ point{}, script{ { { opcode::size } } }, witness{}, 0xb1 } }, outputs{ output{ 0x42, script{ { { opcode::pick } } } } }, 0xc1 }, spender } };
 
     settings settings{};
     settings.path = TEST_DIRECTORY;
@@ -151,21 +148,21 @@ BOOST_AUTO_TEST_CASE(query_wire_writer__set_block_view__pooling_pooled_tx__subst
     store.set_pooling();
 
     tx_link pooled{};
-    BOOST_REQUIRE_EQUAL(query.set_code(pooled, test::tx4), error::success);
+    BOOST_REQUIRE_EQUAL(query.set_code(pooled, spender), error::success);
+    BOOST_REQUIRE(test::bind(query, spender));
     BOOST_REQUIRE_EQUAL(query.tx_records(), 2u);
     BOOST_REQUIRE(query.set(block.header(), database::context{ 0, 1, 0 }, {}, false));
     view::block view{ block.to_data(true), true };
     BOOST_REQUIRE(view.is_valid());
     BOOST_REQUIRE_EQUAL(query.set_code(view, false, false), error::success);
     BOOST_REQUIRE_EQUAL(query.tx_records(), 3u);
-    BOOST_REQUIRE_EQUAL(query.duplicate_records(), 0u);
-    BOOST_REQUIRE(query.to_tx(test::tx4.hash(false)) == pooled);
+    BOOST_REQUIRE(query.to_tx(spender.hash(false)) == pooled);
 
     const auto link = query.to_header(block.hash());
     const auto pointer = query.get_block(link, true);
     BOOST_REQUIRE(pointer);
     BOOST_REQUIRE_EQUAL(pointer->transactions(), 2u);
-    BOOST_REQUIRE_EQUAL(pointer->transactions_ptr()->back()->hash(false), test::tx4.hash(false));
+    BOOST_REQUIRE_EQUAL(pointer->transactions_ptr()->back()->hash(false), spender.hash(false));
     BOOST_REQUIRE(query.set_strong(link));
     BOOST_REQUIRE(query.is_strong_tx(pooled));
 }
@@ -190,7 +187,6 @@ BOOST_AUTO_TEST_CASE(query_wire_writer__set_block_view__pooling_conflict__writte
     BOOST_REQUIRE(view.is_valid());
     BOOST_REQUIRE_EQUAL(query.set_code(view, false, false), error::success);
     BOOST_REQUIRE_EQUAL(query.tx_records(), 4u);
-    BOOST_REQUIRE_EQUAL(query.duplicate_records(), 1u);
 }
 
 BOOST_AUTO_TEST_CASE(query_wire_writer__set_block_view__pooling_malleated_tx__written)

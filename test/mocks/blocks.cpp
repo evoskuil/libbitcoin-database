@@ -305,11 +305,16 @@ bool setup_three_block_confirmed_address_store(query_t& query) NOEXCEPT
     return query.initialize(genesis) &&
         query.set(block1a, database::context{ 0, 1, 0 }, {}, false, false) &&
         query.set(block2a, database::context{ 0, 2, 0 }, {}, false, false) &&
+        bind(query, block2a) &&
         query.set(test::tx4) &&
+        bind(query, test::tx4) &&
         query.set(test::tx5) &&
+        bind(query, test::tx5) &&
         query.set(block3a, database::context{ 0, 3, 0 }, {}, false, false) &&
+        bind(query, block3a) &&
         query.set(block1b, database::context{ 0, 1, 0 }, {}, false, false) &&
         query.set(block2b, database::context{ 0, 2, 0 }, {}, false, false) &&
+        bind(query, block2b) &&
         query.push_confirmed(query.to_header(block1a.hash()), true) &&
         query.push_confirmed(query.to_header(block2a.hash()), true) &&
         query.push_confirmed(query.to_header(block3a.hash()), true);
@@ -320,9 +325,13 @@ bool setup_three_block_unconfirmed_address_store(query_t& query) NOEXCEPT
     return query.initialize(genesis) &&
         query.set(block1a, database::context{ 0, 1, 0 }, {}, false, false) &&
         query.set(block2a, database::context{ 0, 2, 0 }, {}, false, false) &&
+        bind(query, block2a) &&
         query.set(test::tx4) &&
+        bind(query, test::tx4) &&
         query.set(test::tx5) &&
-        query.set(block3a, database::context{ 0, 3, 0 }, {}, false, false);
+        bind(query, test::tx5) &&
+        query.set(block3a, database::context{ 0, 3, 0 }, {}, false, false) &&
+        bind(query, block3a);
 }
 
 // Setting block metadata on a shared instance creates test side effects.

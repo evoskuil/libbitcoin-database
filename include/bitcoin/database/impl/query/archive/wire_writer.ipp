@@ -31,9 +31,8 @@ namespace database {
 // preallocated by the block writer. No allocation may occur under accessors.
 
 TEMPLATE
-code CLASS::set_code(std::vector<point>& twins, const accessors& ptrs,
-    const allocation& fks, const transaction_view& tx, bool bypass,
-    bool prune) NOEXCEPT
+code CLASS::set_code(const accessors& ptrs, const allocation& fks,
+    const transaction_view& tx, bool prune) NOEXCEPT
 {
     using namespace system;
     using ix = linkage<schema::index>;
@@ -54,24 +53,26 @@ code CLASS::set_code(std::vector<point>& twins, const accessors& ptrs,
 
     // Contiguously store outputs (preallocated).
     if (!store_.output.put(ptrs.output, fks.out_fk,
-        table::output::put_view{ {}, fks.tx_fk, tx }))
+        table::output::put_view{ {}, tx }))
         return error::tx_output_put;
 
-    // Contiguously store input links (preallocated, rows shared with points).
-    // Point elements are set into the same rows following tx set, below.
-    // The caller's ins accessor guards raw sequence writes against remap.
-    if (!store_.ins.sequence.put(fks.ins_fk,
-        table::ins_sequence::put_view{ {}, fks.in_fk, fks.tx_fk, tx }))
+    // Contiguously store ins (preallocated).
+    if (!store_.ins.put(ptrs.ins, fks.ins_fk,
+        table::ins::put_view{ {}, fks.in_fk, fks.tx_fk, tx }))
         return error::tx_ins_put;
 
-    // Contiguously store output links (preallocated, rows shared with the
-    // address spine). The caller's outs accessor guards against remap.
-    if (!store_.outs.puts.put(fks.outs_fk,
-        table::outs::put_view{ {}, fks.out_fk, tx }))
+    // Contiguously store points (preallocated, keyed by ins).
+    if (!coinbase && !store_.points_bank(fks.bank).put(ptrs.points,
+        fks.points_fk, fks.ins_fk.value, table::points::put_view{ {}, tx }))
+        return error::tx_points_put;
+
+    // Contiguously store outs (preallocated).
+    if (!store_.outs.put(ptrs.outs, fks.outs_fk,
+        table::outs::put_view{ {}, fks.out_fk, fks.tx_fk, coinbase, tx }))
         return error::tx_outs_put;
 
     // Create tx record (preallocated).
-    // Commit is deferred for point/address index consistency.
+    // Commit is deferred for address index consistency.
     if (!store_.tx.set(ptrs.tx, fks.tx_fk, tx.hash(false),
         table::transaction::put_view
         {
@@ -86,69 +87,7 @@ code CLASS::set_code(std::vector<point>& twins, const accessors& ptrs,
         return error::tx_tx_set;
     }
 
-    auto ins_fk = fks.ins_fk;
-    auto ins = tx.get_inputs_stream();
-    read::bytes::fast isource{ ins };
-
-    // Commit points (hashmap).
-    if (coinbase)
-    {
-        // Should only be one input, but generalized anyway.
-        for (size_t in{}; in < inputs; ++in)
-        {
-            // Should always be a null point - but could be invalid.
-            if (!store_.ins.put(ptrs.ins, ins_fk++, chain::point(isource),
-                table::ins_point::record{}))
-                return error::tx_null_point_put;
-
-            // Skip script and sequence.
-            isource.skip_bytes(isource.read_size());
-            isource.skip_bytes(sizeof(uint32_t));
-        }
-    }
-    else
-    {
-        if (store_.is_dirty() || !bypass)
-        {
-            // Collect duplicates for deferred store in duplicate table.
-            for (size_t in{}; in < inputs; ++in)
-            {
-                bool duplicate{};
-                if (!store_.ins.put(duplicate, ptrs.ins, ins_fk++,
-                    chain::point(isource), table::ins_point::record{}))
-                    return error::tx_point_put;
-
-                if (duplicate)
-                {
-                    isource.rewind_bytes(chain::point::serialized_size());
-                    twins.push_back(chain::point(isource));
-                }
-
-                // Skip script and sequence.
-                isource.skip_bytes(isource.read_size());
-                isource.skip_bytes(sizeof(uint32_t));
-            }
-        }
-        else
-        {
-            for (size_t in{}; in < inputs; ++in)
-            {
-                if (!store_.ins.put(ptrs.ins, ins_fk++, chain::point(isource),
-                    table::ins_point::record{}))
-                    return error::tx_point_put;
-
-                // Skip script and sequence.
-                isource.skip_bytes(isource.read_size());
-                isource.skip_bytes(sizeof(uint32_t));
-            }
-        }
-    }
-
-    BC_ASSERT(isource);
-    if (!isource)
-        return error::tx_null_point_put;
-
-    // Commit address index records (hashmap, rows shared with outs).
+    // Commit address index records (hashmap, rows positioned with outs).
     if (address_enabled())
     {
         auto ad_fk = fks.outs_fk;
@@ -160,10 +99,12 @@ code CLASS::set_code(std::vector<point>& twins, const accessors& ptrs,
             osource.skip_bytes(sizeof(uint64_t));
             const auto bytes = osource.read_size();
 
-            if (!store_.outs.commit(ptrs.outs, ad_fk++,
+            if (!store_.address.push(ptrs.address, ad_fk++,
                 { sha256_hash(osource.read_bytes(bytes)) }))
                 return error::tx_address_put;
         }
+
+        store_.address.complete(fks.outs_fk.value, outputs);
 
         BC_ASSERT(osource);
         if (!osource)
@@ -178,15 +119,7 @@ code CLASS::set_code(std::vector<point>& twins, const accessors& ptrs,
 TEMPLATE
 tx_link CLASS::to_pooled(const transaction_view& tx) const NOEXCEPT
 {
-    using namespace system;
-
-    // The same tx duplicates all of its points, so the first is sufficient.
     if (tx.is_coinbase())
-        return {};
-
-    auto ins = tx.get_inputs_stream();
-    read::bytes::fast isource{ ins };
-    if (!store_.ins.exists(chain::point(isource)))
         return {};
 
     // One tx with distinct witnesses can both validate unconfirmed, so guard.
@@ -228,7 +161,7 @@ code CLASS::set_code(header_link& out_fk, const block_view& block,
 
 TEMPLATE
 code CLASS::set_code(const block_view& block, const header_link& key,
-    bool strong, bool bypass, size_t height, bool prune) NOEXCEPT
+    bool strong, bool, size_t height, bool prune) NOEXCEPT
 {
     using namespace system;
     using in_t = input_link::integer;
@@ -244,8 +177,8 @@ code CLASS::set_code(const block_view& block, const header_link& key,
         return error::txs_empty;
 
     // Sum full block allocation for each table from cached view metadata.
-    // Output rows are parent fk prefixed (see table::output::put_view).
     size_t points{};
+    size_t staged{};
     size_t outputs{};
     size_t input_bytes{};
     size_t output_bytes{};
@@ -265,9 +198,10 @@ code CLASS::set_code(const block_view& block, const header_link& key,
         }
 
         points += tx.inputs();
+        staged += tx.is_coinbase() ? zero : tx.inputs();
         outputs += tx.outputs();
         input_bytes += tx.input_table_size(prune);
-        output_bytes += tx.outputs() * tx_link::size + tx.output_table_size();
+        output_bytes += tx.output_table_size();
     }
 
     // Optional hash, only has value on height intervals.
@@ -301,48 +235,66 @@ code CLASS::set_code(const block_view& block, const header_link& key,
     if (fks.ins_fk.is_terminal())
         return error::tx_ins_put;
 
+    fks.bank = store_.get_points_bank();
+    auto& bank = store_.points_bank(fks.bank);
+    if (is_nonzero(staged))
+    {
+        fks.points_fk = bank.allocate(possible_narrow_cast<ins_t>(staged));
+        if (fks.points_fk.is_terminal())
+            return error::tx_points_put;
+    }
+
     fks.outs_fk = store_.outs.allocate(
         possible_narrow_cast<outs_t>(outputs));
     if (fks.outs_fk.is_terminal())
         return error::tx_outs_put;
+
+    // Address rows are positioned with outs by expansion.
+    const auto address = address_enabled();
+    if (address && !store_.address.expand(fks.outs_fk +
+        possible_narrow_cast<outs_t>(outputs)))
+        return error::tx_address_put;
 
     // Guard all tables against remap for the duration of the block write.
     // No table may be allocated while any of these accessors are held.
     accessors ptrs{};
     ptrs.tx = store_.tx.get_memory();
     ptrs.ins = store_.ins.get_memory();
-    ptrs.outs = address_enabled() ? store_.outs.get_memory() :
-        store_.outs.template get_memory<one>();
+    if (is_nonzero(staged))
+        ptrs.points = bank.get_memory();
+
+    ptrs.outs = store_.outs.get_memory();
     ptrs.input  = store_.input.get_memory();
     ptrs.output = store_.output.get_memory();
+    if (address)
+        ptrs.address = store_.address.get_memory();
 
     if (!ptrs.input ||
         !ptrs.output ||
         !ptrs.ins ||
+        (is_nonzero(staged) && !ptrs.points) ||
         !ptrs.outs ||
-        !ptrs.tx)
+        !ptrs.tx ||
+        (address && !ptrs.address))
         return error::unloaded_file;
 
     // Write all txs into their preallocated rows (write order preserved).
     code ec{};
-    std::vector<point> twins{};
     it = links.begin();
     for (const auto& tx: views)
     {
         if (*it == tx_link::terminal)
         {
-            if ((ec = set_code(twins, ptrs, fks, tx, bypass, prune)))
+            if ((ec = set_code(ptrs, fks, tx, prune)))
                 return ec;
 
-            // Output rows are parent fk prefixed (see table::output::put_view).
-            const auto out_bytes = tx.outputs() * tx_link::size +
-                tx.output_table_size();
-
             *it = fks.tx_fk++;
-            fks.ins_fk  += possible_narrow_cast<ins_t>(tx.inputs());
-            fks.outs_fk += possible_narrow_cast<outs_t>(tx.outputs());
-            fks.in_fk   += possible_narrow_cast<in_t>(tx.input_table_size(prune));
-            fks.out_fk  += possible_narrow_cast<out_t>(out_bytes);
+            fks.points_fk += possible_narrow_cast<ins_t>(tx.is_coinbase() ?
+                zero : tx.inputs());
+            fks.ins_fk    += possible_narrow_cast<ins_t>(tx.inputs());
+            fks.outs_fk   += possible_narrow_cast<outs_t>(tx.outputs());
+            fks.in_fk     += possible_narrow_cast<in_t>(tx.input_table_size(prune));
+            fks.out_fk    += possible_narrow_cast<out_t>(tx.output_table_size());
         }
 
         ++it;
@@ -351,16 +303,11 @@ code CLASS::set_code(const block_view& block, const header_link& key,
     // Release all accessors (subsequent writes allocate).
     ptrs.tx.reset();
     ptrs.ins.reset();
+    ptrs.points.reset();
     ptrs.outs.reset();
     ptrs.input.reset();
     ptrs.output.reset();
-
-    // As few duplicates are expected, duplicate domain is only 2^16.
-    // Return of tx_duplicate_put implies link domain has overflowed.
-    for (const auto& twin: twins)
-        if (!store_.duplicate.exists(twin))
-            if (!store_.duplicate.put(twin, table::duplicate::record{}))
-                return error::tx_duplicate_put;
+    ptrs.address.reset();
 
     return set_txs(key, std::move(links), light, heavy, std::move(interval),
         strong);

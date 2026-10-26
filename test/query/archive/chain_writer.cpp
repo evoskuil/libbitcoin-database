@@ -159,7 +159,8 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_tx__empty__expected)
 {
     const system::chain::transaction tx{};
     const auto expected_head5_array = system::base16_chunk("0000000000");
-    const auto expected_outs_head = system::base16_chunk(
+    const auto expected_outs_head = system::base16_chunk("00000000");
+    const auto expected_address_head = system::base16_chunk(
         "00000000"   // record count
         "ffffffff"   // bucket[0]
         "ffffffff");// bucket[1]
@@ -184,7 +185,7 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_tx__empty__expected)
     // data_chunk store.
     settings settings{};
     settings.tx.buckets = 8;
-    settings.outs.buckets = 2;
+    settings.address.buckets = 2;
     settings.path = TEST_DIRECTORY;
     test::chunk_store store{ settings };
     test::query_accessor query{ store };
@@ -197,6 +198,7 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_tx__empty__expected)
     BOOST_CHECK_EQUAL(store.input_head(), expected_head5_array);
     BOOST_CHECK_EQUAL(store.output_head(), expected_head5_array);
     BOOST_CHECK_EQUAL(store.outs_head(), expected_outs_head);
+    BOOST_CHECK_EQUAL(store.address_head(), expected_address_head);
     BOOST_CHECK_EQUAL(store.tx_body().size(), schema::transaction::minrow);
     BOOST_CHECK(store.ins_body().empty());
     BOOST_CHECK(store.input_body().empty());
@@ -241,30 +243,25 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_link_tx__null_input__expected)
         "010000"       // outs_count
         "00000000"     // point_fk-> (ins_fk)
         "00000000");   // outs_fk->
-    const auto expected_outs_head = system::base16_chunk(
+    const auto expected_outs_head = system::base16_chunk("01000000");
+    const auto expected_address_head = system::base16_chunk(
         "01000000"   // record count
         "00000000"   // bucket[0] (link->0)
         "ffffffff");// bucket[1]
     const auto expected_address_body = system::base16_chunk(
         "ffffffff");  // next->end
     const auto expected_outs_body = system::base16_chunk(
-        "0000000000"); // output0_fk->
-    const auto expected_output_head = system::base16_chunk("0600000000");
+        "0000000000"   // output0_fk->
+        "00000080");   // parent_fk-> (coinbase merged)
+    const auto expected_output_head = system::base16_chunk("0200000000");
     const auto expected_output_body = system::base16_chunk(
-        "00000000"     // parent_fk->
         "00"           // value
         "00");         // script
     const auto expected_ins_body = system::base16_chunk(
-        "ffffffff"     // next->
-        "0000000000000000000000000000000000000000000000000000000000000000"
-        "ffffff");     // index
-    ////const auto expected_spend_head = system::base16_chunk(
-    ////    "01000000"     // record count
-    ////    "00000000"     // pk->
-    ////    "ffffffff"
-    ////    "ffffffff"
-    ////    "ffffffff"
-    ////    "ffffffff");
+        "00000000"     // sequence
+        "0000000000"   // input_fk->
+        "00000000");   // parent_fk->
+    const system::data_chunk expected_points_body{};
     ////const auto expected_spend_body = system::base16_chunk(
     ////    "ffffffff"     // terminal->
     ////    "00000000"     // fp: point_stub
@@ -283,8 +280,7 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_link_tx__null_input__expected)
     // data_chunk store.
     settings settings{};
     settings.tx.buckets = 8;
-    settings.ins.buckets = 8;
-    settings.outs.buckets = 2;
+    settings.address.buckets = 2;
     settings.path = TEST_DIRECTORY;
     test::chunk_store store{ settings };
     test::query_accessor query{ store };
@@ -296,15 +292,15 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_link_tx__null_input__expected)
     BOOST_CHECK_EQUAL(store.input_head(), expected_input_head);
     BOOST_CHECK_EQUAL(store.output_head(), expected_output_head);
     BOOST_CHECK_EQUAL(store.outs_head(), expected_outs_head);
-    ////BOOST_CHECK_EQUAL(store.spend_head(), expected_spend_head);
+    BOOST_CHECK_EQUAL(store.address_head(), expected_address_head);
 
     BOOST_CHECK_EQUAL(store.tx_body(), expected_tx_body);
     BOOST_CHECK_EQUAL(store.ins_body(), expected_ins_body);
+    BOOST_CHECK_EQUAL(store.points0_body(), expected_points_body);
     BOOST_CHECK_EQUAL(store.input_body(), expected_input_body);
     BOOST_CHECK_EQUAL(store.output_body(), expected_output_body);
     BOOST_CHECK_EQUAL(store.outs_body(), expected_outs_body);
     BOOST_CHECK_EQUAL(store.address_body(), expected_address_body);
-    ////BOOST_CHECK_EQUAL(store.spend_body(), expected_spend_body);
 }
 
 BOOST_AUTO_TEST_CASE(query_chain_writer__set_tx__get_tx__expected)
@@ -366,7 +362,8 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_tx__get_tx__expected)
         "020000"       // outs_count
         "00000000"     // point_fk-> (ins_fk)
         "00000000");   // outs_fk->
-    const auto expected_outs_head = system::base16_chunk(
+    const auto expected_outs_head = system::base16_chunk("02000000");
+    const auto expected_address_head = system::base16_chunk(
         "02000000"   // record count
         "ffffffff"   // bucket[0]
         "01000000");// bucket[1] (link->1)
@@ -375,29 +372,23 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_tx__get_tx__expected)
         "00000000");  // next->0
     const auto expected_outs_body = system::base16_chunk(
         "0000000000"   // output0_fk->
-        "0700000000"); // output1_fk->
-    const auto expected_output_head = system::base16_chunk("0e00000000");
-    const auto expected_output_body = system::base16_chunk(
         "00000000"     // parent_fk->
+        "0300000000"   // output1_fk->
+        "00000000");   // parent_fk->
+    const auto expected_output_head = system::base16_chunk("0600000000");
+    const auto expected_output_body = system::base16_chunk(
         "18"           // value
         "0179"         // script
-        "00000000"     // parent_fk->
         "2a"           // value
         "017a");       // script
     const auto expected_ins_body = system::base16_chunk(
-        "ffffffff"     // next->
-        "0100000000000000000000000000000000000000000000000000000000000000"
-        "180000"       // index
-        "ffffffff"     // next->
-        "0100000000000000000000000000000000000000000000000000000000000000"
-        "2a0000");     // index
-    ////const auto expected_spend_head = system::base16_chunk(
-    ////    "02000000"     // record count
-    ////    "00000000"     // spend0_fk->
-    ////    "ffffffff"
-    ////    "ffffffff"
-    ////    "01000000"     // spend1_fk->
-    ////    "ffffffff");
+        "2a000000"     // sequence
+        "0000000000"   // input_fk->
+        "00000000"     // parent_fk->
+        "18000000"     // sequence
+        "0800000000"   // input_fk->
+        "00000000");   // parent_fk->
+    const system::data_chunk expected_points_body{};
     ////const auto expected_spend_body = system::base16_chunk(
     ////    "ffffffff"     // terminal->
     ////    "01000000"     // fp: point_stub
@@ -427,8 +418,7 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_tx__get_tx__expected)
     // data_chunk store.
     settings settings{};
     settings.tx.buckets = 8;
-    settings.ins.buckets = 8;
-    settings.outs.buckets = 2;
+    settings.address.buckets = 2;
     settings.path = TEST_DIRECTORY;
     test::chunk_store store{ settings };
     test::query_accessor query{ store };
@@ -437,25 +427,23 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_tx__get_tx__expected)
     BOOST_CHECK(query.set(tx));
     BOOST_CHECK(query.is_tx(tx.hash(false)));
 
-    const auto pointer = query.get_transaction(query.to_tx(tx_hash), true);
-    BOOST_CHECK(pointer);
-    BOOST_CHECK(*pointer == tx);
-    BOOST_CHECK_EQUAL(pointer->hash(false), tx_hash);
+    // A pooled tx has no point until bound, and its parent is not archived.
+    BOOST_CHECK(!query.get_transaction(query.to_tx(tx_hash), true));
     BOOST_CHECK(!store.close(test::events_handler));
 
     BOOST_CHECK_EQUAL(store.tx_head(), expected_tx_head);
     BOOST_CHECK_EQUAL(store.input_head(), expected_input_head);
     BOOST_CHECK_EQUAL(store.output_head(), expected_output_head);
     BOOST_CHECK_EQUAL(store.outs_head(), expected_outs_head);
-    ////BOOST_CHECK_EQUAL(store.spend_head(), expected_spend_head);
+    BOOST_CHECK_EQUAL(store.address_head(), expected_address_head);
 
     BOOST_CHECK_EQUAL(store.tx_body(), expected_tx_body);
     BOOST_CHECK_EQUAL(store.ins_body(), expected_ins_body);
+    BOOST_CHECK_EQUAL(store.points0_body(), expected_points_body);
     BOOST_CHECK_EQUAL(store.input_body(), expected_input_body);
     BOOST_CHECK_EQUAL(store.output_body(), expected_output_body);
     BOOST_CHECK_EQUAL(store.outs_body(), expected_outs_body);
     BOOST_CHECK_EQUAL(store.address_body(), expected_address_body);
-    ////BOOST_CHECK_EQUAL(store.spend_body(), expected_spend_body);
 }
 
 BOOST_AUTO_TEST_CASE(query_chain_writer__set_block__get_block__expected)
@@ -507,39 +495,26 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_block__get_block__expected)
         "010000"       // outs_count
         "00000000"     // point_fk-> (ins_fk)
         "00000000");   // outs_fk->
-    const auto genesis_outs_head = system::base16_chunk(
+    const auto genesis_outs_head = system::base16_chunk("01000000");
+    const auto genesis_address_head = system::base16_chunk(
         "01000000"   // record count
         "ffffffff"   // bucket[0]
         "00000000");// bucket[1] (link->0)
     const auto genesis_address_body = system::base16_chunk(
         "ffffffff");  // next->end
     const auto genesis_outs_body = system::base16_chunk(
-        "0000000000"); // output0_fk->
-    const auto genesis_output_head = system::base16_chunk("5100000000");
+        "0000000000"   // output0_fk->
+        "00000080");   // parent_fk-> (coinbase merged)
+    const auto genesis_input_head = system::base16_chunk("4f00000000");
+    const auto genesis_output_head = system::base16_chunk("4d00000000");
     const auto genesis_output_body = system::base16_chunk(
-        "00000000"     // parent_fk->
         "ff00f2052a01000000" // value
         "434104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac"); // script
     const auto genesis_ins_body = system::base16_chunk(
-        "ffffffff"     // next->
-        "0000000000000000000000000000000000000000000000000000000000000000"
-        "ffffff");     // index
-    const auto genesis_spend_head = system::base16_chunk(
-        "01000000"     // record count
-        "00000000"     // spend0_fk->
-        "ffffffff"
-        "ffffffff"
-        "ffffffff"
-        "ffffffff");
-    const auto genesis_spend_body = system::base16_chunk(
-        "ffffffff"     // terminal->
-        "00000000"     // fp: point_stub
-        "ffffff"       // fp: point_index (null)
-        "ffffffff"     // point_fk->
-        "00000000"     // parent_fk->
         "ffffffff"     // sequence
-        "0000000000"); // input_fk-> (coinbase)
-    const auto genesis_input_head = system::base16_chunk("4f00000000");
+        "0000000000"   // input_fk-> (coinbase)
+        "00000000");   // parent_fk->
+    const system::data_chunk genesis_points_body{};
     const auto genesis_input_body = system::base16_chunk(
         "4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73" // script
         "00");         // witness
@@ -573,9 +548,8 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_block__get_block__expected)
     settings settings{};
     settings.header.buckets = 8;
     settings.tx.buckets = 8;
-    settings.ins.buckets = 8;
     settings.txs.buckets = 16;
-    settings.outs.buckets = 2;
+    settings.address.buckets = 2;
     settings.path = TEST_DIRECTORY;
     test::chunk_store store{ settings };
     test::query_accessor query{ store };
@@ -595,15 +569,16 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_block__get_block__expected)
     BOOST_CHECK_EQUAL(store.input_head(), genesis_input_head);
     BOOST_CHECK_EQUAL(store.output_head(), genesis_output_head);
     BOOST_CHECK_EQUAL(store.outs_head(), genesis_outs_head);
-    ////BOOST_CHECK_EQUAL(store.spend_head(), genesis_spend_head);
+    BOOST_CHECK_EQUAL(store.address_head(), genesis_address_head);
     BOOST_CHECK_EQUAL(store.txs_head(), genesis_txs_head);
 
     BOOST_CHECK_EQUAL(store.header_body(), genesis_header_body);
     BOOST_CHECK_EQUAL(store.tx_body(), genesis_tx_body);
     BOOST_CHECK_EQUAL(store.ins_body(), genesis_ins_body);
+    BOOST_CHECK_EQUAL(store.points0_body(), genesis_points_body);
     BOOST_CHECK_EQUAL(store.input_body(), genesis_input_body);
     BOOST_CHECK_EQUAL(store.output_body(), genesis_output_body);
-    ////BOOST_CHECK_EQUAL(store.spend_body(), genesis_spend_body);
+    BOOST_CHECK_EQUAL(store.outs_body(), genesis_outs_body);
     BOOST_CHECK_EQUAL(store.txs_body(), genesis_txs_body);
 
     const auto pointer = query.get_block(query.to_header(test::genesis.hash()), false);
@@ -664,38 +639,24 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_block_txs__get_block__expected)
         "010000"       // outs_count
         "00000000"     // point_fk-> (ins_fk)
         "00000000");   // outs_fk->
-    const auto genesis_outs_head = system::base16_chunk(
+    const auto genesis_outs_head = system::base16_chunk("01000000");
+    const auto genesis_address_head = system::base16_chunk(
         "01000000"   // record count
         "ffffffff"   // bucket[0]
         "00000000");// bucket[1] (link->0)
     const auto genesis_outs_body = system::base16_chunk(
-        "00000000"     // spend0_fk->
-        "0000000000"); // output0_fk->
-    const auto genesis_output_head = system::base16_chunk("5100000000");
+        "0000000000"   // output0_fk->
+        "00000080");   // parent_fk-> (coinbase merged)
+    const auto genesis_input_head = system::base16_chunk("4f00000000");
+    const auto genesis_output_head = system::base16_chunk("4d00000000");
     const auto genesis_output_body = system::base16_chunk(
-        "00000000"     // parent_fk->
         "ff00f2052a01000000" // value
         "434104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac"); // script
     const auto genesis_ins_body = system::base16_chunk(
-        "ffffffff"     // next->
-        "0000000000000000000000000000000000000000000000000000000000000000"
-        "ffffff");     // index
-    const auto genesis_spend_head = system::base16_chunk(
-        "01000000"     // record count
-        "00000000"     // spend0_fk->
-        "ffffffff"
-        "ffffffff"
-        "ffffffff"
-        "ffffffff");
-    const auto genesis_spend_body = system::base16_chunk(
-        "ffffffff"     // terminal->
-        "00000000"     // fp: point_hash
-        "ffffff"       // fp: point_index (null)
-        "ffffffff"     // point_fk->
-        "00000000"     // parent_fk->
         "ffffffff"     // sequence
-        "0000000000"); // input_fk-> (coinbase)
-    const auto genesis_input_head = system::base16_chunk("4f00000000");
+        "0000000000"   // input_fk-> (coinbase)
+        "00000000");   // parent_fk->
+    const system::data_chunk genesis_points_body{};
     const auto genesis_input_body = system::base16_chunk(
         "4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73" // script
         "00");         // witness
@@ -729,9 +690,8 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_block_txs__get_block__expected)
     settings settings{};
     settings.header.buckets = 8;
     settings.tx.buckets = 8;
-    settings.ins.buckets = 8;
     settings.txs.buckets = 16;
-    settings.outs.buckets = 2;
+    settings.address.buckets = 2;
     settings.path = TEST_DIRECTORY;
     test::chunk_store store{ settings };
     test::query_accessor query{ store };
@@ -754,15 +714,16 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_block_txs__get_block__expected)
     BOOST_CHECK_EQUAL(store.input_head(), genesis_input_head);
     BOOST_CHECK_EQUAL(store.output_head(), genesis_output_head);
     BOOST_CHECK_EQUAL(store.outs_head(), genesis_outs_head);
-    ////BOOST_CHECK_EQUAL(store.spend_head(), genesis_spend_head);
+    BOOST_CHECK_EQUAL(store.address_head(), genesis_address_head);
     BOOST_CHECK_EQUAL(store.txs_head(), genesis_txs_head);
 
     BOOST_CHECK_EQUAL(store.header_body(), genesis_header_body);
     BOOST_CHECK_EQUAL(store.tx_body(), genesis_tx_body);
     BOOST_CHECK_EQUAL(store.ins_body(), genesis_ins_body);
+    BOOST_CHECK_EQUAL(store.points0_body(), genesis_points_body);
     BOOST_CHECK_EQUAL(store.input_body(), genesis_input_body);
     BOOST_CHECK_EQUAL(store.output_body(), genesis_output_body);
-    ////BOOST_CHECK_EQUAL(store.spend_body(), genesis_spend_body);
+    BOOST_CHECK_EQUAL(store.outs_body(), genesis_outs_body);
     BOOST_CHECK_EQUAL(store.txs_body(), genesis_txs_body);
 
     const auto pointer = query.get_block(query.to_header(test::genesis.hash()), false);
@@ -792,7 +753,6 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_tx__not_pooling_duplicate__written)
     BOOST_REQUIRE_EQUAL(query.set_code(second, test::tx4), error::success);
     BOOST_REQUIRE(first != second);
     BOOST_REQUIRE_EQUAL(query.tx_records(), 2u);
-    BOOST_REQUIRE_EQUAL(query.duplicate_records(), 2u);
 }
 
 BOOST_AUTO_TEST_CASE(query_chain_writer__set_tx__pooling_duplicate__substituted)
@@ -810,7 +770,6 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_tx__pooling_duplicate__substituted)
     BOOST_REQUIRE_EQUAL(query.set_code(second, test::tx4), error::success);
     BOOST_REQUIRE(first == second);
     BOOST_REQUIRE_EQUAL(query.tx_records(), 1u);
-    BOOST_REQUIRE_EQUAL(query.duplicate_records(), 0u);
 }
 
 BOOST_AUTO_TEST_CASE(query_chain_writer__set_tx__pooling_duplicate__pooled)
@@ -847,7 +806,6 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_tx__pooling_conflict__written)
     BOOST_REQUIRE_EQUAL(query.set_code(second, test::tx5), error::success);
     BOOST_REQUIRE(first != second);
     BOOST_REQUIRE_EQUAL(query.tx_records(), 2u);
-    BOOST_REQUIRE_EQUAL(query.duplicate_records(), 1u);
 }
 
 BOOST_AUTO_TEST_CASE(query_chain_writer__set_block__not_pooling_pooled_tx__written)
@@ -867,14 +825,15 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_block__not_pooling_pooled_tx__writt
     BOOST_REQUIRE_EQUAL(query.tx_records(), 2u);
     BOOST_REQUIRE(query.set(block, database::context{ 0, 1, 0 }, {}, false, false));
     BOOST_REQUIRE_EQUAL(query.tx_records(), 4u);
-    BOOST_REQUIRE_EQUAL(query.duplicate_records(), 2u);
     BOOST_REQUIRE(query.to_tx(test::tx4.hash(false)) != pooled);
 }
 
 BOOST_AUTO_TEST_CASE(query_chain_writer__set_block__pooling_pooled_tx__substituted)
 {
     using namespace system::chain;
-    const block block{ header{ 0x31323334, test::block0_hash, system::hash_digest{ 0xf4 }, 0x41424344, 0x51525354, 0x61626364 }, transactions{ transaction{ 0xb1, inputs{ input{ point{}, script{ { { opcode::size } } }, witness{}, 0xb1 } }, outputs{ output{ 0x42, script{ { { opcode::pick } } } } }, 0xc1 }, test::tx4 } };
+    const auto& genesis_coinbase = *test::genesis.transactions_ptr()->front();
+    const transaction spender{ 1, inputs{ input{ point{ genesis_coinbase.hash(false), 0 }, script{}, witness{}, max_uint32 } }, outputs{ output{ 1, script{} } }, 0 };
+    const block block{ header{ 0x31323334, test::block0_hash, system::hash_digest{ 0xf4 }, 0x41424344, 0x51525354, 0x61626364 }, transactions{ transaction{ 0xb1, inputs{ input{ point{}, script{ { { opcode::size } } }, witness{}, 0xb1 } }, outputs{ output{ 0x42, script{ { { opcode::pick } } } } }, 0xc1 }, spender } };
 
     settings settings{};
     settings.path = TEST_DIRECTORY;
@@ -885,18 +844,18 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_block__pooling_pooled_tx__substitut
     store.set_pooling();
 
     tx_link pooled{};
-    BOOST_REQUIRE_EQUAL(query.set_code(pooled, test::tx4), error::success);
+    BOOST_REQUIRE_EQUAL(query.set_code(pooled, spender), error::success);
+    BOOST_REQUIRE(test::bind(query, spender));
     BOOST_REQUIRE_EQUAL(query.tx_records(), 2u);
     BOOST_REQUIRE(query.set(block, database::context{ 0, 1, 0 }, {}, false, false));
     BOOST_REQUIRE_EQUAL(query.tx_records(), 3u);
-    BOOST_REQUIRE_EQUAL(query.duplicate_records(), 0u);
-    BOOST_REQUIRE(query.to_tx(test::tx4.hash(false)) == pooled);
+    BOOST_REQUIRE(query.to_tx(spender.hash(false)) == pooled);
 
     const auto link = query.to_header(block.hash());
     const auto pointer = query.get_block(link, true);
     BOOST_REQUIRE(pointer);
     BOOST_REQUIRE_EQUAL(pointer->transactions(), 2u);
-    BOOST_REQUIRE_EQUAL(pointer->transactions_ptr()->back()->hash(false), test::tx4.hash(false));
+    BOOST_REQUIRE_EQUAL(pointer->transactions_ptr()->back()->hash(false), spender.hash(false));
     BOOST_REQUIRE(!query.is_strong_tx(pooled));
     BOOST_REQUIRE(query.set_strong(link));
     BOOST_REQUIRE(query.is_strong_tx(pooled));
@@ -961,7 +920,8 @@ BOOST_AUTO_TEST_CASE(query_chain_writer__set_links__archived_txs__associated)
     BOOST_REQUIRE(!store.create(test::events_handler));
     BOOST_REQUIRE(query.initialize(test::genesis));
 
-    const auto& block = test::block1a;
+    // The pooled (coinbase) tx has no points and is bound (null) at archive.
+    const auto& block = test::block1;
     const auto& txs = *block.transactions_ptr();
     header_link key{};
     BOOST_REQUIRE(!query.set_code(key, block.header(), context{ 0, 1, 0 }, {}, false));
