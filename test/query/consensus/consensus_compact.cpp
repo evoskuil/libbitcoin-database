@@ -51,9 +51,6 @@ BOOST_AUTO_TEST_CASE(query_consensus__get_compact_links__pooled__expected)
 
     const transaction tx4{ test::tx4.to_data(true), true };
     const transaction tx5{ test::tx5.to_data(true), true };
-    tx4.inputs_ptr()->at(0)->metadata.parent_tx = 42;
-    tx4.inputs_ptr()->at(1)->metadata.parent_tx = 42;
-    tx5.inputs_ptr()->at(0)->metadata.parent_tx = 42;
 
     tx_link link4{};
     tx_link link5{};
@@ -81,7 +78,6 @@ BOOST_AUTO_TEST_CASE(query_consensus__get_compact_links__duplicate_short_id__ter
     BOOST_REQUIRE(query.initialize(test::genesis));
 
     const transaction tx5{ test::tx5.to_data(true), true };
-    tx5.inputs_ptr()->at(0)->metadata.parent_tx = 42;
 
     tx_link link5{};
     BOOST_REQUIRE(!query.set_code(link5, tx5));
@@ -104,7 +100,6 @@ BOOST_AUTO_TEST_CASE(query_consensus__get_compact_links__ambiguous_pool__termina
     BOOST_REQUIRE(query.initialize(test::genesis));
 
     const transaction tx5{ test::tx5.to_data(true), true };
-    tx5.inputs_ptr()->at(0)->metadata.parent_tx = 42;
 
     // The same wtxid pooled under two distinct links.
     BOOST_REQUIRE(query.set_pooled(1, tx5, context{ bip113, 8, 9 }, 0));
@@ -126,7 +121,6 @@ BOOST_AUTO_TEST_CASE(query_consensus__get_compact_links__allocated_record__poole
     BOOST_REQUIRE(query.initialize(test::genesis));
 
     const transaction tx5{ test::tx5.to_data(true), true };
-    tx5.inputs_ptr()->at(0)->metadata.parent_tx = 42;
 
     tx_link link5{};
     BOOST_REQUIRE(!query.set_code(link5, tx5));

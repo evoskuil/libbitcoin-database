@@ -33,12 +33,15 @@ BOOST_AUTO_TEST_CASE(query_consensus__find_strong__unconfirmed_duplicate__expect
     BOOST_REQUIRE(!store.create(test::events_handler));
     BOOST_REQUIRE(query.initialize(test::genesis));
     BOOST_REQUIRE(query.set(test::block1a, context{ 0, 1, 0 }, {}, false, false));
+    BOOST_REQUIRE(test::bind(query, test::block1a));
     BOOST_REQUIRE(query.set_strong(1));
 
     BOOST_REQUIRE(query.set(test::tx4));
+    BOOST_REQUIRE(test::bind(query, test::tx4));
     const auto unconfirmed = query.to_tx(test::tx4.hash(false));
 
     BOOST_REQUIRE(query.set(test::block_spend_1a, context{ 0, 2, 0 }, {}, false, false));
+    BOOST_REQUIRE(test::bind(query, test::block_spend_1a));
     BOOST_REQUIRE(query.set_strong(2));
 
     BOOST_REQUIRE_EQUAL(query.find_strong(unconfirmed),
@@ -56,6 +59,7 @@ BOOST_AUTO_TEST_CASE(query_consensus__find_strong_spender_height__unspent__termi
     BOOST_REQUIRE(!store.create(test::events_handler));
     BOOST_REQUIRE(query.initialize(test::genesis));
     BOOST_REQUIRE(query.set(test::block1a, context{ 0, 1, 0 }, {}, false, false));
+    BOOST_REQUIRE(test::bind(query, test::block1a));
     BOOST_REQUIRE(query.set_strong(1));
 
     const system::chain::point point
@@ -75,8 +79,10 @@ BOOST_AUTO_TEST_CASE(query_consensus__find_strong_spender_height__unconfirmed__t
     BOOST_REQUIRE(!store.create(test::events_handler));
     BOOST_REQUIRE(query.initialize(test::genesis));
     BOOST_REQUIRE(query.set(test::block1a, context{ 0, 1, 0 }, {}, false, false));
+    BOOST_REQUIRE(test::bind(query, test::block1a));
     BOOST_REQUIRE(query.set_strong(1));
     BOOST_REQUIRE(query.set(test::tx5));
+    BOOST_REQUIRE(test::bind(query, test::tx5));
 
     const system::chain::point point
     {
@@ -95,8 +101,10 @@ BOOST_AUTO_TEST_CASE(query_consensus__find_strong_spender_height__confirmed__exp
     BOOST_REQUIRE(!store.create(test::events_handler));
     BOOST_REQUIRE(query.initialize(test::genesis));
     BOOST_REQUIRE(query.set(test::block1a, context{ 0, 1, 0 }, {}, false, false));
+    BOOST_REQUIRE(test::bind(query, test::block1a));
     BOOST_REQUIRE(query.set_strong(1));
     BOOST_REQUIRE(query.set(test::block_spend_1a, context{ 0, 2, 0 }, {}, false, false));
+    BOOST_REQUIRE(test::bind(query, test::block_spend_1a));
     BOOST_REQUIRE(query.set_strong(2));
 
     const system::chain::point point
@@ -232,14 +240,17 @@ BOOST_AUTO_TEST_CASE(query_consensus__duplicate_instances__navigation__expected)
     BOOST_REQUIRE(!store.is_pooling());
     BOOST_REQUIRE(query.initialize(test::genesis));
     BOOST_REQUIRE(query.set(test::block1a, context{ 0, 1, 0 }, {}, false, false));
+    BOOST_REQUIRE(test::bind(query, test::block1a));
     BOOST_REQUIRE(query.set_strong(1));
     BOOST_REQUIRE(query.push_confirmed(1, false));
 
     BOOST_REQUIRE(query.set(test::tx4));
+    BOOST_REQUIRE(test::bind(query, test::tx4));
     const auto loose = query.to_tx(test::tx4.hash(false));
     BOOST_REQUIRE(!loose.is_terminal());
 
     BOOST_REQUIRE(query.set(test::block_spend_1a, context{ 0, 2, 0 }, {}, false, false));
+    BOOST_REQUIRE(test::bind(query, test::block_spend_1a));
     BOOST_REQUIRE(query.set_strong(2));
     BOOST_REQUIRE(query.push_confirmed(2, false));
 

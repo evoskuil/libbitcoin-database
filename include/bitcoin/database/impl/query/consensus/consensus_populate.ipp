@@ -79,22 +79,22 @@ bool CLASS::populate_with_metadata(const input& input, bool chain,
     BC_ASSERT(!input.point().is_null());
 
     // If read via the store for store confirmation, then...
-    // input.metadata.point_link is set earlier in get_input().
+    // input.metadata.input_link is set earlier in get_input().
     // So this assertion no longer holds.
-    ////BC_ASSERT(input.metadata.point_link == max_uint32);
+    ////BC_ASSERT(input.metadata.input_link == max_uint32);
 
     if (input.prevout)
         return true;
 
     const auto tx = to_tx(input.point().hash());
-    const auto index = input.point().index();
+    const auto spent = to_output(tx, input.point().index());
 
     // Node and chain confirmation.
-    input.prevout = get_output(tx, index);
+    input.prevout = get_output(spent);
     input.metadata.coinbase = is_coinbase(tx);
 
     // Node only (cheap so always include).
-    input.metadata.parent_tx = tx;
+    input.metadata.output_link = spent.value;
 
     // This is used by node for unconfirmed tx validation (expensive).
     // There are three consensus-relevant heights. These are the height of the
@@ -106,7 +106,7 @@ bool CLASS::populate_with_metadata(const input& input, bool chain,
         auto& metadata = input.metadata;
 
         context ctx{};
-        if (get_context(ctx, find_strong(metadata.parent_tx)))
+        if (get_context(ctx, find_strong(tx)))
         {
             // Confirmed previous output found at height (and with mtp).
             metadata.prevout_height = ctx.height;
@@ -143,6 +143,53 @@ bool CLASS::populate_with_metadata(const input& input, bool chain,
     return !is_null(input.prevout);
 }
 
+TEMPLATE
+code CLASS::populate_with_metadata(const header_link& link,
+    block_view& block) const NOEXCEPT
+{
+    using namespace system;
+    const auto& txs = block.views();
+    const auto links = to_transactions(link);
+    if (links.empty() || links.size() != txs.size())
+        return error::integrity;
+
+    data_chunk prevouts{};
+    stream::out::data ostream(prevouts);
+    write::bytes::ostream sink(ostream);
+
+    auto found = true;
+    for (auto index = one; index < txs.size(); ++index)
+    {
+        const auto& tx = txs.at(index);
+        for (auto in = tx.inputs_begin(); in != tx.inputs_end(); ++in)
+        {
+            const auto spent = to_output(in->point_hash(), in->point_index());
+            in->metadata.output_link = spent.value;
+            if (spent.is_terminal())
+            {
+                found = false;
+                continue;
+            }
+
+            if (is_null(in->prevout) && !tx.excluded &&
+                !get_wire_output(sink, spent))
+                return error::integrity;
+        }
+    }
+
+    sink.flush();
+    if (!sink)
+        return error::integrity;
+
+    if (found && !block.populate(std::move(prevouts)))
+        return error::integrity;
+
+    if (!found)
+        return system::error::missing_previous_output;
+
+    return error::success;
+}
+
 // populate_pooled
 // ----------------------------------------------------------------------------
 // This is used in validation of a block containing a tx validated in the pool,
@@ -165,7 +212,7 @@ code CLASS::populate_pooled(pooled_tx& out, const transaction& tx,
         if (in->prevout)
             continue;
 
-        in->metadata.parent_tx = pooled.parent;
+        in->metadata.output_link = pooled.spent;
         in->metadata.coinbase = pooled.coinbase;
     }
 
