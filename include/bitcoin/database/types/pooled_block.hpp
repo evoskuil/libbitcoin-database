@@ -32,15 +32,11 @@ namespace database {
 /// Working set of a block validated from its pooled txs.
 struct pooled_block
 {
-    using spend = table::prevout::spend;
-
     tx_links txs{};
     std::vector<table::transaction::record> records{};
     std::vector<pooled_tx> pooled{};
     std::unordered_map<system::hash_digest, size_t> positions{};
     std::unordered_set<system::chain::point> points{};
-    std::vector<spend> spends{};
-    tx_links conflicts{};
     uint64_t fees{};
     size_t sigops{};
     size_t light{};

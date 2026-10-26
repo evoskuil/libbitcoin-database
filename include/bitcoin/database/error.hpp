@@ -38,7 +38,6 @@ enum error_t : uint8_t
     /// integrity (internal fault)
     integrity,
     integrity_spendable,
-    integrity_get_prevouts,
     integrity_block_confirmable1,
     integrity_block_confirmable2,
 
@@ -86,6 +85,7 @@ enum error_t : uint8_t
 
     /// store
     not_coalesced,
+    unbound_put,
     schema_version,
     missing_snapshot,
     unloaded_file,
@@ -109,12 +109,9 @@ enum error_t : uint8_t
     tx_ins_put,
     tx_output_put,
     tx_outs_put,
-    tx_point_allocate,
-    tx_point_put,
-    tx_null_point_put,
-    tx_duplicate_put,
+    tx_points_put,
+    tx_spend_put,
     tx_tx_set,
-    tx_address_allocate,
     tx_address_put,
     tx_tx_commit,
 
@@ -130,9 +127,6 @@ enum error_t : uint8_t
     txs_confirm,
     txs_txs_put,
     txs_state_put,
-
-    /// prevouts cache
-    prevouts_put,
 
     /// services
     not_found,

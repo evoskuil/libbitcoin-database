@@ -41,7 +41,6 @@ BOOST_AUTO_TEST_CASE(store__prune__initialized__success)
     // The retained snapshot is post-prune (the trim strands nothing).
     BOOST_REQUIRE(test::folder(configuration.path / schema::dir::primary));
     BOOST_REQUIRE(!test::folder(configuration.path / schema::dir::secondary));
-    BOOST_REQUIRE_EQUAL(query_.prevout_body_size(), zero);
     BOOST_REQUIRE(!instance.close(test::events));
 }
 
@@ -60,7 +59,6 @@ BOOST_AUTO_TEST_CASE(store__prune__faulted_restore__success)
     BOOST_REQUIRE(test::create(test::flush_lock_file(configuration.path)));
     BOOST_REQUIRE(!instance.restore(test::events));
     BOOST_REQUIRE(query_.is_initialized());
-    BOOST_REQUIRE_EQUAL(query_.prevout_body_size(), zero);
     BOOST_REQUIRE(!instance.close(test::events));
 }
 
@@ -68,97 +66,6 @@ constexpr database::context validated_context
 {
     system::chain::flags::bip113_rule, 8, 9
 };
-
-BOOST_AUTO_TEST_CASE(store__prune__pool__cleared)
-{
-    settings configuration{};
-    configuration.path = TEST_DIRECTORY;
-    store<database::mmap> instance{ configuration };
-    query<store<database::mmap>> query_{ instance };
-    BOOST_REQUIRE(!instance.create(test::events));
-    BOOST_REQUIRE(query_.initialize(test::genesis));
-    test::tx_spend_one_hash.inputs_ptr()->front()->metadata.parent_tx = 42;
-    BOOST_REQUIRE(query_.set(test::tx_spend_one_hash));
-
-    const auto link = query_.to_tx(test::tx_spend_one_hash.hash(false));
-    BOOST_REQUIRE(query_.set_pooled(link, test::tx_spend_one_hash, validated_context, 0));
-    BOOST_REQUIRE(!instance.prune(test::events));
-    BOOST_REQUIRE_EQUAL(query_.pool_body_size(), zero);
-
-    pooled_tx pooled{};
-    pooled.prevouts.resize(one);
-    BOOST_REQUIRE_EQUAL(query_.get_pooled(pooled, link, validated_context), error::unvalidated);
-    BOOST_REQUIRE(query_.set_pooled(2, test::tx_spend_one_hash, validated_context, 0));
-    BOOST_REQUIRE_EQUAL(query_.get_pooled(pooled, 2, validated_context), error::success);
-    BOOST_REQUIRE(!instance.close(test::events));
-}
-
-BOOST_AUTO_TEST_CASE(store__prune__faulted_restore__pool_cleared)
-{
-    settings configuration{};
-    configuration.path = TEST_DIRECTORY;
-    store<database::mmap> instance{ configuration };
-    query<store<database::mmap>> query_{ instance };
-    BOOST_REQUIRE(!instance.create(test::events));
-    BOOST_REQUIRE(query_.initialize(test::genesis));
-    test::tx_spend_one_hash.inputs_ptr()->front()->metadata.parent_tx = 42;
-    BOOST_REQUIRE(query_.set(test::tx_spend_one_hash));
-
-    const auto link = query_.to_tx(test::tx_spend_one_hash.hash(false));
-    BOOST_REQUIRE(query_.set_pooled(link, test::tx_spend_one_hash, validated_context, 0));
-    BOOST_REQUIRE(!instance.prune(test::events));
-    BOOST_REQUIRE(!instance.close(test::events));
-
-    BOOST_REQUIRE(test::create(test::flush_lock_file(configuration.path)));
-    BOOST_REQUIRE(!instance.restore(test::events));
-    BOOST_REQUIRE_EQUAL(query_.pool_body_size(), zero);
-
-    pooled_tx pooled{};
-    pooled.prevouts.resize(one);
-    BOOST_REQUIRE_EQUAL(query_.get_pooled(pooled, link, validated_context), error::unvalidated);
-    BOOST_REQUIRE(!instance.close(test::events));
-}
-
-BOOST_AUTO_TEST_CASE(store__prune__spends__cleared)
-{
-    settings configuration{};
-    configuration.path = TEST_DIRECTORY;
-    store<database::mmap> instance{ configuration };
-    query<store<database::mmap>> query_{ instance };
-    BOOST_REQUIRE(!instance.create(test::events));
-    BOOST_REQUIRE(query_.initialize(test::genesis));
-
-    const table::spends::put_refs::parents parents{ 1, 2, 3 };
-    BOOST_REQUIRE(instance.spends.put(table::spends::put_refs{ {}, parents }));
-    BOOST_REQUIRE_EQUAL(query_.spends_records(), 3u);
-    BOOST_REQUIRE(!instance.prune(test::events));
-    BOOST_REQUIRE_EQUAL(query_.spends_records(), zero);
-    BOOST_REQUIRE_EQUAL(query_.spends_body_size(), zero);
-    BOOST_REQUIRE(!instance.close(test::events));
-}
-
-BOOST_AUTO_TEST_CASE(store__prune__faulted_restore__spends_cleared)
-{
-    settings configuration{};
-    configuration.path = TEST_DIRECTORY;
-    store<database::mmap> instance{ configuration };
-    query<store<database::mmap>> query_{ instance };
-    BOOST_REQUIRE(!instance.create(test::events));
-    BOOST_REQUIRE(query_.initialize(test::genesis));
-
-    const table::spends::put_refs::parents parents{ 1, 2, 3 };
-    BOOST_REQUIRE(instance.spends.put(table::spends::put_refs{ {}, parents }));
-    BOOST_REQUIRE(!instance.prune(test::events));
-    BOOST_REQUIRE(!instance.close(test::events));
-
-    BOOST_REQUIRE(test::create(test::flush_lock_file(configuration.path)));
-    BOOST_REQUIRE(!instance.restore(test::events));
-    BOOST_REQUIRE_EQUAL(query_.spends_records(), zero);
-    BOOST_REQUIRE(!instance.close(test::events));
-}
-
-// compaction
-// ----------------------------------------------------------------------------
 
 using spend_t = system::chain::transaction;
 
@@ -176,10 +83,10 @@ static const system::hash_digest& genesis_coinbase() NOEXCEPT
     return hash;
 }
 
-// Archive the tx and pool it under the validated context.
+// Archive, bind and pool the tx under the validated context.
 static bool pool(query<store<database::mmap>>& query_, const spend_t& tx) NOEXCEPT
 {
-    const auto stored = query_.set(tx);
+    const auto stored = query_.set(tx) && test::bind(query_, tx);
     const auto link = query_.to_tx(tx.hash(false));
     return stored && query_.set_pooled(link, tx, validated_context, 0);
 }
@@ -195,8 +102,9 @@ static bool confirm(query<store<database::mmap>>& query_, const spend_t& tx) NOE
     const system::chain::header header{ 1u, test::genesis.hash(), system::null_hash, 1u, 2u, 3u };
     const system::chain::block block{ header, { coinbase, tx } };
     const auto stored = query_.set(block, context{ 0, 1, 0 }, {}, false, true);
+    const auto bound = stored && test::bind(query_, block);
     const auto link = query_.to_header(block.hash());
-    const auto candidate = stored && query_.push_candidate(link);
+    const auto candidate = bound && query_.push_candidate(link);
     return candidate && query_.push_confirmed(link, true);
 }
 
@@ -206,6 +114,50 @@ static code pooled(query<store<database::mmap>>& query_, const spend_t& tx) NOEX
     out.prevouts.resize(one);
     return query_.get_pooled(out, query_.to_tx(tx.hash(false)), validated_context);
 }
+
+BOOST_AUTO_TEST_CASE(store__prune__pool__cleared)
+{
+    settings configuration{};
+    configuration.path = TEST_DIRECTORY;
+    store<database::mmap> instance{ configuration };
+    query<store<database::mmap>> query_{ instance };
+    BOOST_REQUIRE(!instance.create(test::events));
+    BOOST_REQUIRE(query_.initialize(test::genesis));
+
+    // A confirmed pooled tx is dropped.
+    const auto tx = spend(genesis_coinbase(), 1u);
+    BOOST_REQUIRE(pool(query_, tx));
+    BOOST_REQUIRE(confirm(query_, tx));
+    BOOST_REQUIRE(!instance.prune(test::events));
+    BOOST_REQUIRE_EQUAL(query_.pool_body_size(), zero);
+    BOOST_REQUIRE_EQUAL(pooled(query_, tx), error::unvalidated);
+    BOOST_REQUIRE(!instance.close(test::events));
+}
+
+BOOST_AUTO_TEST_CASE(store__prune__faulted_restore__pool_cleared)
+{
+    settings configuration{};
+    configuration.path = TEST_DIRECTORY;
+    store<database::mmap> instance{ configuration };
+    query<store<database::mmap>> query_{ instance };
+    BOOST_REQUIRE(!instance.create(test::events));
+    BOOST_REQUIRE(query_.initialize(test::genesis));
+
+    const auto tx = spend(genesis_coinbase(), 1u);
+    BOOST_REQUIRE(pool(query_, tx));
+    BOOST_REQUIRE(confirm(query_, tx));
+    BOOST_REQUIRE(!instance.prune(test::events));
+    BOOST_REQUIRE(!instance.close(test::events));
+
+    BOOST_REQUIRE(test::create(test::flush_lock_file(configuration.path)));
+    BOOST_REQUIRE(!instance.restore(test::events));
+    BOOST_REQUIRE_EQUAL(query_.pool_body_size(), zero);
+    BOOST_REQUIRE_EQUAL(pooled(query_, tx), error::unvalidated);
+    BOOST_REQUIRE(!instance.close(test::events));
+}
+
+// compaction
+// ----------------------------------------------------------------------------
 
 BOOST_AUTO_TEST_CASE(store__prune__unconfirmed_pooled__retained)
 {
@@ -225,9 +177,8 @@ BOOST_AUTO_TEST_CASE(store__prune__unconfirmed_pooled__retained)
     pooled_tx out{};
     out.prevouts.resize(one);
     BOOST_REQUIRE_EQUAL(query_.get_pooled(out, query_.to_tx(unconfirmed.hash(false)), validated_context), error::success);
-    BOOST_REQUIRE_EQUAL(out.prevouts.front().parent, 0u);
+    BOOST_REQUIRE_EQUAL(out.prevouts.front().spent, 0u);
     BOOST_REQUIRE(out.prevouts.front().coinbase);
-    BOOST_REQUIRE_EQUAL(query_.spends_records(), one);
     BOOST_REQUIRE(!instance.close(test::events));
 }
 
@@ -247,7 +198,6 @@ BOOST_AUTO_TEST_CASE(store__prune__confirmed_pooled__dropped)
     BOOST_REQUIRE(!instance.prune(test::events));
     BOOST_REQUIRE_EQUAL(pooled(query_, confirmed), error::unvalidated);
     BOOST_REQUIRE_EQUAL(query_.pool_body_size(), zero);
-    BOOST_REQUIRE_EQUAL(query_.spends_records(), zero);
     BOOST_REQUIRE(!instance.close(test::events));
 }
 
@@ -312,9 +262,8 @@ BOOST_AUTO_TEST_CASE(store__prune__descendant_of_retained__retained)
     pooled_tx out{};
     out.prevouts.resize(one);
     BOOST_REQUIRE_EQUAL(query_.get_pooled(out, query_.to_tx(child.hash(false)), validated_context), error::success);
-    BOOST_REQUIRE_EQUAL(out.prevouts.front().parent, query_.to_tx(parent.hash(false)));
+    BOOST_REQUIRE_EQUAL(out.prevouts.front().spent, query_.to_output(query_.to_tx(parent.hash(false)), 0));
     BOOST_REQUIRE(!out.prevouts.front().coinbase);
-    BOOST_REQUIRE_EQUAL(query_.spends_records(), two);
     BOOST_REQUIRE(!instance.close(test::events));
 }
 
@@ -339,7 +288,6 @@ BOOST_AUTO_TEST_CASE(store__prune__retained_and_dropped__only_retained)
     BOOST_REQUIRE_EQUAL(pooled(query_, conflict), error::unvalidated);
     BOOST_REQUIRE_EQUAL(pooled(query_, confirmed), error::unvalidated);
     BOOST_REQUIRE_EQUAL(pooled(query_, retained), error::success);
-    BOOST_REQUIRE_EQUAL(query_.spends_records(), one);
     BOOST_REQUIRE(!instance.close(test::events));
 }
 
@@ -356,12 +304,12 @@ BOOST_AUTO_TEST_CASE(store__prune__child_pooled_before_parent__retained)
     const auto parent = spend(genesis_coinbase(), 2u);
     const auto child = spend(parent.hash(false), 1u);
     BOOST_REQUIRE(query_.set(parent));
+    BOOST_REQUIRE(test::bind(query_, parent));
     BOOST_REQUIRE(pool(query_, child));
     BOOST_REQUIRE(query_.set_pooled(query_.to_tx(parent.hash(false)), parent, validated_context, 0));
     BOOST_REQUIRE(!instance.prune(test::events));
     BOOST_REQUIRE_EQUAL(pooled(query_, parent), error::success);
     BOOST_REQUIRE_EQUAL(pooled(query_, child), error::success);
-    BOOST_REQUIRE_EQUAL(query_.spends_records(), two);
     BOOST_REQUIRE_EQUAL(query_.wtxid_records(), two);
     BOOST_REQUIRE(!instance.close(test::events));
 }
@@ -379,6 +327,7 @@ BOOST_AUTO_TEST_CASE(store__prune__child_of_unpooled_parent__dropped)
     const auto parent = spend(genesis_coinbase(), 2u);
     const auto child = spend(parent.hash(false), 1u);
     BOOST_REQUIRE(query_.set(parent));
+    BOOST_REQUIRE(test::bind(query_, parent));
     BOOST_REQUIRE(pool(query_, child));
     BOOST_REQUIRE(!instance.prune(test::events));
     BOOST_REQUIRE_EQUAL(pooled(query_, child), error::unvalidated);
@@ -469,6 +418,225 @@ BOOST_AUTO_TEST_CASE(store__prune__faulted_restore__retained_pool_empty)
     BOOST_REQUIRE_EQUAL(query_.pool_body_size(), zero);
     BOOST_REQUIRE_EQUAL(query_.wtxid_body_size(), zero);
     BOOST_REQUIRE(!query_.is_pooled(query_.to_tx(unconfirmed.hash(false))));
+    BOOST_REQUIRE(!instance.close(test::events));
+}
+
+// points
+// ----------------------------------------------------------------------------
+
+// Archive a block of a coinbase and the tx (block txs have points).
+static bool archive(query<store<database::mmap>>& query_, const spend_t& tx,
+    uint32_t nonce) NOEXCEPT
+{
+    using namespace system::chain;
+    const point null{ system::null_hash, point::null_index };
+    const input input{ null, script{}, max_uint32 };
+    const output output{ nonce, script{} };
+    const spend_t coinbase{ 1u, inputs{ input }, outputs{ output }, 0u };
+    const header header{ 1u, test::genesis.hash(), system::null_hash, 1u, 2u, nonce };
+    const block block{ header, { coinbase, tx } };
+    return query_.set(block, database::context{ 0, 1, 0 }, {}, false, false);
+}
+
+BOOST_AUTO_TEST_CASE(store__drop_points__genesis__dropped)
+{
+    settings configuration{};
+    configuration.path = TEST_DIRECTORY;
+    store<database::mmap> instance{ configuration };
+    query<store<database::mmap>> query_{ instance };
+    BOOST_REQUIRE(!instance.create(test::events));
+    BOOST_REQUIRE(query_.initialize(test::genesis));
+    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), zero);
+    BOOST_REQUIRE(!instance.drop_points(test::events));
+    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), zero);
+    BOOST_REQUIRE_EQUAL(instance.points0.base(), one);
+    BOOST_REQUIRE_EQUAL(instance.points1.base(), one);
+    BOOST_REQUIRE(query_.get_point(0).is_null());
+    BOOST_REQUIRE(!instance.close(test::events));
+}
+
+BOOST_AUTO_TEST_CASE(store__drop_points__unbound__dropped)
+{
+    settings configuration{};
+    configuration.path = TEST_DIRECTORY;
+    store<database::mmap> instance{ configuration };
+    query<store<database::mmap>> query_{ instance };
+    BOOST_REQUIRE(!instance.create(test::events));
+    BOOST_REQUIRE(query_.initialize(test::genesis));
+
+    const auto tx = spend(genesis_coinbase(), 1u);
+    BOOST_REQUIRE(archive(query_, tx, 1u));
+    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), schema::points::minrow);
+    BOOST_REQUIRE(query_.get_point(2) == system::chain::point(genesis_coinbase(), 0));
+    BOOST_REQUIRE(!instance.drop_points(test::events));
+    BOOST_REQUIRE_EQUAL(instance.points0.base(), 3u);
+    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), zero);
+    BOOST_REQUIRE_EQUAL(query_.unbound_records(), one);
+    BOOST_REQUIRE(query_.get_point(2) == system::chain::point(genesis_coinbase(), 0));
+    BOOST_REQUIRE(!instance.close(test::events));
+}
+
+BOOST_AUTO_TEST_CASE(store__drop_points__pooled__no_points)
+{
+    settings configuration{};
+    configuration.path = TEST_DIRECTORY;
+    store<database::mmap> instance{ configuration };
+    query<store<database::mmap>> query_{ instance };
+    BOOST_REQUIRE(!instance.create(test::events));
+    BOOST_REQUIRE(query_.initialize(test::genesis));
+
+    // A pooled tx writes no points, it is bound at archive.
+    const auto tx = spend(genesis_coinbase(), 1u);
+    BOOST_REQUIRE(query_.set(tx));
+    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), zero);
+    BOOST_REQUIRE(query_.get_point(1) == system::chain::point(genesis_coinbase(), 0));
+    BOOST_REQUIRE(!instance.drop_points(test::events));
+    BOOST_REQUIRE_EQUAL(instance.points0.base(), 2u);
+    BOOST_REQUIRE_EQUAL(query_.unbound_records(), zero);
+    BOOST_REQUIRE(!instance.close(test::events));
+}
+
+BOOST_AUTO_TEST_CASE(store__drop_points__bound__dropped_and_resolved)
+{
+    settings configuration{};
+    configuration.path = TEST_DIRECTORY;
+    store<database::mmap> instance{ configuration };
+    query<store<database::mmap>> query_{ instance };
+    BOOST_REQUIRE(!instance.create(test::events));
+    BOOST_REQUIRE(query_.initialize(test::genesis));
+
+    const auto tx = spend(genesis_coinbase(), 1u);
+    BOOST_REQUIRE(archive(query_, tx, 1u));
+    BOOST_REQUIRE(test::bind(query_, tx));
+    BOOST_REQUIRE(!instance.drop_points(test::events));
+    BOOST_REQUIRE_EQUAL(instance.points0.base(), 3u);
+    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), zero);
+    BOOST_REQUIRE_EQUAL(query_.unbound_records(), zero);
+
+    // Points resolve through the bindings.
+    BOOST_REQUIRE(query_.get_point(0).is_null());
+    BOOST_REQUIRE(query_.get_point(1).is_null());
+    BOOST_REQUIRE(query_.get_point(2) == system::chain::point(genesis_coinbase(), 0));
+    BOOST_REQUIRE_EQUAL(query_.to_spent(2), query_.to_output(0, 0));
+    BOOST_REQUIRE(query_.to_spent(1).is_terminal());
+
+    // Later points are keyed from the new base.
+    const auto child = spend(tx.hash(false), 1u);
+    BOOST_REQUIRE(archive(query_, child, 2u));
+    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), schema::points::minrow);
+    BOOST_REQUIRE(query_.get_point(4) == system::chain::point(tx.hash(false), 0));
+    BOOST_REQUIRE(!instance.drop_points(test::events));
+    BOOST_REQUIRE_EQUAL(instance.points0.base(), 5u);
+    BOOST_REQUIRE_EQUAL(query_.unbound_records(), one);
+    BOOST_REQUIRE(query_.get_point(4) == system::chain::point(tx.hash(false), 0));
+    BOOST_REQUIRE(!instance.close(test::events));
+}
+
+BOOST_AUTO_TEST_CASE(store__flip_points__archived__banks_alternate)
+{
+    settings configuration{};
+    configuration.path = TEST_DIRECTORY;
+    store<database::mmap> instance{ configuration };
+    query<store<database::mmap>> query_{ instance };
+    BOOST_REQUIRE(!instance.create(test::events));
+    BOOST_REQUIRE(query_.initialize(test::genesis));
+    BOOST_REQUIRE(!instance.get_points_bank());
+
+    const auto tx = spend(genesis_coinbase(), 1u);
+    BOOST_REQUIRE(archive(query_, tx, 1u));
+    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), schema::points::minrow);
+    BOOST_REQUIRE(!instance.flip_points(test::events));
+    BOOST_REQUIRE(instance.get_points_bank());
+    BOOST_REQUIRE_EQUAL(instance.points1.base(), 3u);
+
+    // The next block writes the other bank, both banks are read.
+    const auto child = spend(tx.hash(false), 1u);
+    BOOST_REQUIRE(archive(query_, child, 2u));
+    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), schema::points::minrow);
+    BOOST_REQUIRE_EQUAL(query_.points1_body_size(), schema::points::minrow);
+    BOOST_REQUIRE(query_.get_point(2) == system::chain::point(genesis_coinbase(), 0));
+    BOOST_REQUIRE(query_.get_point(4) == system::chain::point(tx.hash(false), 0));
+
+    // The flip drains the first bank, its unbound point is salvaged.
+    BOOST_REQUIRE(!instance.flip_points(test::events));
+    BOOST_REQUIRE(!instance.get_points_bank());
+    BOOST_REQUIRE_EQUAL(instance.points0.base(), 5u);
+    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), zero);
+    BOOST_REQUIRE_EQUAL(query_.points1_body_size(), schema::points::minrow);
+    BOOST_REQUIRE_EQUAL(query_.unbound_records(), one);
+    BOOST_REQUIRE(query_.get_point(2) == system::chain::point(genesis_coinbase(), 0));
+    BOOST_REQUIRE(!instance.close(test::events));
+}
+
+BOOST_AUTO_TEST_CASE(store__restore__bound_points__restored)
+{
+    settings configuration{};
+    configuration.path = TEST_DIRECTORY;
+    store<database::mmap> instance{ configuration };
+    query<store<database::mmap>> query_{ instance };
+    BOOST_REQUIRE(!instance.create(test::events));
+    BOOST_REQUIRE(query_.initialize(test::genesis));
+
+    const auto tx = spend(genesis_coinbase(), 1u);
+    BOOST_REQUIRE(archive(query_, tx, 1u));
+    BOOST_REQUIRE(test::bind(query_, tx));
+    BOOST_REQUIRE(!instance.snapshot(test::events));
+    BOOST_REQUIRE(!instance.close(test::events));
+
+    BOOST_REQUIRE(test::create(test::flush_lock_file(configuration.path)));
+    BOOST_REQUIRE(!instance.restore(test::events));
+    BOOST_REQUIRE_EQUAL(instance.points0.base(), zero);
+    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), schema::points::minrow);
+    BOOST_REQUIRE(query_.get_point(2) == system::chain::point(genesis_coinbase(), 0));
+    BOOST_REQUIRE(!instance.close(test::events));
+}
+
+BOOST_AUTO_TEST_CASE(store__drop_points__restore__base_retained)
+{
+    settings configuration{};
+    configuration.path = TEST_DIRECTORY;
+    store<database::mmap> instance{ configuration };
+    query<store<database::mmap>> query_{ instance };
+    BOOST_REQUIRE(!instance.create(test::events));
+    BOOST_REQUIRE(query_.initialize(test::genesis));
+
+    const auto tx = spend(genesis_coinbase(), 1u);
+    BOOST_REQUIRE(archive(query_, tx, 1u));
+    BOOST_REQUIRE(test::bind(query_, tx));
+    BOOST_REQUIRE(!instance.drop_points(test::events));
+    BOOST_REQUIRE(!instance.snapshot(test::events));
+    BOOST_REQUIRE(!instance.close(test::events));
+
+    BOOST_REQUIRE(test::create(test::flush_lock_file(configuration.path)));
+    BOOST_REQUIRE(!instance.restore(test::events));
+    BOOST_REQUIRE_EQUAL(instance.points0.base(), 3u);
+    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), zero);
+    BOOST_REQUIRE(query_.get_point(2) == system::chain::point(genesis_coinbase(), 0));
+    BOOST_REQUIRE(!instance.close(test::events));
+}
+
+BOOST_AUTO_TEST_CASE(store__drop_points__restore_to_prior_snapshot__points_restored)
+{
+    settings configuration{};
+    configuration.path = TEST_DIRECTORY;
+    store<database::mmap> instance{ configuration };
+    query<store<database::mmap>> query_{ instance };
+    BOOST_REQUIRE(!instance.create(test::events));
+    BOOST_REQUIRE(query_.initialize(test::genesis));
+
+    // Snapshot with points unbound, then drop (the snapshot holds the bank).
+    const auto tx = spend(genesis_coinbase(), 1u);
+    BOOST_REQUIRE(archive(query_, tx, 1u));
+    BOOST_REQUIRE(!instance.snapshot(test::events));
+    BOOST_REQUIRE(!instance.drop_points(test::events));
+    BOOST_REQUIRE(!instance.close(test::events));
+
+    BOOST_REQUIRE(test::create(test::flush_lock_file(configuration.path)));
+    BOOST_REQUIRE(!instance.restore(test::events));
+    BOOST_REQUIRE_EQUAL(instance.points0.base(), zero);
+    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), schema::points::minrow);
+    BOOST_REQUIRE_EQUAL(query_.unbound_records(), zero);
+    BOOST_REQUIRE(query_.get_point(2) == system::chain::point(genesis_coinbase(), 0));
     BOOST_REQUIRE(!instance.close(test::events));
 }
 

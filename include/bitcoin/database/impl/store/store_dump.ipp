@@ -42,17 +42,32 @@ code CLASS::dump(const path& folder,
         }
     };
 
+    const auto dump_body = [&handler, &folder](code& ec, const auto& file,
+        const auto& name, table_t table) NOEXCEPT
+    {
+        if (!ec)
+        {
+            handler(event_t::copy_body, table);
+            ec = file.dump(body(folder, name));
+        }
+    };
+
     dump(ec, header_head_, schema::archive::header, table_t::header_head);
     dump(ec, input_head_, schema::archive::input, table_t::input_head);
     dump(ec, output_head_, schema::archive::output, table_t::output_head);
     dump(ec, ins_head_, schema::archive::ins, table_t::ins_head);
     dump(ec, outs_head_, schema::archive::outs, table_t::outs_head);
+    dump(ec, spend_head_, schema::archive::spend, table_t::spend_head);
+    dump(ec, unbound_head_, schema::archive::unbound, table_t::unbound_head);
     dump(ec, tx_head_, schema::archive::tx, table_t::tx_head);
     dump(ec, txs_head_, schema::archive::txs, table_t::txs_head);
 
     dump(ec, candidate_head_, schema::indexes::candidate, table_t::candidate_head);
     dump(ec, confirmed_head_, schema::indexes::confirmed, table_t::confirmed_head);
     dump(ec, strong_head_, schema::indexes::strong, table_t::strong_head);
+    dump(ec, address_head_, schema::indexes::address, table_t::address_head);
+    dump(ec, conflict_head_, schema::indexes::conflict, table_t::conflict_head);
+    dump(ec, spender_head_, schema::indexes::spender, table_t::spender_head);
     dump(ec, scan_head_, schema::indexes::scan, table_t::scan_head);
     dump(ec, scan_prefix_head_, schema::indexes::scan_prefix, table_t::scan_prefix_head);
 
@@ -65,15 +80,16 @@ code CLASS::dump(const path& folder,
     dump(ec, silent0_prefix_head_, schema::caches::silent0_prefix, table_t::silent0_prefix_head);
     dump(ec, silent1_prefix_head_, schema::caches::silent1_prefix, table_t::silent1_prefix_head);
     dump(ec, envelope_head_, schema::caches::envelope, table_t::envelope_head);
-    dump(ec, duplicate_head_, schema::indexes::duplicate, table_t::duplicate_head);
     dump(ec, prevalid0_head_, schema::caches::prevalid0, table_t::prevalid0_head);
     dump(ec, prevalid1_head_, schema::caches::prevalid1, table_t::prevalid1_head);
     dump(ec, presilent0_head_, schema::caches::presilent0, table_t::presilent0_head);
     dump(ec, presilent1_head_, schema::caches::presilent1, table_t::presilent1_head);
-    dump(ec, prevout_head_, schema::caches::prevout, table_t::prevout_head);
+    dump(ec, points0_head_, schema::caches::points0, table_t::points0_head);
+    dump(ec, points1_head_, schema::caches::points1, table_t::points1_head);
+    dump_body(ec, points0_body_, schema::caches::points0, table_t::points0_body);
+    dump_body(ec, points1_body_, schema::caches::points1, table_t::points1_body);
     dump(ec, state_head_, schema::indexes::state, table_t::state_head);
     dump(ec, pool_head_, schema::caches::pool, table_t::pool_head);
-    dump(ec, spends_head_, schema::caches::spends, table_t::spends_head);
     dump(ec, wtxid_head_, schema::indexes::wtxid, table_t::wtxid_head);
 
     dump(ec, filter_bk_head_, schema::optionals::filter_bk, table_t::filter_bk_head);

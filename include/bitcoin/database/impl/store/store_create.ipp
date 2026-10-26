@@ -88,7 +88,10 @@ code CLASS::create_load(const event_handler& handler) NOEXCEPT
     create(ec, ins_head_, table_t::ins_head);
     create(ec, ins_body_, table_t::ins_body);
     create(ec, outs_head_, table_t::outs_head);
-    create(ec, *outs_body_, table_t::outs_body);
+    create(ec, outs_body_, table_t::outs_body);
+    create(ec, spend_head_, table_t::spend_head);
+    create(ec, unbound_head_, table_t::unbound_head);
+    create(ec, unbound_body_, table_t::unbound_body);
     create(ec, tx_head_, table_t::tx_head);
     create(ec, tx_body_, table_t::tx_body);
     create(ec, txs_head_, table_t::txs_head);
@@ -97,6 +100,11 @@ code CLASS::create_load(const event_handler& handler) NOEXCEPT
     create(ec, candidate_head_, table_t::candidate_head);
     create(ec, confirmed_head_, table_t::confirmed_head);
     create(ec, strong_head_, table_t::strong_head);
+    create(ec, address_head_, table_t::address_head);
+    create(ec, address_body_, table_t::address_body);
+    create(ec, conflict_head_, table_t::conflict_head);
+    create(ec, conflict_body_, table_t::conflict_body);
+    create(ec, spender_head_, table_t::spender_head);
     create(ec, scan_head_, table_t::scan_head);
     create(ec, scan_body_, table_t::scan_body);
     create(ec, scan_prefix_head_, table_t::scan_prefix_head);
@@ -119,8 +127,6 @@ code CLASS::create_load(const event_handler& handler) NOEXCEPT
     create(ec, silent1_prefix_head_, table_t::silent1_prefix_head);
     create(ec, silent1_prefix_body_, table_t::silent1_prefix_body);
     create(ec, envelope_head_, table_t::envelope_head);
-    create(ec, duplicate_head_, table_t::duplicate_head);
-    create(ec, duplicate_body_, table_t::duplicate_body);
     create(ec, prevalid0_head_, table_t::prevalid0_head);
     create(ec, prevalid0_body_, table_t::prevalid0_body);
     create(ec, prevalid1_head_, table_t::prevalid1_head);
@@ -129,13 +135,13 @@ code CLASS::create_load(const event_handler& handler) NOEXCEPT
     create(ec, presilent0_body_, table_t::presilent0_body);
     create(ec, presilent1_head_, table_t::presilent1_head);
     create(ec, presilent1_body_, table_t::presilent1_body);
-    create(ec, prevout_head_, table_t::prevout_head);
-    create(ec, prevout_body_, table_t::prevout_body);
+    create(ec, points0_head_, table_t::points0_head);
+    create(ec, points0_body_, table_t::points0_body);
+    create(ec, points1_head_, table_t::points1_head);
+    create(ec, points1_body_, table_t::points1_body);
     create(ec, state_head_, table_t::state_head);
     create(ec, pool_head_, table_t::pool_head);
     create(ec, pool_body_, table_t::pool_body);
-    create(ec, spends_head_, table_t::spends_head);
-    create(ec, spends_body_, table_t::spends_body);
     create(ec, wtxid_head_, table_t::wtxid_head);
     create(ec, wtxid_body_, table_t::wtxid_body);
 
@@ -163,12 +169,17 @@ code CLASS::create_load(const event_handler& handler) NOEXCEPT
     populate(ec, output, table_t::output_table);
     populate(ec, ins, table_t::ins_table);
     populate(ec, outs, table_t::outs_table);
+    populate(ec, spend, table_t::spend_table);
+    populate(ec, unbound, table_t::unbound_table);
     populate(ec, tx, table_t::tx_table);
     populate(ec, txs, table_t::txs_table);
 
     populate(ec, candidate, table_t::candidate_table);
     populate(ec, confirmed, table_t::confirmed_table);
     populate(ec, strong, table_t::strong_table);
+    populate(ec, address, table_t::address_table);
+    populate(ec, conflict, table_t::conflict_table);
+    populate(ec, spender, table_t::spender_table);
     populate(ec, scan, table_t::scan_table);
     populate(ec, scan_prefix, table_t::scan_prefix_table);
 
@@ -181,15 +192,14 @@ code CLASS::create_load(const event_handler& handler) NOEXCEPT
     populate(ec, silent0_prefix, table_t::silent0_prefix_table);
     populate(ec, silent1_prefix, table_t::silent1_prefix_table);
     populate(ec, envelope, table_t::envelope_table);
-    populate(ec, duplicate, table_t::duplicate_table);
     populate(ec, prevalid0, table_t::prevalid0_table);
     populate(ec, prevalid1, table_t::prevalid1_table);
     populate(ec, presilent0, table_t::presilent0_table);
     populate(ec, presilent1, table_t::presilent1_table);
-    populate(ec, prevout, table_t::prevout_table);
+    populate(ec, points0, table_t::points0_table);
+    populate(ec, points1, table_t::points1_table);
     populate(ec, state, table_t::state_table);
     populate(ec, pool, table_t::pool_table);
-    populate(ec, spends, table_t::spends_table);
     populate(ec, wtxid, table_t::wtxid_table);
 
     populate(ec, filter_bk, table_t::filter_bk_table);

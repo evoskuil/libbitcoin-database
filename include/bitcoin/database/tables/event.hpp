@@ -41,6 +41,7 @@ enum class event_t
     prune_table,
     backup_table,
     copy_header,
+    copy_body,
     archive_snapshot,
 
     restore_table,

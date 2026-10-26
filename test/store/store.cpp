@@ -34,39 +34,6 @@ BOOST_AUTO_TEST_CASE(store__construct__default_configuration__referenced)
     BOOST_REQUIRE_EQUAL(&instance.configuration(), &configuration);
 }
 
-BOOST_AUTO_TEST_CASE(store__is_dirty__uninitialized__true)
-{
-    const settings configuration{};
-    store<database::mmap> instance{ configuration };
-    BOOST_REQUIRE(instance.is_dirty());
-}
-
-BOOST_AUTO_TEST_CASE(store__is_dirty__initialized___false)
-{
-    settings configuration{};
-    configuration.path = TEST_DIRECTORY;
-    store<database::mmap> instance{ configuration };
-    query<store<database::mmap>> query_{ instance };
-    BOOST_REQUIRE(!instance.create(test::events));
-    BOOST_REQUIRE(query_.initialize(test::genesis));
-    BOOST_REQUIRE(!instance.is_dirty());
-    BOOST_REQUIRE(!instance.close(test::events));
-}
-
-BOOST_AUTO_TEST_CASE(store__set_dirty__initialized__is_dirty)
-{
-    settings configuration{};
-    configuration.path = TEST_DIRECTORY;
-    store<database::mmap> instance{ configuration };
-    query<store<database::mmap>> query_{ instance };
-    BOOST_REQUIRE(!instance.create(test::events));
-    BOOST_REQUIRE(query_.initialize(test::genesis));
-    BOOST_REQUIRE(!instance.is_dirty());
-    instance.set_dirty();
-    BOOST_REQUIRE(instance.is_dirty());
-    BOOST_REQUIRE(!instance.close(test::events));
-}
-
 BOOST_AUTO_TEST_CASE(store__is_pooling__default__false)
 {
     const settings configuration{};
@@ -74,7 +41,7 @@ BOOST_AUTO_TEST_CASE(store__is_pooling__default__false)
     BOOST_REQUIRE(!instance.is_pooling());
 }
 
-BOOST_AUTO_TEST_CASE(store__set_pooling__initialized__is_pooling_and_dirty)
+BOOST_AUTO_TEST_CASE(store__set_pooling__initialized__is_pooling)
 {
     settings configuration{};
     configuration.path = TEST_DIRECTORY;
@@ -83,55 +50,10 @@ BOOST_AUTO_TEST_CASE(store__set_pooling__initialized__is_pooling_and_dirty)
     BOOST_REQUIRE(!instance.create(test::events));
     BOOST_REQUIRE(query_.initialize(test::genesis));
     BOOST_REQUIRE(!instance.is_pooling());
-    BOOST_REQUIRE(!instance.is_dirty());
     instance.set_pooling();
     BOOST_REQUIRE(instance.is_pooling());
-    BOOST_REQUIRE(instance.is_dirty());
     BOOST_REQUIRE(!instance.close(test::events));
 }
-
-BOOST_AUTO_TEST_CASE(store__is_dirty__open__false)
-{
-    settings configuration{};
-    configuration.path = TEST_DIRECTORY;
-    store<database::mmap> instance{ configuration };
-    query<store<database::mmap>> query_{ instance };
-    BOOST_REQUIRE(!instance.create(test::events));
-    BOOST_REQUIRE(query_.initialize(test::genesis));
-    BOOST_REQUIRE(!instance.is_dirty());
-    BOOST_REQUIRE(!instance.close(test::events));
-}
-
-BOOST_AUTO_TEST_CASE(store__is_dirty__open_add_header__false)
-{
-    settings configuration{};
-    configuration.path = TEST_DIRECTORY;
-    store<database::mmap> instance{ configuration };
-    query<store<database::mmap>> query_{ instance };
-    BOOST_REQUIRE(!instance.create(test::events));
-    BOOST_REQUIRE(query_.initialize(test::genesis));
-    BOOST_REQUIRE(query_.set(system::chain::header{}, context{}, {}, false));
-    BOOST_REQUIRE(!instance.is_dirty());
-    BOOST_REQUIRE(!instance.close(test::events));
-}
-
-////BOOST_AUTO_TEST_CASE(store__is_dirty__open_with_two_headers__true)
-////{
-////    settings configuration{};
-////    configuration.path = TEST_DIRECTORY;
-////
-////    store<database::mmap> instance1{ configuration };
-////    query<store<database::mmap>> query1_{ instance1 };
-////    BOOST_REQUIRE(!instance1.create(test::events));
-////    BOOST_REQUIRE(query1_.initialize(test::genesis));
-////    BOOST_REQUIRE(query1_.set(system::chain::header{}, context{}, {}, false));
-////    BOOST_REQUIRE(!instance1.close(test::events));
-////
-////    store<database::mmap> instance2{ configuration };
-////    BOOST_REQUIRE(!instance1.open(test::events));
-////    BOOST_REQUIRE(instance2.is_dirty());
-////    BOOST_REQUIRE(!instance1.close(test::events));
-////}
 
 BOOST_AUTO_TEST_CASE(store__paths__default_configuration__expected)
 {
@@ -146,9 +68,12 @@ BOOST_AUTO_TEST_CASE(store__paths__default_configuration__expected)
     BOOST_REQUIRE_EQUAL(instance.output_head_file(), "bitcoin/heads/archive_output.head");
     BOOST_REQUIRE_EQUAL(instance.output_body_file(), "bitcoin/archive_output.data");
     BOOST_REQUIRE_EQUAL(instance.ins_head_file(), "bitcoin/heads/archive_ins.head");
-    BOOST_REQUIRE_EQUAL(instance.ins_body_file(), "bitcoin/archive_ins_point.data");
+    BOOST_REQUIRE_EQUAL(instance.ins_body_file(), "bitcoin/archive_ins.data");
     BOOST_REQUIRE_EQUAL(instance.outs_head_file(), "bitcoin/heads/archive_outs.head");
-    BOOST_REQUIRE_EQUAL(instance.outs_body_file(), "bitcoin/archive_outs_address.data");
+    BOOST_REQUIRE_EQUAL(instance.outs_body_file(), "bitcoin/archive_outs.data");
+    BOOST_REQUIRE_EQUAL(instance.spend_head_file(), "bitcoin/heads/archive_spend.head");
+    BOOST_REQUIRE_EQUAL(instance.unbound_head_file(), "bitcoin/heads/archive_unbound.head");
+    BOOST_REQUIRE_EQUAL(instance.unbound_body_file(), "bitcoin/archive_unbound.data");
     BOOST_REQUIRE_EQUAL(instance.tx_head_file(), "bitcoin/heads/archive_tx.head");
     BOOST_REQUIRE_EQUAL(instance.tx_body_file(), "bitcoin/archive_tx.data");
     BOOST_REQUIRE_EQUAL(instance.txs_head_file(), "bitcoin/heads/archive_txs.head");
@@ -158,15 +83,20 @@ BOOST_AUTO_TEST_CASE(store__paths__default_configuration__expected)
     BOOST_REQUIRE_EQUAL(instance.candidate_head_file(), "bitcoin/heads/index_candidate.head");
     BOOST_REQUIRE_EQUAL(instance.confirmed_head_file(), "bitcoin/heads/index_confirmed.head");
     BOOST_REQUIRE_EQUAL(instance.strong_head_file(), "bitcoin/heads/index_strong.head");
-    BOOST_REQUIRE_EQUAL(instance.duplicate_head_file(), "bitcoin/heads/index_duplicate.head");
-    BOOST_REQUIRE_EQUAL(instance.duplicate_body_file(), "bitcoin/index_duplicate.data");
+    BOOST_REQUIRE_EQUAL(instance.address_head_file(), "bitcoin/heads/index_address.head");
+    BOOST_REQUIRE_EQUAL(instance.address_body_file(), "bitcoin/index_address.data");
+    BOOST_REQUIRE_EQUAL(instance.conflict_head_file(), "bitcoin/heads/index_conflict.head");
+    BOOST_REQUIRE_EQUAL(instance.conflict_body_file(), "bitcoin/index_conflict.data");
+    BOOST_REQUIRE_EQUAL(instance.spender_head_file(), "bitcoin/heads/index_spender.head");
     BOOST_REQUIRE_EQUAL(instance.state_head_file(), "bitcoin/heads/index_state.head");
     BOOST_REQUIRE_EQUAL(instance.wtxid_head_file(), "bitcoin/heads/index_wtxid.head");
     BOOST_REQUIRE_EQUAL(instance.wtxid_body_file(), "bitcoin/index_wtxid.data");
 
     /// Cache.
-    BOOST_REQUIRE_EQUAL(instance.prevout_head_file(), "bitcoin/heads/cache_prevout.head");
-    BOOST_REQUIRE_EQUAL(instance.prevout_body_file(), "bitcoin/cache_prevout.data");
+    BOOST_REQUIRE_EQUAL(instance.points0_head_file(), "bitcoin/heads/cache_points0.head");
+    BOOST_REQUIRE_EQUAL(instance.points0_body_file(), "bitcoin/heads/cache_points0.data");
+    BOOST_REQUIRE_EQUAL(instance.points1_head_file(), "bitcoin/heads/cache_points1.head");
+    BOOST_REQUIRE_EQUAL(instance.points1_body_file(), "bitcoin/heads/cache_points1.data");
     BOOST_REQUIRE_EQUAL(instance.pool_head_file(), "bitcoin/heads/cache_pool.head");
     BOOST_REQUIRE_EQUAL(instance.pool_body_file(), "bitcoin/cache_pool_context.data");
 

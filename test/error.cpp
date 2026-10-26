@@ -52,15 +52,6 @@ BOOST_AUTO_TEST_CASE(error_t__code__integrity_spendable__true_expected_message)
     BOOST_REQUIRE_EQUAL(ec.message(), "store corrupted, unspendable");
 }
 
-BOOST_AUTO_TEST_CASE(error_t__code__integrity_get_prevouts__true_expected_message)
-{
-    constexpr auto value = error::integrity_get_prevouts;
-    const auto ec = code(value);
-    BOOST_REQUIRE(ec);
-    BOOST_REQUIRE(ec == value);
-    BOOST_REQUIRE_EQUAL(ec.message(), "store corrupted, get_prevouts");
-}
-
 BOOST_AUTO_TEST_CASE(error_t__code__integrity_block_confirmable1__true_expected_message)
 {
     constexpr auto value = error::integrity_block_confirmable1;
@@ -396,6 +387,15 @@ BOOST_AUTO_TEST_CASE(error_t__code__not_coalesced__true_expected_message)
     BOOST_REQUIRE_EQUAL(ec.message(), "not coalesced");
 }
 
+BOOST_AUTO_TEST_CASE(error_t__code__unbound_put__true_expected_message)
+{
+    constexpr auto value = error::unbound_put;
+    const auto ec = code(value);
+    BOOST_REQUIRE(ec);
+    BOOST_REQUIRE(ec == value);
+    BOOST_REQUIRE_EQUAL(ec.message(), "unbound put");
+}
+
 BOOST_AUTO_TEST_CASE(error_t__code__missing_snapshot__true_expected_message)
 {
     constexpr auto value = error::missing_snapshot;
@@ -542,40 +542,22 @@ BOOST_AUTO_TEST_CASE(error_t__code__tx_outs_put__true_expected_message)
     BOOST_REQUIRE_EQUAL(ec.message(), "tx_outs_put");
 }
 
-BOOST_AUTO_TEST_CASE(error_t__code__tx_point_allocate__true_expected_message)
+BOOST_AUTO_TEST_CASE(error_t__code__tx_points_put__true_expected_message)
 {
-    constexpr auto value = error::tx_point_allocate;
+    constexpr auto value = error::tx_points_put;
     const auto ec = code(value);
     BOOST_REQUIRE(ec);
     BOOST_REQUIRE(ec == value);
-    BOOST_REQUIRE_EQUAL(ec.message(), "tx_point_allocate");
+    BOOST_REQUIRE_EQUAL(ec.message(), "tx_points_put");
 }
 
-BOOST_AUTO_TEST_CASE(error_t__code__tx_point_put__true_expected_message)
+BOOST_AUTO_TEST_CASE(error_t__code__tx_spends_put__true_expected_message)
 {
-    constexpr auto value = error::tx_point_put;
+    constexpr auto value = error::tx_spend_put;
     const auto ec = code(value);
     BOOST_REQUIRE(ec);
     BOOST_REQUIRE(ec == value);
-    BOOST_REQUIRE_EQUAL(ec.message(), "tx_point_put");
-}
-
-BOOST_AUTO_TEST_CASE(error_t__code__tx_null_point_put__true_expected_message)
-{
-    constexpr auto value = error::tx_null_point_put;
-    const auto ec = code(value);
-    BOOST_REQUIRE(ec);
-    BOOST_REQUIRE(ec == value);
-    BOOST_REQUIRE_EQUAL(ec.message(), "tx_null_point_put");
-}
-
-BOOST_AUTO_TEST_CASE(error_t__code__tx_duplicate_put__true_expected_message)
-{
-    constexpr auto value = error::tx_duplicate_put;
-    const auto ec = code(value);
-    BOOST_REQUIRE(ec);
-    BOOST_REQUIRE(ec == value);
-    BOOST_REQUIRE_EQUAL(ec.message(), "tx_duplicate_put");
+    BOOST_REQUIRE_EQUAL(ec.message(), "tx_spend_put");
 }
 
 BOOST_AUTO_TEST_CASE(error_t__code__tx_tx_set__true_expected_message)
@@ -585,15 +567,6 @@ BOOST_AUTO_TEST_CASE(error_t__code__tx_tx_set__true_expected_message)
     BOOST_REQUIRE(ec);
     BOOST_REQUIRE(ec == value);
     BOOST_REQUIRE_EQUAL(ec.message(), "tx_tx_set");
-}
-
-BOOST_AUTO_TEST_CASE(error_t__code__tx_address_allocate__true_expected_message)
-{
-    constexpr auto value = error::tx_address_allocate;
-    const auto ec = code(value);
-    BOOST_REQUIRE(ec);
-    BOOST_REQUIRE(ec == value);
-    BOOST_REQUIRE_EQUAL(ec.message(), "tx_address_allocate");
 }
 
 BOOST_AUTO_TEST_CASE(error_t__code__tx_address_put__true_expected_message)

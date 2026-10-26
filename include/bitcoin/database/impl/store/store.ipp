@@ -24,20 +24,6 @@
 namespace libbitcoin {
 namespace database {
 
-// The address spine is unbacked when its hash head is disabled.
-TEMPLATE
-std::unique_ptr<storage> CLASS::to_outs(const settings& config) NOEXCEPT
-{
-    if (is_zero(config.outs.buckets))
-        return std::make_unique<table::outs_storage_unbacked<Storage>>(
-            body(config.path, schema::archive::outs), config.outs,
-            sequential, staged);
-
-    return std::make_unique<table::outs_storage<Storage>>(
-        body(config.path, schema::archive::outs), config.outs,
-        sequential, staged);
-}
-
 TEMPLATE
 CLASS::store(const settings& config) NOEXCEPT
   : configuration_(config),
@@ -55,11 +41,15 @@ CLASS::store(const settings& config) NOEXCEPT
     output_head_(head(config.path / schema::dir::heads, schema::archive::output), head_settings(config.output), sequential),
     output_body_(body(config.path, schema::archive::output), config.output, sequential, staged),
 
-    ins_head_(head(config.path / schema::dir::heads, schema::archive::ins), head_settings(config.ins), random),
+    ins_head_(head(config.path / schema::dir::heads, schema::archive::ins), head_settings(config.ins), sequential),
     ins_body_(body(config.path, schema::archive::ins), config.ins, sequential, staged),
 
-    outs_head_(head(config.path / schema::dir::heads, schema::archive::outs), head_settings(config.outs), random),
-    outs_body_(to_outs(config)),
+    outs_head_(head(config.path / schema::dir::heads, schema::archive::outs), head_settings(config.outs), sequential),
+    outs_body_(body(config.path, schema::archive::outs), config.outs, sequential, staged),
+
+    spend_head_(head(config.path / schema::dir::heads, schema::archive::spend), head_settings<schema::spend::cell>(config.spend, advice::sequential), sequential, !staged, shared),
+    unbound_head_(head(config.path / schema::dir::heads, schema::archive::unbound), head_settings(config.unbound), random),
+    unbound_body_(body(config.path, schema::archive::unbound), config.unbound, sequential, staged),
 
     tx_head_(head(config.path / schema::dir::heads, schema::archive::tx), head_settings(config.tx), random),
     tx_body_(body(config.path, schema::archive::tx), config.tx, sequential, staged),
@@ -74,6 +64,11 @@ CLASS::store(const settings& config) NOEXCEPT
     confirmed_head_(head(config.path / schema::dir::heads, schema::indexes::confirmed), head_settings<schema::height::cell>(config.confirmed), sequential),
 
     strong_head_(head(config.path / schema::dir::heads, schema::indexes::strong), head_settings<schema::strong::cell>(config.strong, advice::sequential, zero), sequential, !staged, shared),
+    address_head_(head(config.path / schema::dir::heads, schema::indexes::address), head_settings(config.address), random),
+    address_body_(body(config.path, schema::indexes::address), config.address, sequential, staged),
+    conflict_head_(head(config.path / schema::dir::heads, schema::indexes::conflict), head_settings(config.conflict), random),
+    conflict_body_(body(config.path, schema::indexes::conflict), config.conflict, sequential, staged),
+    spender_head_(head(config.path / schema::dir::heads, schema::indexes::spender), head_settings<schema::spender::cell>(config.spender, advice::sequential), sequential, !staged, shared),
     scan_head_(head(config.path / schema::dir::heads, schema::indexes::scan), head_settings(config.scan), random),
     scan_body_(body(config.path, schema::indexes::scan), config.scan, sequential, staged),
     scan_prefix_head_(head(config.path / schema::dir::heads, schema::indexes::scan_prefix), head_settings(config.scan), sequential),
@@ -103,9 +98,11 @@ CLASS::store(const settings& config) NOEXCEPT
     silent1_prefix_head_(head(config.path / schema::dir::heads, schema::caches::silent1_prefix), head_settings(config.silent), sequential),
     silent1_prefix_body_(body(config.path, schema::caches::silent1_prefix), config.silent, sequential, staged),
 
-    envelope_head_(head(config.path / schema::dir::heads, schema::caches::envelope), head_settings(config.duplicate), sequential),
-    duplicate_head_(head(config.path / schema::dir::heads, schema::indexes::duplicate), head_settings(config.duplicate), random),
-    duplicate_body_(body(config.path, schema::indexes::duplicate), config.duplicate, sequential, staged),
+    envelope_head_(head(config.path / schema::dir::heads, schema::caches::envelope), head_settings(config.points), sequential),
+    points0_head_(head(config.path / schema::dir::heads, schema::caches::points0), head_settings(config.points), sequential),
+    points0_body_(body(config.path / schema::dir::heads, schema::caches::points0), config.points, sequential, staged),
+    points1_head_(head(config.path / schema::dir::heads, schema::caches::points1), head_settings(config.points), sequential),
+    points1_body_(body(config.path / schema::dir::heads, schema::caches::points1), config.points, sequential, staged),
 
     prevalid0_head_(head(config.path / schema::dir::heads, schema::caches::prevalid0), head_settings(config.prevalid), sequential),
     prevalid0_body_(body(config.path, schema::caches::prevalid0), config.prevalid, sequential, staged),
@@ -116,15 +113,11 @@ CLASS::store(const settings& config) NOEXCEPT
     presilent1_head_(head(config.path / schema::dir::heads, schema::caches::presilent1), head_settings(config.presilent), sequential),
     presilent1_body_(body(config.path, schema::caches::presilent1), config.presilent, sequential, staged),
 
-    prevout_head_(head(config.path / schema::dir::heads, schema::caches::prevout), head_settings(config.prevout), random),
-    prevout_body_(body(config.path, schema::caches::prevout), config.prevout, sequential, staged),
 
     state_head_(head(config.path / schema::dir::heads, schema::indexes::state), head_settings<schema::state::cell>(config.state, advice::random, zero), random),
 
     pool_head_(head(config.path / schema::dir::heads, schema::caches::pool), head_settings(config.pool), random),
     pool_body_(body(config.path, schema::caches::pool), config.pool, sequential, staged),
-    spends_head_(head(config.path / schema::dir::heads, schema::caches::spends), head_settings(config.spends), sequential),
-    spends_body_(body(config.path, schema::caches::spends), config.spends, sequential, staged),
     wtxid_head_(head(config.path / schema::dir::heads, schema::indexes::wtxid), head_settings(config.wtxid), random),
     wtxid_body_(body(config.path, schema::indexes::wtxid), config.wtxid, sequential, staged),
 
@@ -149,13 +142,18 @@ CLASS::store(const settings& config) NOEXCEPT
     header(header_head_, header_body_, config.header.buckets, config.header.expected),
     input(input_head_, input_body_),
     output(output_head_, output_body_),
-    ins(ins_head_, ins_body_, config.ins.buckets, config.ins.expected),
-    outs(outs_head_, *outs_body_, config.outs.buckets, config.outs.expected),
+    ins(ins_head_, ins_body_),
+    outs(outs_head_, outs_body_),
+    spend(spend_head_, config.spend.buckets),
+    unbound(unbound_head_, unbound_body_, config.unbound.buckets),
     tx(tx_head_, tx_body_, config.tx.buckets, config.tx.expected),
     txs(txs_head_, txs_body_, config.txs.buckets),
 
+    address(address_head_, address_body_, config.address.buckets, config.address.expected),
     candidate(candidate_head_),
     confirmed(confirmed_head_),
+    conflict(conflict_head_, conflict_body_, config.conflict.buckets, config.conflict.expected),
+    spender(spender_head_, config.spender.buckets),
     strong(strong_head_, config.strong.buckets),
     scan(scan_head_, scan_body_, config.scan.buckets),
     scan_prefix(scan_prefix_head_, scan_prefix_body_),
@@ -169,15 +167,14 @@ CLASS::store(const settings& config) NOEXCEPT
     silent0_prefix(silent0_prefix_head_, silent0_prefix_body_),
     silent1_prefix(silent1_prefix_head_, silent1_prefix_body_),
     envelope(envelope_head_),
-    duplicate(duplicate_head_, duplicate_body_, config.duplicate.buckets, config.duplicate.expected),
+    points0(points0_head_, points0_body_, config.points.buckets),
+    points1(points1_head_, points1_body_, config.points.buckets),
     prevalid0(prevalid0_head_, prevalid0_body_),
     prevalid1(prevalid1_head_, prevalid1_body_),
     presilent0(presilent0_head_, presilent0_body_),
     presilent1(presilent1_head_, presilent1_body_),
-    prevout(prevout_head_, prevout_body_, config.prevout.buckets),
     state(state_head_, config.state.buckets),
     pool(pool_head_, pool_body_, config.pool.buckets, config.pool.expected),
-    spends(spends_head_, spends_body_),
     wtxid(wtxid_head_, wtxid_body_, config.wtxid.buckets, config.wtxid.expected),
 
     filter_bk(filter_bk_head_, filter_bk_body_, config.filter_bk.buckets),
@@ -189,10 +186,9 @@ CLASS::store(const settings& config) NOEXCEPT
     // at create and overrides it at open (stored values govern the store).
     using namespace system;
     envelope_.header_k = possible_narrow_cast<uint8_t>(header.filter_k());
-    envelope_.ins_k = possible_narrow_cast<uint8_t>(ins.filter_k());
-    envelope_.outs_k = possible_narrow_cast<uint8_t>(outs.filter_k());
+    envelope_.address_k = possible_narrow_cast<uint8_t>(address.filter_k());
     envelope_.tx_k = possible_narrow_cast<uint8_t>(tx.filter_k());
-    envelope_.duplicate_k = possible_narrow_cast<uint8_t>(duplicate.filter_k());
+    envelope_.conflict_k = possible_narrow_cast<uint8_t>(conflict.filter_k());
     envelope_.pool_k = possible_narrow_cast<uint8_t>(pool.filter_k());
     envelope_.wtxid_k = possible_narrow_cast<uint8_t>(wtxid.filter_k());
 }
@@ -230,18 +226,6 @@ const database::envelope& CLASS::get_envelope() const NOEXCEPT
 }
 
 TEMPLATE
-bool CLASS::is_dirty() const NOEXCEPT
-{
-    return dirty_.load(std::memory_order_relaxed);
-}
-
-TEMPLATE
-void CLASS::set_dirty() NOEXCEPT
-{
-    return dirty_.store(true, std::memory_order_relaxed);
-}
-
-TEMPLATE
 size_t CLASS::get_scan_frontier() const NOEXCEPT
 {
     return scan_frontier_.load(std::memory_order_relaxed);
@@ -274,7 +258,6 @@ void CLASS::set_pooling() NOEXCEPT
 
     code ec{};
     store_envelope(ec);
-    set_dirty();
 }
 
 TEMPLATE
@@ -314,6 +297,18 @@ table::prevalid& CLASS::prevalid_bank(bool bank) NOEXCEPT
 }
 
 TEMPLATE
+table::points& CLASS::points_bank(bool bank) NOEXCEPT
+{
+    return bank ? points1 : points0;
+}
+
+TEMPLATE
+bool CLASS::get_points_bank() const NOEXCEPT
+{
+    return points_bank_.load(std::memory_order_relaxed);
+}
+
+TEMPLATE
 table::presilent& CLASS::presilent_bank(bool bank) NOEXCEPT
 {
     return bank ? presilent1 : presilent0;
@@ -349,11 +344,16 @@ void CLASS::set_current(bool current) NOEXCEPT
     output_head_.current(current);
     ins_head_.current(current);
     outs_head_.current(current);
+    spend_head_.current(current);
+    unbound_head_.current(current);
     tx_head_.current(current);
     txs_head_.current(current);
     candidate_head_.current(current);
     confirmed_head_.current(current);
     strong_head_.current(current);
+    address_head_.current(current);
+    conflict_head_.current(current);
+    spender_head_.current(current);
     scan_head_.current(current);
     scan_prefix_head_.current(current);
     ecdsa0_head_.current(current);
@@ -365,15 +365,14 @@ void CLASS::set_current(bool current) NOEXCEPT
     silent0_prefix_head_.current(current);
     silent1_prefix_head_.current(current);
     envelope_head_.current(current);
-    duplicate_head_.current(current);
     prevalid0_head_.current(current);
     prevalid1_head_.current(current);
     presilent0_head_.current(current);
     presilent1_head_.current(current);
-    prevout_head_.current(current);
+    points0_head_.current(current);
+    points1_head_.current(current);
     state_head_.current(current);
     pool_head_.current(current);
-    spends_head_.current(current);
     wtxid_head_.current(current);
     filter_bk_head_.current(current);
     filter_tx_head_.current(current);

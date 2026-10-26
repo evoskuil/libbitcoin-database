@@ -44,10 +44,9 @@ void envelope::set(const settings& database) NOEXCEPT
 {
     interval_depth = database.interval_depth;
     header_buckets = database.header.buckets;
-    ins_buckets = database.ins.buckets;
-    outs_buckets = database.outs.buckets;
+    address_buckets = database.address.buckets;
     tx_buckets = database.tx.buckets;
-    duplicate_buckets = database.duplicate.buckets;
+    conflict_buckets = database.conflict.buckets;
     pool_buckets = database.pool.buckets;
     wtxid_buckets = database.wtxid.buckets;
     provide_filters = to_bool(database.filter_bk.buckets) &&
@@ -104,10 +103,9 @@ string_list envelope::apply(system::settings& bitcoin, settings& database,
 
     assign(database.interval_depth, interval_depth, "interval_depth");
     assign(database.header.buckets, header_buckets, "header_buckets");
-    assign(database.ins.buckets, ins_buckets, "ins_buckets");
-    assign(database.outs.buckets, outs_buckets, "outs_buckets");
+    assign(database.address.buckets, address_buckets, "address_buckets");
     assign(database.tx.buckets, tx_buckets, "tx_buckets");
-    assign(database.duplicate.buckets, duplicate_buckets, "duplicate_buckets");
+    assign(database.conflict.buckets, conflict_buckets, "conflict_buckets");
     assign(database.pool.buckets, pool_buckets, "pool_buckets");
     assign(database.wtxid.buckets, wtxid_buckets, "wtxid_buckets");
 
@@ -251,17 +249,15 @@ bool envelope::from_data(reader& source) NOEXCEPT
 
     interval_depth = source.read_little_endian<uint16_t>();
     header_buckets = source.read_little_endian<uint32_t>();
-    ins_buckets = source.read_little_endian<uint32_t>();
-    outs_buckets = source.read_little_endian<uint32_t>();
+    address_buckets = source.read_little_endian<uint32_t>();
     tx_buckets = source.read_little_endian<uint32_t>();
-    duplicate_buckets = source.read_little_endian<uint32_t>();
+    conflict_buckets = source.read_little_endian<uint32_t>();
     pool_buckets = source.read_little_endian<uint32_t>();
     wtxid_buckets = source.read_little_endian<uint32_t>();
     header_k = source.read_byte();
-    ins_k = source.read_byte();
-    outs_k = source.read_byte();
+    address_k = source.read_byte();
     tx_k = source.read_byte();
-    duplicate_k = source.read_byte();
+    conflict_k = source.read_byte();
     pool_k = source.read_byte();
     wtxid_k = source.read_byte();
 
@@ -347,17 +343,15 @@ bool envelope::to_data(flipper& sink) const NOEXCEPT
 
     sink.write_little_endian<uint16_t>(interval_depth);
     sink.write_little_endian<uint32_t>(header_buckets);
-    sink.write_little_endian<uint32_t>(ins_buckets);
-    sink.write_little_endian<uint32_t>(outs_buckets);
+    sink.write_little_endian<uint32_t>(address_buckets);
     sink.write_little_endian<uint32_t>(tx_buckets);
-    sink.write_little_endian<uint32_t>(duplicate_buckets);
+    sink.write_little_endian<uint32_t>(conflict_buckets);
     sink.write_little_endian<uint32_t>(pool_buckets);
     sink.write_little_endian<uint32_t>(wtxid_buckets);
     sink.write_byte(header_k);
-    sink.write_byte(ins_k);
-    sink.write_byte(outs_k);
+    sink.write_byte(address_k);
     sink.write_byte(tx_k);
-    sink.write_byte(duplicate_k);
+    sink.write_byte(conflict_k);
     sink.write_byte(pool_k);
     sink.write_byte(wtxid_k);
 
@@ -376,7 +370,7 @@ size_t envelope::serialized_size() const NOEXCEPT
 {
     constexpr auto forks_size = 25_size;
     constexpr auto fixed = (4 * sizeof(uint32_t)) + sizeof(uint16_t) +
-        (7 * sizeof(uint32_t)) + (10 * sizeof(uint8_t)) + forks_size +
+        (6 * sizeof(uint32_t)) + (9 * sizeof(uint8_t)) + forks_size +
         sizeof(uint64_t) + (18 * sizeof(uint32_t));
 
     const auto checkpoint_size = [](const chain::checkpoint& in) NOEXCEPT

@@ -31,7 +31,7 @@ struct pooled_tx
 {
     struct prevout
     {
-        table::transaction::link parent{};
+        table::outs::link spent{};
         bool coinbase{};
     };
 

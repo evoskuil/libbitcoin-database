@@ -51,12 +51,17 @@ code CLASS::close(const event_handler& handler) NOEXCEPT
     close(ec, output, table_t::output_table);
     close(ec, ins, table_t::ins_table);
     close(ec, outs, table_t::outs_table);
+    close(ec, spend, table_t::spend_table);
+    close(ec, unbound, table_t::unbound_table);
     close(ec, tx, table_t::tx_table);
     close(ec, txs, table_t::txs_table);
 
     close(ec, candidate, table_t::candidate_table);
     close(ec, confirmed, table_t::confirmed_table);
     close(ec, strong, table_t::strong_table);
+    close(ec, address, table_t::address_table);
+    close(ec, conflict, table_t::conflict_table);
+    close(ec, spender, table_t::spender_table);
     close(ec, scan, table_t::scan_table);
     close(ec, scan_prefix, table_t::scan_prefix_table);
 
@@ -69,15 +74,14 @@ code CLASS::close(const event_handler& handler) NOEXCEPT
     close(ec, silent0_prefix, table_t::silent0_prefix_table);
     close(ec, silent1_prefix, table_t::silent1_prefix_table);
     close(ec, envelope, table_t::envelope_table);
-    close(ec, duplicate, table_t::duplicate_table);
     close(ec, prevalid0, table_t::prevalid0_table);
     close(ec, prevalid1, table_t::prevalid1_table);
     close(ec, presilent0, table_t::presilent0_table);
     close(ec, presilent1, table_t::presilent1_table);
-    close(ec, prevout, table_t::prevout_table);
+    close(ec, points0, table_t::points0_table);
+    close(ec, points1, table_t::points1_table);
     close(ec, state, table_t::state_table);
     close(ec, pool, table_t::pool_table);
-    close(ec, spends, table_t::spends_table);
     close(ec, wtxid, table_t::wtxid_table);
 
     close(ec, filter_bk, table_t::filter_bk_table);

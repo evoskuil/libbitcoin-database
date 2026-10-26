@@ -32,7 +32,6 @@ DEFINE_ERROR_T_MESSAGE_MAP(error)
     // integrity (internal fault)
     { integrity, "store corrupted" },
     { integrity_spendable, "store corrupted, unspendable" },
-    { integrity_get_prevouts, "store corrupted, get_prevouts" },
     { integrity_block_confirmable1, "store corrupted, block_confirmable1" },
     { integrity_block_confirmable2, "store corrupted, block_confirmable2" },
 
@@ -80,6 +79,7 @@ DEFINE_ERROR_T_MESSAGE_MAP(error)
 
     // store
     { not_coalesced, "not coalesced" },
+    { unbound_put, "unbound put" },
     { missing_snapshot, "missing snapshot" },
     { unloaded_file, "file not loaded" },
 
@@ -103,12 +103,9 @@ DEFINE_ERROR_T_MESSAGE_MAP(error)
     { tx_ins_put, "tx_ins_put" },
     { tx_output_put, "tx_output_put" },
     { tx_outs_put, "tx_outs_put" },
-    { tx_point_allocate, "tx_point_allocate" },
-    { tx_point_put, "tx_point_put" },
-    { tx_null_point_put, "tx_null_point_put" },
-    { tx_duplicate_put, "tx_duplicate_put" },
+    { tx_points_put, "tx_points_put" },
+    { tx_spend_put, "tx_spend_put" },
     { tx_tx_set, "tx_tx_set" },
-    { tx_address_allocate, "tx_address_allocate" },
     { tx_address_put, "tx_address_put" },
     { tx_tx_commit, "tx_tx_commit" },
 
@@ -124,9 +121,6 @@ DEFINE_ERROR_T_MESSAGE_MAP(error)
     { txs_confirm, "txs_confirm" },
     { txs_txs_put, "txs_txs_put" },
     { txs_state_put, "txs_state_put" },
-
-    // prevouts cache
-    { prevouts_put, "prevouts_put" },
 
     // services
     { not_found, "not_found" },

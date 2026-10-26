@@ -21,27 +21,73 @@
 
 BOOST_AUTO_TEST_SUITE(outs_tests)
 
-BOOST_AUTO_TEST_CASE(outs_test)
-{
-    BOOST_REQUIRE(true);
-}
+using namespace system;
+const table::outs::record out1{ {}, 0x7890abcdef_u64, 0x01020304_u32, false, true };
+const table::outs::record out2{ {}, 0x1234567890_u64, 0x0a0b0c0d_u32, true, false };
+const auto expected_body = base16_chunk
+(
+    "efcdab9078" // out_fk1
+    "04030281"   // parent_fk1 | coinbase
+    "9078563492" // out_fk2 | excluded
+    "0d0c0b0a"   // parent_fk2
+);
 
-BOOST_AUTO_TEST_CASE(outs__allocate__address_disabled__spine_unbacked)
+BOOST_AUTO_TEST_CASE(outs__put__two__expected)
 {
-    using chunks = test::chunk_storages<0, 5>;
     test::chunk_storage head_store{ test::terminal_fill };
-    chunks body_store{ chunks::paths{ "address", "puts" } };
-    table::outs instance{ head_store, body_store, 0 };
+    test::chunk_storage body_store{};
+    table::outs instance{ head_store, body_store };
     BOOST_REQUIRE(instance.create());
 
-    constexpr auto rows = 2u;
-    BOOST_REQUIRE_EQUAL(instance.allocate(rows), 0u);
-    BOOST_REQUIRE_EQUAL(instance.count(), rows);
+    table::outs::link link1{};
+    table::outs::link link2{};
+    BOOST_REQUIRE(instance.put_link(link1, out1));
+    BOOST_REQUIRE(instance.put_link(link2, out2));
+    BOOST_REQUIRE_EQUAL(link1, 0u);
+    BOOST_REQUIRE_EQUAL(link2, 1u);
+    BOOST_REQUIRE_EQUAL(body_store.buffer(), expected_body);
+}
 
-    // The unbacked address spine contributes no bytes to the aggregate.
-    BOOST_REQUIRE_EQUAL(instance.body_size(), rows * schema::outs::minrow);
-    BOOST_REQUIRE(body_store.buffer().empty());
-    BOOST_REQUIRE_EQUAL(body_store.buffers_.at(one).size(), rows * schema::outs::minrow);
+BOOST_AUTO_TEST_CASE(outs__get__two__expected)
+{
+    auto head = base16_chunk("02000000");
+    auto body = expected_body;
+    test::chunk_storage head_store{ head, test::terminal_fill };
+    test::chunk_storage body_store{ body };
+    table::outs instance{ head_store, body_store };
+
+    table::outs::record out{};
+    BOOST_REQUIRE(instance.get(0u, out));
+    BOOST_REQUIRE(out == out1);
+    BOOST_REQUIRE(instance.get(1u, out));
+    BOOST_REQUIRE(out == out2);
+
+    table::outs::get_output output{};
+    BOOST_REQUIRE(instance.get(1u, output));
+    BOOST_REQUIRE_EQUAL(output.out_fk, 0x1234567890_u64);
+
+    table::outs::get_parent parent{};
+    BOOST_REQUIRE(instance.get(0u, parent));
+    BOOST_REQUIRE_EQUAL(parent.parent_fk, 0x01020304_u32);
+    BOOST_REQUIRE(parent.coinbase);
+    BOOST_REQUIRE(instance.get(1u, parent));
+    BOOST_REQUIRE_EQUAL(parent.parent_fk, 0x0a0b0c0d_u32);
+    BOOST_REQUIRE(!parent.coinbase);
+}
+
+BOOST_AUTO_TEST_CASE(outs__get_excluded__two__second_only)
+{
+    auto head = base16_chunk("02000000");
+    auto body = expected_body;
+    test::chunk_storage head_store{ head, test::terminal_fill };
+    test::chunk_storage body_store{ body };
+    table::outs instance{ head_store, body_store };
+
+    table::outs::get_excluded excluded{ {}, 2u };
+    BOOST_REQUIRE(instance.get(0u, excluded));
+    BOOST_REQUIRE_EQUAL(excluded.excluded.size(), 1u);
+    BOOST_REQUIRE_EQUAL(excluded.excluded.front().first, 1u);
+    BOOST_REQUIRE_EQUAL(excluded.excluded.front().second, 0x1234567890_u64);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

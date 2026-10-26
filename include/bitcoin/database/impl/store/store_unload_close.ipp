@@ -49,7 +49,10 @@ code CLASS::unload_close(const event_handler& handler) NOEXCEPT
     unload(ec, ins_head_, table_t::ins_head);
     unload(ec, ins_body_, table_t::ins_body);
     unload(ec, outs_head_, table_t::outs_head);
-    unload(ec, *outs_body_, table_t::outs_body);
+    unload(ec, outs_body_, table_t::outs_body);
+    unload(ec, spend_head_, table_t::spend_head);
+    unload(ec, unbound_head_, table_t::unbound_head);
+    unload(ec, unbound_body_, table_t::unbound_body);
     unload(ec, tx_head_, table_t::tx_head);
     unload(ec, tx_body_, table_t::tx_body);
     unload(ec, txs_head_, table_t::txs_head);
@@ -58,6 +61,11 @@ code CLASS::unload_close(const event_handler& handler) NOEXCEPT
     unload(ec, candidate_head_, table_t::candidate_head);
     unload(ec, confirmed_head_, table_t::confirmed_head);
     unload(ec, strong_head_, table_t::strong_head);
+    unload(ec, address_head_, table_t::address_head);
+    unload(ec, address_body_, table_t::address_body);
+    unload(ec, conflict_head_, table_t::conflict_head);
+    unload(ec, conflict_body_, table_t::conflict_body);
+    unload(ec, spender_head_, table_t::spender_head);
     unload(ec, scan_head_, table_t::scan_head);
     unload(ec, scan_body_, table_t::scan_body);
     unload(ec, scan_prefix_head_, table_t::scan_prefix_head);
@@ -80,8 +88,6 @@ code CLASS::unload_close(const event_handler& handler) NOEXCEPT
     unload(ec, silent1_prefix_head_, table_t::silent1_prefix_head);
     unload(ec, silent1_prefix_body_, table_t::silent1_prefix_body);
     unload(ec, envelope_head_, table_t::envelope_head);
-    unload(ec, duplicate_head_, table_t::duplicate_head);
-    unload(ec, duplicate_body_, table_t::duplicate_body);
     unload(ec, prevalid0_head_, table_t::prevalid0_head);
     unload(ec, prevalid0_body_, table_t::prevalid0_body);
     unload(ec, prevalid1_head_, table_t::prevalid1_head);
@@ -90,13 +96,13 @@ code CLASS::unload_close(const event_handler& handler) NOEXCEPT
     unload(ec, presilent0_body_, table_t::presilent0_body);
     unload(ec, presilent1_head_, table_t::presilent1_head);
     unload(ec, presilent1_body_, table_t::presilent1_body);
-    unload(ec, prevout_head_, table_t::prevout_head);
-    unload(ec, prevout_body_, table_t::prevout_body);
+    unload(ec, points0_head_, table_t::points0_head);
+    unload(ec, points0_body_, table_t::points0_body);
+    unload(ec, points1_head_, table_t::points1_head);
+    unload(ec, points1_body_, table_t::points1_body);
     unload(ec, state_head_, table_t::state_head);
     unload(ec, pool_head_, table_t::pool_head);
     unload(ec, pool_body_, table_t::pool_body);
-    unload(ec, spends_head_, table_t::spends_head);
-    unload(ec, spends_body_, table_t::spends_body);
     unload(ec, wtxid_head_, table_t::wtxid_head);
     unload(ec, wtxid_body_, table_t::wtxid_body);
 
@@ -123,7 +129,10 @@ code CLASS::unload_close(const event_handler& handler) NOEXCEPT
     close(ec, ins_head_, table_t::ins_head);
     close(ec, ins_body_, table_t::ins_body);
     close(ec, outs_head_, table_t::outs_head);
-    close(ec, *outs_body_, table_t::outs_body);
+    close(ec, outs_body_, table_t::outs_body);
+    close(ec, spend_head_, table_t::spend_head);
+    close(ec, unbound_head_, table_t::unbound_head);
+    close(ec, unbound_body_, table_t::unbound_body);
     close(ec, tx_head_, table_t::tx_head);
     close(ec, tx_body_, table_t::tx_body);
     close(ec, txs_head_, table_t::txs_head);
@@ -132,6 +141,11 @@ code CLASS::unload_close(const event_handler& handler) NOEXCEPT
     close(ec, candidate_head_, table_t::candidate_head);
     close(ec, confirmed_head_, table_t::confirmed_head);
     close(ec, strong_head_, table_t::strong_head);
+    close(ec, address_head_, table_t::address_head);
+    close(ec, address_body_, table_t::address_body);
+    close(ec, conflict_head_, table_t::conflict_head);
+    close(ec, conflict_body_, table_t::conflict_body);
+    close(ec, spender_head_, table_t::spender_head);
     close(ec, scan_head_, table_t::scan_head);
     close(ec, scan_body_, table_t::scan_body);
     close(ec, scan_prefix_head_, table_t::scan_prefix_head);
@@ -154,8 +168,6 @@ code CLASS::unload_close(const event_handler& handler) NOEXCEPT
     close(ec, silent1_prefix_head_, table_t::silent1_prefix_head);
     close(ec, silent1_prefix_body_, table_t::silent1_prefix_body);
     close(ec, envelope_head_, table_t::envelope_head);
-    close(ec, duplicate_head_, table_t::duplicate_head);
-    close(ec, duplicate_body_, table_t::duplicate_body);
     close(ec, prevalid0_head_, table_t::prevalid0_head);
     close(ec, prevalid0_body_, table_t::prevalid0_body);
     close(ec, prevalid1_head_, table_t::prevalid1_head);
@@ -164,13 +176,13 @@ code CLASS::unload_close(const event_handler& handler) NOEXCEPT
     close(ec, presilent0_body_, table_t::presilent0_body);
     close(ec, presilent1_head_, table_t::presilent1_head);
     close(ec, presilent1_body_, table_t::presilent1_body);
-    close(ec, prevout_head_, table_t::prevout_head);
-    close(ec, prevout_body_, table_t::prevout_body);
+    close(ec, points0_head_, table_t::points0_head);
+    close(ec, points0_body_, table_t::points0_body);
+    close(ec, points1_head_, table_t::points1_head);
+    close(ec, points1_body_, table_t::points1_body);
     close(ec, state_head_, table_t::state_head);
     close(ec, pool_head_, table_t::pool_head);
     close(ec, pool_body_, table_t::pool_body);
-    close(ec, spends_head_, table_t::spends_head);
-    close(ec, spends_body_, table_t::spends_body);
     close(ec, wtxid_head_, table_t::wtxid_head);
     close(ec, wtxid_body_, table_t::wtxid_body);
 

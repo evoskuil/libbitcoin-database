@@ -124,7 +124,22 @@ public:
 
     inline const path& outs_body_file() const NOEXCEPT
     {
-        return outs_body_->file();
+        return outs_body_.file();
+    }
+
+    inline const path& spend_head_file() const NOEXCEPT
+    {
+        return spend_head_.file();
+    }
+
+    inline const path& unbound_head_file() const NOEXCEPT
+    {
+        return unbound_head_.file();
+    }
+
+    inline const path& unbound_body_file() const NOEXCEPT
+    {
+        return unbound_body_.file();
     }
 
     inline const path& tx_head_file() const NOEXCEPT
@@ -164,14 +179,29 @@ public:
         return strong_head_.file();
     }
 
-    inline const path& duplicate_head_file() const NOEXCEPT
+    inline const path& address_head_file() const NOEXCEPT
     {
-        return duplicate_head_.file();
+        return address_head_.file();
     }
 
-    inline const path& duplicate_body_file() const NOEXCEPT
+    inline const path& address_body_file() const NOEXCEPT
     {
-        return duplicate_body_.file();
+        return address_body_.file();
+    }
+
+    inline const path& conflict_head_file() const NOEXCEPT
+    {
+        return conflict_head_.file();
+    }
+
+    inline const path& conflict_body_file() const NOEXCEPT
+    {
+        return conflict_body_.file();
+    }
+
+    inline const path& spender_head_file() const NOEXCEPT
+    {
+        return spender_head_.file();
     }
 
     inline const path& state_head_file() const NOEXCEPT
@@ -286,14 +316,24 @@ public:
         return prevalid0_body_.file();
     }
 
-    inline const path& prevout_head_file() const NOEXCEPT
+    inline const path& points0_head_file() const NOEXCEPT
     {
-        return prevout_head_.file();
+        return points0_head_.file();
     }
 
-    inline const path& prevout_body_file() const NOEXCEPT
+    inline const path& points0_body_file() const NOEXCEPT
     {
-        return prevout_body_.file();
+        return points0_body_.file();
+    }
+
+    inline const path& points1_head_file() const NOEXCEPT
+    {
+        return points1_head_.file();
+    }
+
+    inline const path& points1_body_file() const NOEXCEPT
+    {
+        return points1_body_.file();
     }
 
     inline const path& pool_head_file() const NOEXCEPT
@@ -304,16 +344,6 @@ public:
     inline const path& pool_body_file() const NOEXCEPT
     {
         return pool_body_.file();
-    }
-
-    inline const path& spends_head_file() const NOEXCEPT
-    {
-        return spends_head_.file();
-    }
-
-    inline const path& spends_body_file() const NOEXCEPT
-    {
-        return spends_body_.file();
     }
 
     // Optionals.

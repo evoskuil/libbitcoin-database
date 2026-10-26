@@ -41,6 +41,7 @@ const CLASS::event_map CLASS::events
     { event_t::prune_table, "prune_table" },
     { event_t::backup_table, "backup_table" },
     { event_t::copy_header, "copy_header" },
+    { event_t::copy_body, "copy_body" },
     { event_t::archive_snapshot, "archive_snapshot" },
 
     { event_t::restore_table, "restore_table" },

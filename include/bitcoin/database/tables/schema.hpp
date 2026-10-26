@@ -61,7 +61,9 @@ namespace schema {
 /// 4.0.15.0 Wtxid buckets and filter k in the envelope.
 /// 4.0.16.0 Strong headmap.
 /// 4.0.17.0 Signet fork and challenge in the envelope.
-constexpr std::array<uint32_t, 4> version{ 4, 0, 17, 0 };
+/// 4.0.18.0 Spends, points and conflict tables, ins and outs as records with
+///          the outs spender head, prevout, spends cache and duplicate removed.
+constexpr std::array<uint32_t, 4> version{ 4, 0, 18, 0 };
 
 /// Values.
 /// -----------------------------------------------------------------------
@@ -79,12 +81,11 @@ constexpr size_t hash = system::hash_size;
 
 /// Primary keys.
 /// -----------------------------------------------------------------------
-constexpr size_t dup = 3;       // ->duplicate
 constexpr size_t put = 5;       // ->input/output slab.
-constexpr size_t ins_ = 4;      // ->point|ins record.
-constexpr size_t outs_ = 4;     // ->outs (puts) record.
-constexpr size_t spends_ = 4;   // ->spends record.
-constexpr size_t prevout_ = 5;  // ->prevout slab.
+constexpr size_t ins_ = 4;      // ->ins|spends|points record.
+constexpr size_t outs_ = 4;     // ->outs record.
+constexpr size_t unbound_ = 3;  // ->unbound record.
+constexpr size_t conflict_ = 4; // ->conflict record.
 constexpr size_t txs_ = 5;      // ->txs slab.
 constexpr size_t tx = 4;        // ->tx record.
 constexpr size_t block = 3;     // ->header record.
@@ -134,7 +135,7 @@ struct transaction
 {
     static constexpr size_t sk = schema::hash;
     static constexpr size_t pk = schema::tx;
-    using link = linkage<pk, sub1(to_bits(pk))>; // reduced for prevout merge.
+    using link = linkage<pk, sub1(to_bits(pk))>; // reduced for spender merge.
     using key = system::data_array<sk>;
     static constexpr size_t minsize =
         ////schema::bit +       // coinbase (merged into light)
@@ -144,7 +145,7 @@ struct transaction
         sizeof(uint32_t) +      // version
         schema::index +         // inputs count
         schema::index +         // outputs count
-        schema::ins_ +          // first contiguous input (same link as point)
+        schema::ins_ +          // first contiguous input (ins, spends, points)
         schema::outs_;          // first contiguous output
     static constexpr size_t minrow = pk + sk + minsize;
     static constexpr size_t size = minsize;
@@ -182,58 +183,76 @@ struct output
     static constexpr size_t pk = schema::put;
     using link = linkage<pk, sub1(to_bits(pk))>; // reduced for outs merge.
     static constexpr size_t minsize =
-        schema::transaction::pk +   // parent->tx (address navigation)
         one +                       // value (variable)
         one;                        // script size (variable)
     static constexpr size_t minrow = minsize;
     static constexpr size_t size = max_size_t;
     static constexpr auto suffix = "output"_t;
-    static_assert(minsize == 6u);
-    static_assert(minrow == 6u);
+    static_assert(minsize == 2u);
+    static_assert(minrow == 2u);
     static_assert(link::size == 5u);
     bool operator==(const output&) const NOEXCEPT = default;
 };
 
-// record multimap aggregate (point spine with sequence column)
+// record nomap
 struct ins
 {
     static constexpr size_t pk = schema::ins_;
     using link = linkage<pk, to_bits(pk)>;
-    using key = system::chain::point;
-    static constexpr size_t sk = schema::hash + schema::index;
-    static constexpr size_t minsize =
-        zero;                   // empty row
-    static constexpr size_t minrow = pk + sk + minsize;
-    static constexpr size_t size = minsize;
-    static constexpr size_t cell = sizeof(uint64_t);
-    static constexpr link count() NOEXCEPT { return 1; }
-    static_assert(minsize == 0u);
-    static_assert(minrow == 39u);
-    static_assert(link::size == 4u);
-    static_assert(cell == 8u);
-    bool operator==(const ins&) const NOEXCEPT = default;
-};
-
-// ins sequence column
-struct ins_sequence
-{
-    static constexpr size_t pk = ins::pk;
-    using link = ins::link;
     static constexpr size_t minsize =
         sizeof(uint32_t) +      // sequence
         schema::input::pk +     // input->script|witness
         schema::transaction::pk;// parent->tx (spend navigation)
     static constexpr size_t minrow = minsize;
     static constexpr size_t size = minsize;
-    static constexpr auto suffix = "sequence"_t;
+    static constexpr auto suffix = "ins"_t;
     static constexpr link count() NOEXCEPT { return 1; }
     static_assert(minsize == 13u);
     static_assert(minrow == 13u);
     static_assert(link::size == 4u);
-    bool operator==(const ins_sequence&) const NOEXCEPT = default;
+    bool operator==(const ins&) const NOEXCEPT = default;
 };
 
-// record multimap spine (optional head, output script hash key)
+// headmap (spent outs fk, by ins fk)
+struct spend
+{
+    static constexpr size_t pk = schema::ins_;
+    using link = ins::link;
+    using value = linkage<schema::outs_, to_bits(schema::outs_)>;
+    static constexpr size_t minsize =
+        schema::outs_;          // spent->outs
+    static constexpr size_t minrow = minsize;
+    static constexpr size_t size = minsize;
+    static constexpr size_t cell = minsize;
+    static_assert(minsize == 4u);
+    static_assert(minrow == 4u);
+    static_assert(link::size == 4u);
+    static_assert(cell == 4u);
+    bool operator==(const spend&) const NOEXCEPT = default;
+};
+
+// record hashmap (points of inputs unbound at a points drop, ins key)
+struct unbound
+{
+    static constexpr size_t sk = schema::ins_;
+    static constexpr size_t pk = schema::unbound_;
+    using link = linkage<pk, to_bits(pk)>;
+    using key = system::data_array<sk>;
+    static constexpr size_t minsize =
+        schema::hash +          // point hash
+        schema::index;          // point index
+    static constexpr size_t minrow = pk + sk + minsize;
+    static constexpr size_t size = minsize;
+    static constexpr size_t cell = link::size;
+    static constexpr link count() NOEXCEPT { return 1; }
+    static_assert(minsize == 35u);
+    static_assert(minrow == 42u);
+    static_assert(link::size == 3u);
+    static_assert(cell == 3u);
+    bool operator==(const unbound&) const NOEXCEPT = default;
+};
+
+// record hashmap (optional, output script hash key, rows aligned with outs)
 struct address
 {
     static constexpr size_t sk = zero;
@@ -253,19 +272,22 @@ struct address
     bool operator==(const address&) const NOEXCEPT = default;
 };
 
-// address column (output fk)
+// record nomap
 struct outs
 {
     static constexpr size_t pk = schema::outs_;
     using link = linkage<pk, to_bits(pk)>;
     static constexpr size_t minsize =
         ////schema::bit +       // excluded (merged into output fk)
-        schema::output::pk;
+        schema::output::pk +    // output->value|script
+        ////schema::bit +       // coinbase (merged into parent fk)
+        schema::transaction::pk;// parent->tx
     static constexpr size_t minrow = minsize;
     static constexpr size_t size = minsize;
     static constexpr auto suffix = "outs"_t;
-    static_assert(minsize == 5u);
-    static_assert(minrow == 5u);
+    static constexpr link count() NOEXCEPT { return 1; }
+    static_assert(minsize == 9u);
+    static_assert(minrow == 9u);
     static_assert(link::size == 4u);
     bool operator==(const outs&) const NOEXCEPT = default;
 };
@@ -331,6 +353,25 @@ struct strong
     bool operator==(const strong&) const NOEXCEPT = default;
 };
 
+// headmap (spender tx fk with contested bit, by outs fk)
+struct spender
+{
+    static constexpr size_t pk = schema::outs::pk;
+    using link = schema::outs::link;
+    using value = linkage<sizeof(uint32_t)>;
+    static constexpr size_t minsize =
+        ////schema::bit +       // contested (merged into spender fk)
+        schema::transaction::pk;// spender->tx
+    static constexpr size_t minrow = minsize;
+    static constexpr size_t size = minsize;
+    static constexpr size_t cell = minsize;
+    static_assert(minsize == 4u);
+    static_assert(minrow == 4u);
+    static_assert(link::size == 4u);
+    static_assert(cell == 4u);
+    bool operator==(const spender&) const NOEXCEPT = default;
+};
+
 /// Cache tables.
 /// ---------------------------------------------------------------------------
 
@@ -388,42 +429,42 @@ struct envelope
     bool operator==(const envelope&) const NOEXCEPT = default;
 };
 
-// record hashmap
-struct duplicate
+// record hashmap (spender tx fks of a contested output)
+struct conflict
 {
-    // This could be compressed to store fks once we start tx relay.
-    static constexpr size_t pk = schema::dup;
+    static constexpr size_t sk = schema::outs_;
+    static constexpr size_t pk = schema::conflict_;
     using link = linkage<pk, to_bits(pk)>;
-    using key = system::chain::point;
-    static constexpr size_t sk = schema::hash + schema::index;
+    using key = system::data_array<sk>;
     static constexpr size_t minsize =
-        zero;
+        schema::transaction::pk;// spender->tx
     static constexpr size_t minrow = pk + sk + minsize;
     static constexpr size_t size = minsize;
-    static constexpr size_t cell = sizeof(uint32_t);
+    static constexpr size_t cell = link::size;
     static constexpr link count() NOEXCEPT { return 1; }
-    static_assert(minsize == 0u);
-    static_assert(minrow == 38u);
-    static_assert(link::size == 3u);
+    static_assert(minsize == 4u);
+    static_assert(minrow == 12u);
+    static_assert(link::size == 4u);
     static_assert(cell == 4u);
+    bool operator==(const conflict&) const NOEXCEPT = default;
 };
 
-// slab arraymap
-struct prevout
+// record arraymap (based, keyed by ins fk, dropped once bound)
+struct points
 {
     static constexpr size_t align = false;
-    static constexpr size_t pk = schema::prevout_;
-    using link = linkage<pk, to_bits(pk)>;
+    static constexpr size_t pk = schema::ins_;
+    using link = ins::link;
     static constexpr size_t minsize =
-        ////schema::bit +         // coinbase (merged into transaction::pk).
-        one +                     // conflict-count (variable)
-        schema::transaction::pk + // prevout_tx
-        one;                      // sequence (variable)
+        schema::hash +          // point hash
+        schema::index;          // point index
     static constexpr size_t minrow = minsize;
-    static constexpr size_t size = max_size_t;
-    static_assert(minsize == 6u);
-    static_assert(minrow == 6u);
-    static_assert(link::size == 5u);
+    static constexpr size_t size = minsize;
+    static constexpr link count() NOEXCEPT { return 1; }
+    static_assert(minsize == 35u);
+    static_assert(minrow == 35u);
+    static_assert(link::size == 4u);
+    bool operator==(const points&) const NOEXCEPT = default;
 };
 
 // headmap (values)
@@ -459,14 +500,13 @@ struct pool
         sizeof(uint32_t) +      // context.mtp
         sizeof(uint64_t) +      // fee (could narrow to 3, skipping larger)
         schema::sigops +        // sigops (could narrow to 2, skipping larger)
-        schema::spends_ +       // spends->spends (first of tx inputs)
         sizeof(uint32_t);       // time
     static constexpr size_t minrow = pk + sk + minsize;
     static constexpr size_t size = minsize;
     static constexpr size_t cell = link::size;
     static constexpr link count() NOEXCEPT { return 1; }
-    static_assert(minsize == 30u);
-    static_assert(minrow == 38u);
+    static_assert(minsize == 26u);
+    static_assert(minrow == 34u);
     static_assert(link::size == 4u);
     static_assert(cell == 4u);
     static_assert(witness_lanes * sizeof(witness_lane) == schema::hash);
@@ -500,22 +540,6 @@ struct wtxid
     bool operator==(const wtxid&) const NOEXCEPT = default;
 };
 static_assert(is_same_type<wtxid::link, pool::link>);
-
-// record nomap
-struct spends
-{
-    static constexpr size_t pk = schema::spends_;
-    using link = linkage<pk, to_bits(pk)>;
-    static constexpr size_t minsize =
-        schema::transaction::pk;// parent->tx|coinbase
-    static constexpr size_t minrow = minsize;
-    static constexpr size_t size = minsize;
-    static constexpr auto suffix = "spends"_t;
-    static_assert(minsize == 4u);
-    static_assert(minrow == 4u);
-    static_assert(link::size == 4u);
-    bool operator==(const spends&) const NOEXCEPT = default;
-};
 
 /// Optional tables.
 /// ---------------------------------------------------------------------------

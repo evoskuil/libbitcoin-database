@@ -130,6 +130,7 @@ include_bitcoin_database_impl_querydir = \
 
 include_bitcoin_database_impl_query_HEADERS = \
     ${srcdir}/../../include/bitcoin/database/impl/query/amounts.ipp \
+    ${srcdir}/../../include/bitcoin/database/impl/query/bindings.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/query/confirmed.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/query/extent.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/query/fee_rate.ipp \
@@ -182,7 +183,6 @@ include_bitcoin_database_impl_query_consensus_HEADERS = \
     ${srcdir}/../../include/bitcoin/database/impl/query/consensus/consensus_compact.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/query/consensus/consensus_forks.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/query/consensus/consensus_populate.ipp \
-    ${srcdir}/../../include/bitcoin/database/impl/query/consensus/consensus_prevouts.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/query/consensus/consensus_states.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/query/consensus/consensus_strong.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/query/consensus/consensus_transaction.ipp \
@@ -301,13 +301,15 @@ include_bitcoin_database_tables_archivesdir = \
     ${includedir}/bitcoin/database/tables/archives
 
 include_bitcoin_database_tables_archives_HEADERS = \
+    ${srcdir}/../../include/bitcoin/database/tables/archives/bindings.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/archives/header.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/archives/input.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/archives/ins.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/archives/output.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/archives/outs.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/archives/transaction.hpp \
-    ${srcdir}/../../include/bitcoin/database/tables/archives/txs.hpp
+    ${srcdir}/../../include/bitcoin/database/tables/archives/txs.hpp \
+    ${srcdir}/../../include/bitcoin/database/tables/archives/unbound.hpp
 
 include_bitcoin_database_tables_cachesdir = \
     ${includedir}/bitcoin/database/tables/caches
@@ -315,20 +317,20 @@ include_bitcoin_database_tables_cachesdir = \
 include_bitcoin_database_tables_caches_HEADERS = \
     ${srcdir}/../../include/bitcoin/database/tables/caches/ecdsa.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/caches/envelope.hpp \
+    ${srcdir}/../../include/bitcoin/database/tables/caches/points.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/caches/pool.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/caches/prevalid.hpp \
-    ${srcdir}/../../include/bitcoin/database/tables/caches/prevout.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/caches/schnorr.hpp \
-    ${srcdir}/../../include/bitcoin/database/tables/caches/silent.hpp \
-    ${srcdir}/../../include/bitcoin/database/tables/caches/spends.hpp
+    ${srcdir}/../../include/bitcoin/database/tables/caches/silent.hpp
 
 include_bitcoin_database_tables_indexesdir = \
     ${includedir}/bitcoin/database/tables/indexes
 
 include_bitcoin_database_tables_indexes_HEADERS = \
-    ${srcdir}/../../include/bitcoin/database/tables/indexes/duplicate.hpp \
+    ${srcdir}/../../include/bitcoin/database/tables/indexes/conflict.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/indexes/height.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/indexes/scan.hpp \
+    ${srcdir}/../../include/bitcoin/database/tables/indexes/spender.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/indexes/state.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/indexes/strong.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/indexes/wtxid.hpp
@@ -355,7 +357,6 @@ include_bitcoin_database_types_HEADERS = \
     ${srcdir}/../../include/bitcoin/database/types/header_state.hpp \
     ${srcdir}/../../include/bitcoin/database/types/history.hpp \
     ${srcdir}/../../include/bitcoin/database/types/multisig_view.hpp \
-    ${srcdir}/../../include/bitcoin/database/types/point_set.hpp \
     ${srcdir}/../../include/bitcoin/database/types/pooled_block.hpp \
     ${srcdir}/../../include/bitcoin/database/types/pooled_tx.hpp \
     ${srcdir}/../../include/bitcoin/database/types/position.hpp \
@@ -429,6 +430,7 @@ test_libbitcoin_database_test_SOURCES = \
     ${srcdir}/../../test/primitives/nohead.cpp \
     ${srcdir}/../../test/primitives/nomap.cpp \
     ${srcdir}/../../test/query/amounts.cpp \
+    ${srcdir}/../../test/query/bindings.cpp \
     ${srcdir}/../../test/query/confirmed.cpp \
     ${srcdir}/../../test/query/extent.cpp \
     ${srcdir}/../../test/query/fee_rate.cpp \
@@ -460,7 +462,6 @@ test_libbitcoin_database_test_SOURCES = \
     ${srcdir}/../../test/query/consensus/consensus_compact.cpp \
     ${srcdir}/../../test/query/consensus/consensus_forks.cpp \
     ${srcdir}/../../test/query/consensus/consensus_populate.cpp \
-    ${srcdir}/../../test/query/consensus/consensus_prevouts.cpp \
     ${srcdir}/../../test/query/consensus/consensus_states.cpp \
     ${srcdir}/../../test/query/consensus/consensus_strong.cpp \
     ${srcdir}/../../test/query/consensus/consensus_transaction.cpp \
@@ -486,6 +487,7 @@ test_libbitcoin_database_test_SOURCES = \
     ${srcdir}/../../test/store/store_tables.cpp \
     ${srcdir}/../../test/store/store_unload_close.cpp \
     ${srcdir}/../../test/tables/envelope.cpp \
+    ${srcdir}/../../test/tables/archives/bindings.cpp \
     ${srcdir}/../../test/tables/archives/header.cpp \
     ${srcdir}/../../test/tables/archives/input.cpp \
     ${srcdir}/../../test/tables/archives/ins.cpp \
@@ -493,15 +495,16 @@ test_libbitcoin_database_test_SOURCES = \
     ${srcdir}/../../test/tables/archives/outs.cpp \
     ${srcdir}/../../test/tables/archives/transaction.cpp \
     ${srcdir}/../../test/tables/archives/txs.cpp \
+    ${srcdir}/../../test/tables/archives/unbound.cpp \
     ${srcdir}/../../test/tables/caches/ecdsa.cpp \
+    ${srcdir}/../../test/tables/caches/points.cpp \
     ${srcdir}/../../test/tables/caches/pool.cpp \
     ${srcdir}/../../test/tables/caches/prevalid.cpp \
-    ${srcdir}/../../test/tables/caches/prevout.cpp \
     ${srcdir}/../../test/tables/caches/schnorr.cpp \
-    ${srcdir}/../../test/tables/caches/spends.cpp \
-    ${srcdir}/../../test/tables/indexes/duplicate.cpp \
+    ${srcdir}/../../test/tables/indexes/conflict.cpp \
     ${srcdir}/../../test/tables/indexes/height.cpp \
     ${srcdir}/../../test/tables/indexes/scan.cpp \
+    ${srcdir}/../../test/tables/indexes/spender.cpp \
     ${srcdir}/../../test/tables/indexes/state.cpp \
     ${srcdir}/../../test/tables/indexes/strong.cpp \
     ${srcdir}/../../test/tables/indexes/wtxid.cpp \

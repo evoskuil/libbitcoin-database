@@ -29,7 +29,7 @@ namespace database {
 TEMPLATE
 code CLASS::prune(const event_handler& handler) NOEXCEPT
 {
-    // Transactor lock generally only covers writes, but in this case prevout
+    // Transactor lock generally only covers writes, but in this case pool
     // reads must also be guarded since the body shrinks and head is cleared.
     while (!transactor_mutex_.try_lock_for(std::chrono::seconds(1)))
     {
@@ -38,7 +38,7 @@ code CLASS::prune(const event_handler& handler) NOEXCEPT
 
     code ec{ error::success };
 
-    // Prevouts resettable if all candidates confirmed (fork is candidate top).
+    // Pool resettable if all candidates confirmed (fork is candidate top).
     if (!query<CLASS>{ *this }.is_coalesced())
     {
         ec = error::not_coalesced;
@@ -47,42 +47,27 @@ code CLASS::prune(const event_handler& handler) NOEXCEPT
     {
         ec = compact(handler, [&]() NOEXCEPT -> code
         {
-            handler(event_t::prune_table, table_t::prevout_head);
             handler(event_t::prune_table, table_t::pool_head);
             handler(event_t::prune_table, table_t::wtxid_head);
 
             // nullify table heads, set reference body counts to zero.
             // If snapshot from this state fails previous snapshot remains valid.
             // Batch tables drop at start and under lock after verify (not here).
-            if (!prevout.clear() || !pool.clear() || !wtxid.clear())
+            if (!pool.clear() || !wtxid.clear())
                 return error::prune_table;
 
             // Snapshot with nullified head and zero body count.
             // The 'prune' parameter signals to not reset body count.
             // Success deletes the pre-prune snapshot (trim strands nothing).
-            if (const auto snap = snapshot(handler, true))
-                return snap;
-
-            // Reclaim logical extent (the snapshot remains valid on failure).
-            handler(event_t::prune_table, table_t::prevout_body);
-            return prevout_body_.truncate(0) ? error::success :
-                error::prune_table;
+            return snapshot(handler, true);
         });
 
         if (!ec)
         {
             // Reclaim disk space to logical extent.
-            handler(event_t::unload_file, table_t::prevout_body);
-            if (!ec) ec = prevout_body_.shrink();
-            handler(event_t::load_file, table_t::prevout_body);
-
             handler(event_t::unload_file, table_t::pool_body);
             if (!ec) ec = pool_body_.shrink();
             handler(event_t::load_file, table_t::pool_body);
-
-            handler(event_t::unload_file, table_t::spends_body);
-            if (!ec) ec = spends_body_.shrink();
-            handler(event_t::load_file, table_t::spends_body);
 
             handler(event_t::unload_file, table_t::wtxid_body);
             if (!ec) ec = wtxid_body_.shrink();
@@ -124,8 +109,8 @@ code CLASS::prune(const event_handler& handler) NOEXCEPT
 
 // protected
 // The kept records are copied out while the pool head is intact (ancestors are
-// found by key), and back after the reset, which snapshots pool, spends and
-// wtxid empty, so a fault before the next snapshot restores to the empty pool.
+// found by key), and back after the reset, which snapshots pool and wtxid
+// empty, so a fault before the next snapshot restores to the empty pool.
 // Bodies are staged (settled records are read-only), so none is rewritten.
 TEMPLATE
 template <typename Reset>
@@ -134,10 +119,8 @@ code CLASS::compact(const event_handler& handler, const Reset& reset) NOEXCEPT
     const auto empty = [&]() NOEXCEPT
     {
         handler(event_t::prune_table, table_t::pool_body);
-        handler(event_t::prune_table, table_t::spends_body);
         handler(event_t::prune_table, table_t::wtxid_body);
-        return pool_body_.truncate(0) && spends_body_.truncate(0) &&
-            wtxid_body_.truncate(0);
+        return pool_body_.truncate(0) && wtxid_body_.truncate(0);
     };
 
     const auto restart = [&]() NOEXCEPT -> code
@@ -165,17 +148,12 @@ code CLASS::compact(const event_handler& handler, const Reset& reset) NOEXCEPT
         head_settings(configuration_.pool), random };
     table::pool_storage<Storage> pool_body{ body(folder, schema::caches::pool),
         configuration_.pool, sequential, staged };
-    Storage<one> spends_head{ head(folder, schema::caches::spends),
-        head_settings(configuration_.spends), sequential };
-    Storage<one> spends_body{ body(folder, schema::caches::spends),
-        configuration_.spends, sequential, staged };
 
     using namespace system;
     using bucket = table::pool::link::integer;
     table::pool temp_pool{ pool_head, pool_body,
         possible_narrow_cast<bucket>(pool.buckets()),
         configuration_.pool.expected };
-    table::spends temp_spends{ spends_head, spends_body };
 
     code ec{ error::success };
     const auto create = [&](auto& storage, table_t table) NOEXCEPT
@@ -207,23 +185,15 @@ code CLASS::compact(const event_handler& handler, const Reset& reset) NOEXCEPT
 
     create(pool_head, table_t::pool_head);
     create(pool_body, table_t::pool_body);
-    create(spends_head, table_t::spends_head);
-    create(spends_body, table_t::spends_body);
     open(pool_head, table_t::pool_head);
     open(pool_body, table_t::pool_body);
-    open(spends_head, table_t::spends_head);
-    open(spends_body, table_t::spends_body);
     load(pool_head, table_t::pool_head);
     load(pool_body, table_t::pool_body);
-    load(spends_head, table_t::spends_head);
-    load(spends_body, table_t::spends_body);
 
     if (!ec)
     {
         handler(event_t::create_table, table_t::pool_table);
-        handler(event_t::create_table, table_t::spends_table);
-        if (!temp_pool.set_filter_k(pool.filter_k()) ||
-            !temp_pool.create() || !temp_spends.create())
+        if (!temp_pool.set_filter_k(pool.filter_k()) || !temp_pool.create())
             ec = error::create_table;
     }
 
@@ -251,15 +221,13 @@ code CLASS::compact(const event_handler& handler, const Reset& reset) NOEXCEPT
     };
 
     // A failure before the reset leaves the live tables unchanged.
-    if (!ec && !copy_pool(temp_pool, temp_spends, pool, spends, retained,
-        unindexed))
+    if (!ec && !copy_pool(temp_pool, pool, retained, unindexed))
         ec = error::prune_table;
 
     if (!ec)
         ec = reset();
 
-    if (!ec && (!empty() || !copy_pool(pool, spends, temp_pool, temp_spends,
-        all, indexed)))
+    if (!ec && (!empty() || !copy_pool(pool, temp_pool, all, indexed)))
         ec = error::prune_table;
 
     const auto close = [&](auto& storage, table_t table) NOEXCEPT
@@ -272,8 +240,6 @@ code CLASS::compact(const event_handler& handler, const Reset& reset) NOEXCEPT
 
     close(pool_head, table_t::pool_head);
     close(pool_body, table_t::pool_body);
-    close(spends_head, table_t::spends_head);
-    close(spends_body, table_t::spends_body);
     if (const auto error = file::clear_directory_ex(folder); !ec) ec = error;
     if (const auto error = file::remove_ex(folder); !ec) ec = error;
     return ec;
@@ -282,13 +248,12 @@ code CLASS::compact(const event_handler& handler, const Reset& reset) NOEXCEPT
 // protected
 // A tx is retained if it is confirmable and every unconfirmed ancestor is
 // pooled. Ancestors are found by key, so link order is not assumed, and an
-// ancestor already retained ends its walk.
+// ancestor already retained ends its walk. Parents are reached through the
+// spends of the tx's inputs (pooled txs are spent at validation).
 TEMPLATE
 bool CLASS::is_retained(bool& out, const tx_link& link,
     table::pool& retained) NOEXCEPT
 {
-    using parents = table::spends::get_refs::parents;
-    using prevout = table::prevout::slab_get;
     const query<CLASS> reader{ *this };
     std::vector<tx_link::integer> pending{ link };
     std::unordered_set<tx_link::integer> visited{ link };
@@ -307,18 +272,20 @@ bool CLASS::is_retained(bool& out, const tx_link& link,
             return true;
 
         table::transaction::only tx_record{};
-        table::pool::record record{};
-        if (!tx.get(next, tx_record) || !pool.get(fk, record))
+        if (!tx.get(next, tx_record))
             return false;
 
-        parents spent(tx_record.ins_count);
-        table::spends::get_refs run{ {}, spent };
-        if (!spends.get(record.spends_fk, run))
+        std::vector<table::spend::outs::integer> spent(tx_record.ins_count);
+        if (!spend.get_run(spent, tx_record.point_fk))
             return false;
 
-        for (const auto merged: spent)
+        for (const auto outs_fk: spent)
         {
-            const tx_link parent{ prevout::output_tx_fk(merged) };
+            table::outs::get_parent value{};
+            if (!outs.get(outs_fk, value))
+                return false;
+
+            const tx_link parent{ value.parent_fk };
             if (reader.is_confirmed_tx(parent) ||
                 !retained.first(parent).is_terminal())
                 continue;
@@ -335,13 +302,11 @@ bool CLASS::is_retained(bool& out, const tx_link& link,
 // protected
 TEMPLATE
 template <typename Keep, typename Index>
-bool CLASS::copy_pool(table::pool& to, table::spends& to_spends,
-    table::pool& from, table::spends& from_spends, const Keep& keep,
+bool CLASS::copy_pool(table::pool& to, table::pool& from, const Keep& keep,
     const Index& index) NOEXCEPT
 {
     using namespace system;
     using word = table::pool_word;
-    using parents = table::spends::get_refs::parents;
     using lane_t = schema::pool::witness_lane;
     using lanes_t = std_array<lane_t, schema::pool::witness_lanes>;
     const auto end = from.count().value;
@@ -359,21 +324,11 @@ bool CLASS::copy_pool(table::pool& to, table::spends& to_spends,
             return false;
 
         bool kept{};
-        table::transaction::only tx_record{};
-        if (!tx.get(tx_fk, tx_record) || !keep(kept, tx_fk))
+        if (!keep(kept, tx_fk))
             return false;
 
         if (!kept)
             continue;
-
-        parents spent(tx_record.ins_count);
-        table::spends::get_refs run{ {}, spent };
-        if (!from_spends.get(record.spends_fk, run))
-            return false;
-
-        table::spends::link first{};
-        if (!to_spends.put_link(first, table::spends::put_refs{ {}, spent }))
-            return false;
 
         const auto target = to.allocate(1);
         if (target.is_terminal())
@@ -397,12 +352,87 @@ bool CLASS::copy_pool(table::pool& to, table::spends& to_spends,
         guard.reset();
 
         // Commit is deferred until the columns are set.
-        record.spends_fk = first;
         if (!to.put(target, tx_fk, record))
             return false;
     }
 
     return true;
+}
+
+// protected
+// An input of the bank without a binding is unbound.
+TEMPLATE
+bool CLASS::save_unbound(const table::points& bank, size_t end) NOEXCEPT
+{
+    const auto base = bank.base().value;
+    const auto ptr = spend.get_memory();
+    for (auto fk = base; fk < end; ++fk)
+    {
+        const auto row = bank.at(fk);
+        if (row.is_terminal() || !spend.at(ptr, fk).is_terminal())
+            continue;
+
+        table::points::record point{};
+        if (!bank.get(row, point))
+            return false;
+
+        const auto key = table::unbound::to_key(fk);
+        if (unbound.first(key).is_terminal() && !unbound.put(key,
+            table::unbound::record{ {}, { point.hash, point.index } }))
+            return false;
+    }
+
+    return true;
+}
+
+// protected
+// The keys of a bank end at the base of a later bank, or the ins count.
+TEMPLATE
+code CLASS::drain_points(table::points& bank,
+    const table::points& other) NOEXCEPT
+{
+    const auto count = ins.count().value;
+    const auto later = other.base().value;
+    const auto end = later > bank.base().value ? later : count;
+    if (!save_unbound(bank, end))
+        return error::unbound_put;
+
+    return bank.drop(count) ? error::success : error::prune_table;
+}
+
+// Block archives are not in flight at a flip or drop (the download chaser
+// flips at its window gate) and pooled txs do not write points.
+TEMPLATE
+code CLASS::flip_points(const event_handler& handler) NOEXCEPT
+{
+    // ========================================================================
+    const transactor scope{ transactor_mutex_ };
+
+    const auto bank = !get_points_bank();
+    handler(event_t::prune_table, bank ? table_t::points1_table :
+        table_t::points0_table);
+
+    if (const auto ec = drain_points(points_bank(bank), points_bank(!bank)))
+        return ec;
+
+    points_bank_.store(bank, std::memory_order_relaxed);
+    return error::success;
+    // ========================================================================
+}
+
+TEMPLATE
+code CLASS::drop_points(const event_handler& handler) NOEXCEPT
+{
+    // ========================================================================
+    const transactor scope{ transactor_mutex_ };
+
+    handler(event_t::prune_table, table_t::points0_table);
+    if (const auto ec = drain_points(points0, points1))
+        return ec;
+
+    handler(event_t::prune_table, table_t::points1_table);
+    return drain_points(points1, points0);
+    // ========================================================================
 }
 
 } // namespace database

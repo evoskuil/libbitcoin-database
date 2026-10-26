@@ -25,22 +25,19 @@ using namespace system;
 const table::output::slab expected
 {
     {},                     // schema::output [all const static members]
-    0x56341201_u32,         // parent_fk
     0xdebc9a7856341202_u64, // value
     {}                      // script
 };
-constexpr auto slab0_size = 6u;
+constexpr auto slab0_size = 2u;
 const data_chunk expected_file
 {
     // slab
-    0x00, 0x00, 0x00, 0x00,
     0x00,
     0x00,
 
     // --------------------------------------------------------------------------------------------
 
     // slab
-    0x01, 0x12, 0x34, 0x56,
     0xff, 0x02, 0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde,
     0x00
 };

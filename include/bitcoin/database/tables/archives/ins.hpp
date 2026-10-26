@@ -28,96 +28,16 @@ namespace libbitcoin {
 namespace database {
 namespace table {
 
-/// Point column (spine): the searchable point (hash:index) key, no value.
-struct ins_point
+/// Ins is a record nomap (one row per input, navigated from the tx record).
+struct ins
+  : public no_map<schema::ins>
 {
-    using ix = linkage<schema::index>;
-    using link = schema::ins::link;
-    static constexpr auto width = schema::ins::minrow;
-    static constexpr auto suffix = "point"_t;
-
-    static uint32_t to_index(ix::integer value) NOEXCEPT
-    {
-        using namespace system;
-        return value == ix::terminal ? chain::point::null_index : value;
-    }
-
-    struct record
-      : public schema::ins
-    {
-        inline bool from_data(reader& source) NOEXCEPT
-        {
-            source.rewind_bytes(schema::ins::sk);
-            hash = source.read_hash();
-            index = to_index(source.read_little_endian<ix::integer, ix::size>());
-            BC_ASSERT(!source || source.get_read_position() == minrow);
-            return source;
-        }
-
-        inline bool to_data(flipper& sink) const NOEXCEPT
-        {
-            BC_ASSERT(!sink || sink.get_write_position() == minrow);
-            return sink;
-        }
-
-        inline bool is_null() const NOEXCEPT
-        {
-            return index == system::chain::point::null_index;
-        }
-
-        inline bool operator==(const record&) const NOEXCEPT = default;
-
-        hash_digest hash{};
-        ix::integer index{};
-    };
-
-    struct get_composed
-      : public schema::ins
-    {
-        inline bool from_data(reader& source) NOEXCEPT
-        {
-            source.rewind_bytes(schema::ins::sk);
-            key =
-            {
-                source.read_hash(),
-                to_index(source.read_little_endian<ix::integer, ix::size>())
-            };
-            BC_ASSERT(!source || source.get_read_position() == minrow);
-            return source;
-        }
-
-        system::chain::point key{};
-    };
-
-    struct wire_point
-      : public schema::ins
-    {
-        inline bool from_data(reader& source) NOEXCEPT
-        {
-            source.rewind_bytes(schema::ins::sk);
-            sink.write_bytes(source.read_hash());
-            const auto value = source.read_little_endian<ix::integer, ix::size>();
-            sink.write_4_bytes_little_endian(to_index(value));
-            return source;
-        }
-
-        bytewriter& sink;
-    };
-};
-
-/// Sequence column: input sequence, denormalized here for confirmation, with
-/// input and parent tx navigation.
-struct ins_sequence
-{
-    using ix = linkage<schema::index>;
     using in = schema::input::link;
     using tx = schema::transaction::link;
-    using link = schema::ins_sequence::link;
-    static constexpr auto width = schema::ins_sequence::size;
-    static constexpr auto suffix = schema::ins_sequence::suffix;
+    using no_map<schema::ins>::nomap;
 
     struct record
-      : public schema::ins_sequence
+      : public schema::ins
     {
         inline bool from_data(reader& source) NOEXCEPT
         {
@@ -145,7 +65,7 @@ struct ins_sequence
     };
 
     struct get_parent
-      : public schema::ins_sequence
+      : public schema::ins
     {
         inline bool from_data(reader& source) NOEXCEPT
         {
@@ -158,7 +78,7 @@ struct ins_sequence
     };
 
     struct get_input
-      : public schema::ins_sequence
+      : public schema::ins
     {
         inline bool from_data(reader& source) NOEXCEPT
         {
@@ -172,7 +92,7 @@ struct ins_sequence
     };
 
     struct put_ref
-      : public schema::ins_sequence
+      : public schema::ins
     {
         inline link count() const NOEXCEPT
         {
@@ -208,7 +128,7 @@ struct ins_sequence
     };
 
     struct put_view
-      : public schema::ins_sequence
+      : public schema::ins
     {
         inline link count() const NOEXCEPT
         {
@@ -272,7 +192,7 @@ struct ins_sequence
     };
 
     struct wire_sequence
-      : public schema::ins_sequence
+      : public schema::ins
     {
         inline bool from_data(reader& source) NOEXCEPT
         {
@@ -284,22 +204,6 @@ struct ins_sequence
         bytewriter& sink;
     };
 };
-
-/// The ins association: point spine (search key) with the aligned sequence
-/// satellite column (one row per input), shared row count and allocation.
-struct ins
-  : public hash_maps<schema::ins, ins_sequence>
-{
-    using base = hash_maps<schema::ins, ins_sequence>;
-    using base::hashmaps;
-
-    /// The sequence satellite column (rows aligned with the point spine).
-    column<base, one> sequence{ *this };
-};
-
-/// Aggregate (files).
-template <template <size_t...> class Storage>
-using ins_storage = mmaps<Storage, ins_point, ins_sequence>;
 
 } // namespace table
 } // namespace database

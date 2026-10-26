@@ -69,12 +69,17 @@ code CLASS::open(const event_handler& handler) NOEXCEPT
     verify(ec, output, table_t::output_table);
     verify(ec, ins, table_t::ins_table);
     verify(ec, outs, table_t::outs_table);
+    verify(ec, spend, table_t::spend_table);
+    verify(ec, unbound, table_t::unbound_table);
     verify(ec, tx, table_t::tx_table);
     verify(ec, txs, table_t::txs_table);
 
     verify(ec, candidate, table_t::candidate_table);
     verify(ec, confirmed, table_t::confirmed_table);
     verify(ec, strong, table_t::strong_table);
+    verify(ec, address, table_t::address_table);
+    verify(ec, conflict, table_t::conflict_table);
+    verify(ec, spender, table_t::spender_table);
     verify(ec, scan, table_t::scan_table);
     verify(ec, scan_prefix, table_t::scan_prefix_table);
 
@@ -87,19 +92,21 @@ code CLASS::open(const event_handler& handler) NOEXCEPT
     verify(ec, silent0_prefix, table_t::silent0_prefix_table);
     verify(ec, silent1_prefix, table_t::silent1_prefix_table);
     verify(ec, envelope, table_t::envelope_table);
-    verify(ec, duplicate, table_t::duplicate_table);
     verify(ec, prevalid0, table_t::prevalid0_table);
     verify(ec, prevalid1, table_t::prevalid1_table);
     verify(ec, presilent0, table_t::presilent0_table);
     verify(ec, presilent1, table_t::presilent1_table);
-    verify(ec, prevout, table_t::prevout_table);
+    verify(ec, points0, table_t::points0_table);
+    verify(ec, points1, table_t::points1_table);
     verify(ec, state, table_t::state_table);
     verify(ec, pool, table_t::pool_table);
-    verify(ec, spends, table_t::spends_table);
     verify(ec, wtxid, table_t::wtxid_table);
 
     verify(ec, filter_bk, table_t::filter_bk_table);
     verify(ec, filter_tx, table_t::filter_tx_table);
+
+    // The bank written last has the greater base.
+    points_bank_.store(points1.base() > points0.base());
 
     if (ec)
     {
@@ -207,10 +214,9 @@ code CLASS::load_envelope() NOEXCEPT
 
     // The stored bucket counts govern the heads.
     if (!header.set_buckets(envelope_.header_buckets) ||
-        !ins.set_buckets(envelope_.ins_buckets) ||
-        !outs.set_buckets(envelope_.outs_buckets) ||
+        !address.set_buckets(envelope_.address_buckets) ||
         !tx.set_buckets(envelope_.tx_buckets) ||
-        !duplicate.set_buckets(envelope_.duplicate_buckets) ||
+        !conflict.set_buckets(envelope_.conflict_buckets) ||
         !pool.set_buckets(envelope_.pool_buckets) ||
         !wtxid.set_buckets(envelope_.wtxid_buckets))
     {
@@ -219,10 +225,9 @@ code CLASS::load_envelope() NOEXCEPT
 
     // The stored filter k values govern filter bit interpretation.
     if (!header.set_filter_k(envelope_.header_k) ||
-        !ins.set_filter_k(envelope_.ins_k) ||
-        !outs.set_filter_k(envelope_.outs_k) ||
+        !address.set_filter_k(envelope_.address_k) ||
         !tx.set_filter_k(envelope_.tx_k) ||
-        !duplicate.set_filter_k(envelope_.duplicate_k) ||
+        !conflict.set_filter_k(envelope_.conflict_k) ||
         !pool.set_filter_k(envelope_.pool_k) ||
         !wtxid.set_filter_k(envelope_.wtxid_k))
     {

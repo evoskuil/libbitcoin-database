@@ -112,14 +112,14 @@ static_assert(linkage<8>{ 42 } == 42_u64);
 
 // Offset addition (integer() cast operator for equality test).
 // Size 0 excluded, as its terminal is zero (no row is valid).
-static_assert(linkage<1>{ 40 } + 2u == 42_u8);
-static_assert(linkage<2>{ 40 } + 2u == 42_u16);
-static_assert(linkage<3>{ 40 } + 2u == 42_u32);
-static_assert(linkage<4>{ 40 } + 2u == 42_u32);
-static_assert(linkage<5>{ 40 } + 2u == 42_u64);
-static_assert(linkage<6>{ 40 } + 2u == 42_u64);
-static_assert(linkage<7>{ 40 } + 2u == 42_u64);
-static_assert(linkage<8>{ 40 } + 2u == 42_u64);
+static_assert(linkage<1>{ 40 } + 2_u8  == 42_u8);
+static_assert(linkage<2>{ 40 } + 2_u16 == 42_u16);
+static_assert(linkage<3>{ 40 } + 2_u32 == 42_u32);
+static_assert(linkage<4>{ 40 } + 2_u32 == 42_u32);
+static_assert(linkage<5>{ 40 } + 2_u64 == 42_u64);
+static_assert(linkage<6>{ 40 } + 2_u64 == 42_u64);
+static_assert(linkage<7>{ 40 } + 2_u64 == 42_u64);
+static_assert(linkage<8>{ 40 } + 2_u64 == 42_u64);
 
 // Linkage type trait.
 static_assert(is_linkage<linkage<0>>);

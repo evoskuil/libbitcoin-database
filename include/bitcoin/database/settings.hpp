@@ -94,16 +94,21 @@ struct BCD_API settings
     hash_table header{};
     simple_table input{};
     simple_table output{};
-    hash_table ins{};
-    hash_table outs{};
+    simple_table ins{};
+    simple_table outs{};
+    bucket_table spend{};
+    bucket_table unbound{};
     hash_table tx{};
     bucket_table txs{};
 
     /// Indexes.
     /// -----------------------------------------------------------------------
 
+    hash_table address{};
     bucket_table candidate{};
     bucket_table confirmed{};
+    hash_table conflict{};
+    bucket_table spender{};
     bucket_table strong{};
     bucket_table scan{};
     hash_table wtxid{};
@@ -114,13 +119,11 @@ struct BCD_API settings
     simple_table ecdsa{};
     simple_table schnorr{};
     simple_table silent{};
-    hash_table duplicate{};
     simple_table prevalid{};
     simple_table presilent{};
-    bucket_table prevout{};
+    bucket_table points{};
     bucket_table state{};
     hash_table pool{};
-    simple_table spends{};
 
     /// Optionals.
     /// -----------------------------------------------------------------------

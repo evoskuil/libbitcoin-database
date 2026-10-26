@@ -132,12 +132,17 @@ code CLASS::restore(const event_handler& handler) NOEXCEPT
         restore(ec, output, table_t::output_table);
         restore(ec, ins, table_t::ins_table);
         restore(ec, outs, table_t::outs_table);
+        restore(ec, spend, table_t::spend_table);
+        restore(ec, unbound, table_t::unbound_table);
         restore(ec, tx, table_t::tx_table);
         restore(ec, txs, table_t::txs_table);
 
         restore(ec, candidate, table_t::candidate_table);
         restore(ec, confirmed, table_t::confirmed_table);
         restore(ec, strong, table_t::strong_table);
+        restore(ec, address, table_t::address_table);
+        restore(ec, conflict, table_t::conflict_table);
+        restore(ec, spender, table_t::spender_table);
         restore(ec, scan, table_t::scan_table);
         restore(ec, scan_prefix, table_t::scan_prefix_table);
 
@@ -159,19 +164,21 @@ code CLASS::restore(const event_handler& handler) NOEXCEPT
         dropped(ec, silent0_prefix, table_t::silent0_prefix_table);
         dropped(ec, silent1_prefix, table_t::silent1_prefix_table);
         restore(ec, envelope, table_t::envelope_table);
-        restore(ec, duplicate, table_t::duplicate_table);
         dropped(ec, prevalid0, table_t::prevalid0_table);
         dropped(ec, prevalid1, table_t::prevalid1_table);
         dropped(ec, presilent0, table_t::presilent0_table);
         dropped(ec, presilent1, table_t::presilent1_table);
-        restore(ec, prevout, table_t::prevout_table);
+        restore(ec, points0, table_t::points0_table);
+        restore(ec, points1, table_t::points1_table);
         restore(ec, state, table_t::state_table);
         restore(ec, pool, table_t::pool_table);
-        restore(ec, spends, table_t::spends_table);
         restore(ec, wtxid, table_t::wtxid_table);
 
         restore(ec, filter_bk, table_t::filter_bk_table);
         restore(ec, filter_tx, table_t::filter_tx_table);
+
+        // The bank written last has the greater base.
+        points_bank_.store(points1.base() > points0.base());
 
         if (ec)
             /* code */ unload_close(handler);

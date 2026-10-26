@@ -73,27 +73,29 @@ public:
         return output_body_.buffer();
     }
 
-    system::data_chunk& ins_sequence_body() NOEXCEPT
-    {
-        return ins_body_.buffers_.at(one);
-    }
-
     system::data_chunk& outs_head() NOEXCEPT
     {
         return outs_head_.buffer();
     }
 
-    // Casts imply enabled address indexing (outs buckets nonzero).
     system::data_chunk& outs_body() NOEXCEPT
     {
-        using backed = table::outs_storage<test::chunk_storages>;
-        return static_cast<backed&>(*outs_body_).buffers_.at(one);
+        return outs_body_.buffer();
     }
 
-    system::data_chunk& address_body() NOEXCEPT
+    system::data_chunk& spend_head() NOEXCEPT
     {
-        using backed = table::outs_storage<test::chunk_storages>;
-        return static_cast<backed&>(*outs_body_).buffer();
+        return spend_head_.buffer();
+    }
+
+    system::data_chunk& unbound_head() NOEXCEPT
+    {
+        return unbound_head_.buffer();
+    }
+
+    system::data_chunk& unbound_body() NOEXCEPT
+    {
+        return unbound_body_.buffer();
     }
 
     system::data_chunk& tx_head() NOEXCEPT
@@ -131,6 +133,31 @@ public:
     system::data_chunk& strong_head() NOEXCEPT
     {
         return strong_head_.buffer();
+    }
+
+    system::data_chunk& address_head() NOEXCEPT
+    {
+        return address_head_.buffer();
+    }
+
+    system::data_chunk& address_body() NOEXCEPT
+    {
+        return address_body_.buffer();
+    }
+
+    system::data_chunk& conflict_head() NOEXCEPT
+    {
+        return conflict_head_.buffer();
+    }
+
+    system::data_chunk& conflict_body() NOEXCEPT
+    {
+        return conflict_body_.buffer();
+    }
+
+    system::data_chunk& spender_head() NOEXCEPT
+    {
+        return spender_head_.buffer();
     }
 
     // Caches.
@@ -205,14 +232,24 @@ public:
     ////    return scan_body_.compressed.buffer();
     ////}
 
-    system::data_chunk& duplicate_head() NOEXCEPT
+    system::data_chunk& points0_head() NOEXCEPT
     {
-        return duplicate_head_.buffer();
+        return points0_head_.buffer();
     }
 
-    system::data_chunk& duplicate_body() NOEXCEPT
+    system::data_chunk& points0_body() NOEXCEPT
     {
-        return duplicate_body_.buffer();
+        return points0_body_.buffer();
+    }
+
+    system::data_chunk& points1_head() NOEXCEPT
+    {
+        return points1_head_.buffer();
+    }
+
+    system::data_chunk& points1_body() NOEXCEPT
+    {
+        return points1_body_.buffer();
     }
 
     system::data_chunk& prevalid0_head() NOEXCEPT
@@ -223,16 +260,6 @@ public:
     system::data_chunk& prevalid0_body() NOEXCEPT
     {
         return prevalid0_body_.buffer();
-    }
-
-    system::data_chunk& prevout_head() NOEXCEPT
-    {
-        return prevout_head_.buffer();
-    }
-
-    system::data_chunk& prevout_body() NOEXCEPT
-    {
-        return prevout_body_.buffer();
     }
 
     system::data_chunk& state_head() NOEXCEPT
@@ -248,16 +275,6 @@ public:
     system::data_chunk& pool_body() NOEXCEPT
     {
         return pool_body_.buffer();
-    }
-
-    system::data_chunk& spends_head() NOEXCEPT
-    {
-        return spends_head_.buffer();
-    }
-
-    system::data_chunk& spends_body() NOEXCEPT
-    {
-        return spends_body_.buffer();
     }
 
     // Optionals.

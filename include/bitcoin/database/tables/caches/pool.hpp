@@ -99,7 +99,6 @@ struct pool
 {
     using base = hash_maps<schema::pool, pool_id0, pool_id1, pool_id2, pool_id3>;
     using sigop = linkage<schema::sigops>;
-    using spend = schema::spends::link;
     using base::hashmaps;
 
     struct record
@@ -110,7 +109,6 @@ struct pool
             context::from_data(source, ctx);
             fee = source.read_little_endian<uint64_t>();
             sigops = source.read_little_endian<sigop::integer, sigop::size>();
-            spends_fk = source.read_little_endian<spend::integer, spend::size>();
             time = source.read_little_endian<uint32_t>();
             BC_ASSERT(!source || source.get_read_position() == minrow);
             return source;
@@ -121,7 +119,6 @@ struct pool
             context::to_data(sink, ctx);
             sink.write_little_endian<uint64_t>(fee);
             sink.write_little_endian<sigop::integer, sigop::size>(sigops);
-            sink.write_little_endian<spend::integer, spend::size>(spends_fk);
             sink.write_little_endian<uint32_t>(time);
             BC_ASSERT(!sink || sink.get_write_position() == minrow);
             return sink;
@@ -132,7 +129,6 @@ struct pool
         context ctx{};
         uint64_t fee{};
         sigop::integer sigops{};
-        spend::integer spends_fk{};
         uint32_t time{};
     };
 

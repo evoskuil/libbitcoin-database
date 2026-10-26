@@ -36,7 +36,6 @@ BC_PUSH_WARNING(NO_THROW_IN_NOEXCEPT)
 struct output
   : public no_map<schema::output>
 {
-    using tx = schema::transaction::link;
     using no_map<schema::output>::nomap;
 
     struct slab
@@ -45,15 +44,13 @@ struct output
         inline link count() const NOEXCEPT
         {
             return system::possible_narrow_cast<link::integer>(
-                tx::size + variable_size(value) +
-                script.serialized_size(true));
+                variable_size(value) + script.serialized_size(true));
         }
 
         inline bool from_data(reader& source) NOEXCEPT
         {
             using namespace system;
-            parent_fk = source.read_little_endian<tx::integer, tx::size>();
-            value     = source.read_variable();
+            value = source.read_variable();
             script = chain::script{ source, true };
             BC_ASSERT(!source || source.get_read_position() == count());
             return source;
@@ -61,7 +58,6 @@ struct output
 
         inline bool to_data(flipper& sink) const NOEXCEPT
         {
-            sink.write_little_endian<tx::integer, tx::size>(parent_fk);
             sink.write_variable(value);
             script.to_data(sink, true);
             BC_ASSERT(!sink || sink.get_write_position() == count());
@@ -70,7 +66,6 @@ struct output
 
         inline bool operator==(const slab&) const NOEXCEPT = default;
 
-        tx::integer parent_fk{};
         uint64_t value{};
         system::chain::script script{};
     };
@@ -88,7 +83,6 @@ struct output
         inline bool from_data(reader& source) NOEXCEPT
         {
             using namespace system;
-            source.skip_bytes(tx::size);
 
             // Required step to control order of stream read.
             const auto prefix = source.read_variable();
@@ -116,7 +110,6 @@ struct output
         inline bool from_data(reader& source) NOEXCEPT
         {
             using namespace system;
-            source.skip_bytes(tx::size);
             source.skip_variable();
             script = std::make_shared<const chain::script>(source, true);
             return source;
@@ -133,9 +126,8 @@ struct output
         {
             using namespace system;
 
-            // Read parent fk, skip value, and read the script size.
-            parent_fk = unsafe_from_little_endian<tx::integer>(start);
-            const auto* position = std::next(start, tx::size);
+            // Skip value, and read the script size.
+            const auto* position = start;
             unsafe_from_variable(position);
             const auto scrypt_size = unsafe_from_variable(position);
             const auto bytes = possible_narrow_cast<size_t>(scrypt_size);
@@ -144,7 +136,6 @@ struct output
         }
 
         const system::hash_digest& key;
-        tx::integer parent_fk{};
         bool match{};
     };
 
@@ -156,8 +147,8 @@ struct output
         {
             using namespace system;
 
-            // Skip parent fk and value, and read the script size.
-            const auto* position = std::next(start, tx::size);
+            // Skip value, and read the script size.
+            const auto* position = start;
             unsafe_from_variable(position);
             const auto script_size = unsafe_from_variable(position);
             const auto bytes = possible_narrow_cast<size_t>(script_size);
@@ -176,8 +167,8 @@ struct output
         {
             using namespace system;
 
-            // Skip parent fk, read the value and script size.
-            const auto* position = std::next(start, tx::size);
+            // Read the value and script size.
+            const auto* position = start;
             value = unsafe_from_variable(position);
             const auto script_size = unsafe_from_variable(position);
             length = possible_narrow_cast<size_t>(script_size);
@@ -206,7 +197,6 @@ struct output
         inline bool from_data(reader& source) NOEXCEPT
         {
             using namespace system;
-            parent_fk = source.read_little_endian<tx::integer, tx::size>();
             value = source.read_variable();
             script.resize(possible_narrow_cast<size_t>(
                 source.read_variable()));
@@ -214,7 +204,6 @@ struct output
             return source;
         }
 
-        tx::integer parent_fk{};
         uint64_t value{};
         system::data_chunk script{};
     };
@@ -231,7 +220,6 @@ struct output
         inline bool from_data(reader& source) NOEXCEPT
         {
             using namespace system;
-            source.skip_bytes(tx::size);
             value = source.read_variable();
             script_size = possible_narrow_cast<size_t>(
                 source.read_variable());
@@ -248,27 +236,7 @@ struct output
         bool unspendable{};
     };
 
-    struct get_parent_value
-      : public schema::output
-    {
-        inline link count() const NOEXCEPT
-        {
-            BC_ASSERT(false);
-            return {};
-        }
-
-        inline bool from_data(reader& source) NOEXCEPT
-        {
-            parent_fk = source.read_little_endian<tx::integer, tx::size>();
-            value = source.read_variable();
-            return source;
-        }
-
-        tx::integer parent_fk{};
-        uint64_t value{};
-    };
-
-    struct get_parent_coin
+    struct get_value_size
       : public schema::output
     {
         inline link count() const NOEXCEPT
@@ -280,34 +248,14 @@ struct output
         inline bool from_data(reader& source) NOEXCEPT
         {
             using namespace system;
-            parent_fk = source.read_little_endian<tx::integer, tx::size>();
             value = source.read_variable();
             script_size = possible_narrow_cast<size_t>(
                 source.read_variable());
             return source;
         }
 
-        tx::integer parent_fk{};
         uint64_t value{};
         size_t script_size{};
-    };
-
-    struct get_parent
-      : public schema::output
-    {
-        inline link count() const NOEXCEPT
-        {
-            BC_ASSERT(false);
-            return {};
-        }
-
-        inline bool from_data(reader& source) NOEXCEPT
-        {
-            parent_fk = source.read_little_endian<tx::integer, tx::size>();
-            return source;
-        }
-
-        tx::integer parent_fk{};
     };
 
     struct get_value
@@ -321,7 +269,6 @@ struct output
 
         inline bool from_data(reader& source) NOEXCEPT
         {
-            source.skip_bytes(tx::size);
             value = source.read_variable();
             return source;
         }
@@ -335,11 +282,7 @@ struct output
         inline link count() const NOEXCEPT
         {
             using namespace system;
-            static_assert(tx::size <= sizeof(uint64_t));
-            constexpr auto value_parent = sizeof(uint64_t) - tx::size;
-
             const auto& outs = *tx_.outputs_ptr();
-            const auto other = outs.size() * value_parent;
             const auto outputs = std::accumulate(outs.cbegin(), outs.cend(),
                 zero, [](size_t total, const auto& out) NOEXCEPT
                 {
@@ -348,8 +291,9 @@ struct output
                 });
 
             // Converts value from fixed size wire encoding to variable.
-            // (variable_size(value) + (value + script)) - (value - parent)
-            return possible_narrow_cast<link::integer>(outputs - other);
+            // (variable_size(value) + (value + script)) - value
+            return possible_narrow_cast<link::integer>(outputs -
+                (outs.size() * sizeof(uint64_t)));
         }
 
         inline bool to_data(flipper& sink) const NOEXCEPT
@@ -357,7 +301,6 @@ struct output
             const auto& outs = *tx_.outputs_ptr();
             std::ranges::for_each(outs, [&](const auto& out) NOEXCEPT
             {
-                sink.write_little_endian<tx::integer, tx::size>(parent_fk);
                 sink.write_variable(out->value());
                 out->script().to_data(sink, true);
             });
@@ -366,7 +309,6 @@ struct output
             return sink;
         }
 
-        const tx::integer parent_fk{};
         const system::chain::transaction& tx_{};
     };
 
@@ -376,8 +318,7 @@ struct output
         inline link count() const NOEXCEPT
         {
             using namespace system;
-            const auto parents_size = tx_.outputs() * tx::size;
-            return possible_narrow_cast<link::integer>(parents_size +
+            return possible_narrow_cast<link::integer>(
                 tx_.output_table_size());
         }
 
@@ -390,7 +331,6 @@ struct output
             for (size_t out{}; out < tx_.outputs(); ++out)
             {
                 // tx view output writer not used due to variable value.
-                sink.write_little_endian<tx::integer, tx::size>(parent_fk);
                 sink.write_variable(source.read_8_bytes_little_endian());
                 const auto bytes = source.read_size();
                 sink.write_variable(bytes);
@@ -402,7 +342,6 @@ struct output
             return sink;
         }
 
-        const tx::integer parent_fk{};
         const system::chain::view::transaction& tx_;
     };
 
@@ -411,9 +350,6 @@ struct output
     {
         inline bool from_data(reader& source) NOEXCEPT
         {
-            // skip: parent_fk
-            source.skip_bytes(tx::size);
-
             // value (translates from variable to fixed width)
             sink.write_8_bytes_little_endian(source.read_variable());
 

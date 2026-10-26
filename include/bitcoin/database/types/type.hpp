@@ -54,8 +54,13 @@ using header_links = std::vector<header_link::integer>;
 using tx_links = std::vector<tx_link::integer>;
 using input_links = std::vector<input_link::integer>;
 using output_links = std::vector<output_link::integer>;
+using outs_links = std::vector<outs_link::integer>;
 using ins_links = std::vector<ins_link::integer>;
-using ins_key = table::ins::key;
+using ins_key = system::chain::point;
+
+/// The input and spent output links of the spends of a tx.
+using binds = std::vector<std::pair<ins_link::integer, outs_link::integer>>;
+using tx_binds = std::vector<std::pair<tx_link::integer, binds>>;
 
 /// Point index (uint32_t).
 using index = table::transaction::ix::integer;

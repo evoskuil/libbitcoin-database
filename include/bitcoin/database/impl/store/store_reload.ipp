@@ -35,16 +35,13 @@ code CLASS::reload(const event_handler& handler) NOEXCEPT
     }
 
     code ec{ error::success };
-    const auto reload = [&handler, this](code& ec, auto& file,
+    const auto reload = [&handler](code& ec, auto& file,
         table_t table) NOEXCEPT
     {
         if (!ec)
         {
             if (to_bool(file.get_space()))
-            {
                 handler(event_t::load_file, table);
-                this->dirty_.store(true, std::memory_order_relaxed);
-            }
 
             // Reload all storages, as staged instances must discard extents
             // orphaned by abandoned writes (which may span into tables that
@@ -62,7 +59,10 @@ code CLASS::reload(const event_handler& handler) NOEXCEPT
     reload(ec, ins_head_, table_t::ins_head);
     reload(ec, ins_body_, table_t::ins_body);
     reload(ec, outs_head_, table_t::outs_head);
-    reload(ec, *outs_body_, table_t::outs_body);
+    reload(ec, outs_body_, table_t::outs_body);
+    reload(ec, spend_head_, table_t::spend_head);
+    reload(ec, unbound_head_, table_t::unbound_head);
+    reload(ec, unbound_body_, table_t::unbound_body);
     reload(ec, tx_head_, table_t::tx_head);
     reload(ec, tx_body_, table_t::tx_body);
     reload(ec, txs_head_, table_t::txs_head);
@@ -71,6 +71,11 @@ code CLASS::reload(const event_handler& handler) NOEXCEPT
     reload(ec, candidate_head_, table_t::candidate_head);
     reload(ec, confirmed_head_, table_t::confirmed_head);
     reload(ec, strong_head_, table_t::strong_head);
+    reload(ec, address_head_, table_t::address_head);
+    reload(ec, address_body_, table_t::address_body);
+    reload(ec, conflict_head_, table_t::conflict_head);
+    reload(ec, conflict_body_, table_t::conflict_body);
+    reload(ec, spender_head_, table_t::spender_head);
     reload(ec, scan_head_, table_t::scan_head);
     reload(ec, scan_body_, table_t::scan_body);
     reload(ec, scan_prefix_head_, table_t::scan_prefix_head);
@@ -93,8 +98,6 @@ code CLASS::reload(const event_handler& handler) NOEXCEPT
     reload(ec, silent1_prefix_head_, table_t::silent1_prefix_head);
     reload(ec, silent1_prefix_body_, table_t::silent1_prefix_body);
     reload(ec, envelope_head_, table_t::envelope_head);
-    reload(ec, duplicate_head_, table_t::duplicate_head);
-    reload(ec, duplicate_body_, table_t::duplicate_body);
     reload(ec, prevalid0_head_, table_t::prevalid0_head);
     reload(ec, prevalid0_body_, table_t::prevalid0_body);
     reload(ec, prevalid1_head_, table_t::prevalid1_head);
@@ -103,13 +106,13 @@ code CLASS::reload(const event_handler& handler) NOEXCEPT
     reload(ec, presilent0_body_, table_t::presilent0_body);
     reload(ec, presilent1_head_, table_t::presilent1_head);
     reload(ec, presilent1_body_, table_t::presilent1_body);
-    reload(ec, prevout_head_, table_t::prevout_head);
-    reload(ec, prevout_body_, table_t::prevout_body);
+    reload(ec, points0_head_, table_t::points0_head);
+    reload(ec, points0_body_, table_t::points0_body);
+    reload(ec, points1_head_, table_t::points1_head);
+    reload(ec, points1_body_, table_t::points1_body);
     reload(ec, state_head_, table_t::state_head);
     reload(ec, pool_head_, table_t::pool_head);
     reload(ec, pool_body_, table_t::pool_body);
-    reload(ec, spends_head_, table_t::spends_head);
-    reload(ec, spends_body_, table_t::spends_body);
     reload(ec, wtxid_head_, table_t::wtxid_head);
     reload(ec, wtxid_body_, table_t::wtxid_body);
 

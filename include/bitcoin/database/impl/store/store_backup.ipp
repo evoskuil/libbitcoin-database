@@ -47,12 +47,17 @@ code CLASS::backup(const event_handler& handler, bool prune) NOEXCEPT
     backup(ec, output, table_t::output_table);
     backup(ec, ins, table_t::ins_table);
     backup(ec, outs, table_t::outs_table);
+    backup(ec, spend, table_t::spend_table);
+    backup(ec, unbound, table_t::unbound_table);
     backup(ec, tx, table_t::tx_table);
     backup(ec, txs, table_t::txs_table);
 
     backup(ec, candidate, table_t::candidate_table);
     backup(ec, confirmed, table_t::confirmed_table);
     backup(ec, strong, table_t::strong_table);
+    backup(ec, address, table_t::address_table);
+    backup(ec, conflict, table_t::conflict_table);
+    backup(ec, spender, table_t::spender_table);
     backup(ec, scan, table_t::scan_table);
     backup(ec, scan_prefix, table_t::scan_prefix_table);
 
@@ -65,15 +70,14 @@ code CLASS::backup(const event_handler& handler, bool prune) NOEXCEPT
     backup(ec, silent0_prefix, table_t::silent0_prefix_table);
     backup(ec, silent1_prefix, table_t::silent1_prefix_table);
     backup(ec, envelope, table_t::envelope_table);
-    backup(ec, duplicate, table_t::duplicate_table);
     backup(ec, prevalid0, table_t::prevalid0_table, prune);
     backup(ec, prevalid1, table_t::prevalid1_table, prune);
     backup(ec, presilent0, table_t::presilent0_table, prune);
     backup(ec, presilent1, table_t::presilent1_table, prune);
-    backup(ec, prevout, table_t::prevout_table, prune);
+    backup(ec, points0, table_t::points0_table);
+    backup(ec, points1, table_t::points1_table);
     backup(ec, state, table_t::state_table);
     backup(ec, pool, table_t::pool_table, prune);
-    backup(ec, spends, table_t::spends_table, prune);
     backup(ec, wtxid, table_t::wtxid_table, prune);
 
     backup(ec, filter_bk, table_t::filter_bk_table);

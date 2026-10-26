@@ -43,6 +43,8 @@ namespace archive
     constexpr auto output = "archive_output";
     constexpr auto ins = "archive_ins";
     constexpr auto outs = "archive_outs";
+    constexpr auto spend = "archive_spend";
+    constexpr auto unbound = "archive_unbound";
     constexpr auto tx = "archive_tx";
     constexpr auto txs = "archive_txs";
 }
@@ -58,9 +60,11 @@ namespace indexes
     // array
     constexpr auto scan_prefix = "index_scan_prefix";
 
+    constexpr auto address = "index_address";
     constexpr auto candidate = "index_candidate";
     constexpr auto confirmed = "index_confirmed";
-    constexpr auto duplicate = "index_duplicate";
+    constexpr auto conflict = "index_conflict";
+    constexpr auto spender = "index_spender";
     constexpr auto state = "index_state";
     constexpr auto strong = "index_strong";
     constexpr auto wtxid = "index_wtxid";
@@ -101,13 +105,13 @@ namespace caches
     constexpr auto prevalid1 = "batch_prevalid1";
     constexpr auto presilent0 = "batch_presilent0";
     constexpr auto presilent1 = "batch_presilent1";
-    constexpr auto prevout = "cache_prevout";
+    constexpr auto points0 = "cache_points0";
+    constexpr auto points1 = "cache_points1";
     constexpr auto pool = "cache_pool";
     constexpr auto pool_id0 = "id0"_t;
     constexpr auto pool_id1 = "id1"_t;
     constexpr auto pool_id2 = "id2"_t;
     constexpr auto pool_id3 = "id3"_t;
-    constexpr auto spends = "cache_spends";
 }
 
 namespace optionals

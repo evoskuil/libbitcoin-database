@@ -25,21 +25,23 @@
 #include <bitcoin/database/tables/archives/ins.hpp>
 #include <bitcoin/database/tables/archives/output.hpp>
 #include <bitcoin/database/tables/archives/outs.hpp>
+#include <bitcoin/database/tables/archives/spend.hpp>
+#include <bitcoin/database/tables/archives/unbound.hpp>
 #include <bitcoin/database/tables/archives/transaction.hpp>
 #include <bitcoin/database/tables/archives/txs.hpp>
 
 #include <bitcoin/database/tables/caches/ecdsa.hpp>
 #include <bitcoin/database/tables/caches/envelope.hpp>
+#include <bitcoin/database/tables/caches/points.hpp>
 #include <bitcoin/database/tables/caches/prevalid.hpp>
-#include <bitcoin/database/tables/caches/prevout.hpp>
 #include <bitcoin/database/tables/caches/schnorr.hpp>
 #include <bitcoin/database/tables/caches/silent.hpp>
-#include <bitcoin/database/tables/caches/spends.hpp>
 #include <bitcoin/database/tables/caches/pool.hpp>
 
-#include <bitcoin/database/tables/indexes/duplicate.hpp>
+#include <bitcoin/database/tables/indexes/conflict.hpp>
 #include <bitcoin/database/tables/indexes/height.hpp>
 #include <bitcoin/database/tables/indexes/scan.hpp>
+#include <bitcoin/database/tables/indexes/spender.hpp>
 #include <bitcoin/database/tables/indexes/state.hpp>
 #include <bitcoin/database/tables/indexes/strong.hpp>
 #include <bitcoin/database/tables/indexes/wtxid.hpp>

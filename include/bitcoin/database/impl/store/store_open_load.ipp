@@ -72,7 +72,10 @@ code CLASS::open_load(const event_handler& handler) NOEXCEPT
     open(ec, ins_head_, table_t::ins_head);
     open(ec, ins_body_, table_t::ins_body);
     open(ec, outs_head_, table_t::outs_head);
-    open(ec, *outs_body_, table_t::outs_body);
+    open(ec, outs_body_, table_t::outs_body);
+    open(ec, spend_head_, table_t::spend_head);
+    open(ec, unbound_head_, table_t::unbound_head);
+    open(ec, unbound_body_, table_t::unbound_body);
     open(ec, tx_head_, table_t::tx_head);
     open(ec, tx_body_, table_t::tx_body);
     open(ec, txs_head_, table_t::txs_head);
@@ -81,6 +84,11 @@ code CLASS::open_load(const event_handler& handler) NOEXCEPT
     open(ec, candidate_head_, table_t::candidate_head);
     open(ec, confirmed_head_, table_t::confirmed_head);
     open(ec, strong_head_, table_t::strong_head);
+    open(ec, address_head_, table_t::address_head);
+    open(ec, address_body_, table_t::address_body);
+    open(ec, conflict_head_, table_t::conflict_head);
+    open(ec, conflict_body_, table_t::conflict_body);
+    open(ec, spender_head_, table_t::spender_head);
     open(ec, scan_head_, table_t::scan_head);
     open(ec, scan_body_, table_t::scan_body);
     open(ec, scan_prefix_head_, table_t::scan_prefix_head);
@@ -102,8 +110,6 @@ code CLASS::open_load(const event_handler& handler) NOEXCEPT
     open(ec, silent0_prefix_body_, table_t::silent0_prefix_body);
     open(ec, silent1_prefix_head_, table_t::silent1_prefix_head);
     open(ec, silent1_prefix_body_, table_t::silent1_prefix_body);
-    open(ec, duplicate_head_, table_t::duplicate_head);
-    open(ec, duplicate_body_, table_t::duplicate_body);
     open(ec, prevalid0_head_, table_t::prevalid0_head);
     open(ec, prevalid0_body_, table_t::prevalid0_body);
     open(ec, prevalid1_head_, table_t::prevalid1_head);
@@ -112,13 +118,13 @@ code CLASS::open_load(const event_handler& handler) NOEXCEPT
     open(ec, presilent0_body_, table_t::presilent0_body);
     open(ec, presilent1_head_, table_t::presilent1_head);
     open(ec, presilent1_body_, table_t::presilent1_body);
-    open(ec, prevout_head_, table_t::prevout_head);
-    open(ec, prevout_body_, table_t::prevout_body);
+    open(ec, points0_head_, table_t::points0_head);
+    open(ec, points0_body_, table_t::points0_body);
+    open(ec, points1_head_, table_t::points1_head);
+    open(ec, points1_body_, table_t::points1_body);
     open(ec, state_head_, table_t::state_head);
     open(ec, pool_head_, table_t::pool_head);
     open(ec, pool_body_, table_t::pool_body);
-    open(ec, spends_head_, table_t::spends_head);
-    open(ec, spends_body_, table_t::spends_body);
     open(ec, wtxid_head_, table_t::wtxid_head);
     open(ec, wtxid_body_, table_t::wtxid_body);
 
@@ -136,7 +142,10 @@ code CLASS::open_load(const event_handler& handler) NOEXCEPT
     load(ec, ins_head_, table_t::ins_head);
     load(ec, ins_body_, table_t::ins_body);
     load(ec, outs_head_, table_t::outs_head);
-    load(ec, *outs_body_, table_t::outs_body);
+    load(ec, outs_body_, table_t::outs_body);
+    load(ec, spend_head_, table_t::spend_head);
+    load(ec, unbound_head_, table_t::unbound_head);
+    load(ec, unbound_body_, table_t::unbound_body);
     load(ec, tx_head_, table_t::tx_head);
     load(ec, tx_body_, table_t::tx_body);
     load(ec, txs_head_, table_t::txs_head);
@@ -145,6 +154,11 @@ code CLASS::open_load(const event_handler& handler) NOEXCEPT
     load(ec, candidate_head_, table_t::candidate_head);
     load(ec, confirmed_head_, table_t::confirmed_head);
     load(ec, strong_head_, table_t::strong_head);
+    load(ec, address_head_, table_t::address_head);
+    load(ec, address_body_, table_t::address_body);
+    load(ec, conflict_head_, table_t::conflict_head);
+    load(ec, conflict_body_, table_t::conflict_body);
+    load(ec, spender_head_, table_t::spender_head);
     load(ec, scan_head_, table_t::scan_head);
     load(ec, scan_body_, table_t::scan_body);
     load(ec, scan_prefix_head_, table_t::scan_prefix_head);
@@ -166,8 +180,6 @@ code CLASS::open_load(const event_handler& handler) NOEXCEPT
     load(ec, silent0_prefix_body_, table_t::silent0_prefix_body);
     load(ec, silent1_prefix_head_, table_t::silent1_prefix_head);
     load(ec, silent1_prefix_body_, table_t::silent1_prefix_body);
-    load(ec, duplicate_head_, table_t::duplicate_head);
-    load(ec, duplicate_body_, table_t::duplicate_body);
     load(ec, prevalid0_head_, table_t::prevalid0_head);
     load(ec, prevalid0_body_, table_t::prevalid0_body);
     load(ec, prevalid1_head_, table_t::prevalid1_head);
@@ -176,13 +188,13 @@ code CLASS::open_load(const event_handler& handler) NOEXCEPT
     load(ec, presilent0_body_, table_t::presilent0_body);
     load(ec, presilent1_head_, table_t::presilent1_head);
     load(ec, presilent1_body_, table_t::presilent1_body);
-    load(ec, prevout_head_, table_t::prevout_head);
-    load(ec, prevout_body_, table_t::prevout_body);
+    load(ec, points0_head_, table_t::points0_head);
+    load(ec, points0_body_, table_t::points0_body);
+    load(ec, points1_head_, table_t::points1_head);
+    load(ec, points1_body_, table_t::points1_body);
     load(ec, state_head_, table_t::state_head);
     load(ec, pool_head_, table_t::pool_head);
     load(ec, pool_body_, table_t::pool_body);
-    load(ec, spends_head_, table_t::spends_head);
-    load(ec, spends_body_, table_t::spends_body);
     load(ec, wtxid_head_, table_t::wtxid_head);
     load(ec, wtxid_body_, table_t::wtxid_body);
 
@@ -190,10 +202,6 @@ code CLASS::open_load(const event_handler& handler) NOEXCEPT
     load(ec, filter_bk_body_, table_t::filter_bk_body);
     load(ec, filter_tx_head_, table_t::filter_tx_head);
     load(ec, filter_tx_body_, table_t::filter_tx_body);
-
-    // create, open, and restore each invoke open_load.
-    const auto dirty = header_body_.size() > schema::header::minrow;
-    dirty_.store(dirty, std::memory_order_relaxed);
     return ec;
 }
 

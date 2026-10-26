@@ -67,6 +67,13 @@ public:
     /// Prune prunable tables (from loaded, leaves loaded).
     code prune(const event_handler& handler) NOEXCEPT;
 
+    /// Drain the other points bank and make it current (from loaded, leaves
+    /// loaded).
+    code flip_points(const event_handler& handler) NOEXCEPT;
+
+    /// Drain both points banks (from loaded, leaves loaded).
+    code drop_points(const event_handler& handler) NOEXCEPT;
+
     /// Snapshot the set of tables (from loaded, leaves loaded).
     code snapshot(const event_handler& handler, bool prune=false) NOEXCEPT;
 
@@ -103,10 +110,6 @@ public:
     /// Read the stored schema version without opening the store.
     code read_schema(system::config::version& schema) NOEXCEPT;
 
-    /// Determine if the store is non-empty/initialized.
-    bool is_dirty() const NOEXCEPT;
-    void set_dirty() NOEXCEPT;
-
     /// Determine if the store pools unconfirmed transactions.
     bool is_pooling() const NOEXCEPT;
     void set_pooling() NOEXCEPT;
@@ -131,6 +134,10 @@ public:
     table::silent_prefix& silent_prefix_bank(bool bank) NOEXCEPT;
     table::prevalid& prevalid_bank(bool bank) NOEXCEPT;
     table::presilent& presilent_bank(bool bank) NOEXCEPT;
+    table::points& points_bank(bool bank) NOEXCEPT;
+
+    /// The points bank written by block archival.
+    bool get_points_bank() const NOEXCEPT;
 
     /// Reevaluate currency (called by chain writes).
     void evaluate_currency() NOEXCEPT;
@@ -149,17 +156,23 @@ protected:
     code backup(const event_handler& handler, bool prune=false) NOEXCEPT;
     code dump(const path& folder, const event_handler& handler) NOEXCEPT;
 
+    /// Save the points of the unbound inputs of the bank (drain helper).
+    bool save_unbound(const table::points& bank, size_t end) NOEXCEPT;
+
+    /// Drain the bank and advance its base to the ins count (drop helper).
+    code drain_points(table::points& bank,
+        const table::points& other) NOEXCEPT;
+
     /// Retain the pool records of txs that can yet confirm (prune helpers).
     template <typename Reset>
     code compact(const event_handler& handler, const Reset& reset) NOEXCEPT;
     bool is_retained(bool& out, const tx_link& link,
         table::pool& retained) NOEXCEPT;
 
-    /// Copy the pool records accepted by keep, with their spends, in order,
-    /// passing the link and witness hash of each copied record to index.
+    /// Copy the pool records accepted by keep, in order, passing the link and
+    /// witness hash of each copied record to index.
     template <typename Keep, typename Index>
-    bool copy_pool(table::pool& to, table::spends& to_spends,
-        table::pool& from, table::spends& from_spends, const Keep& keep,
+    bool copy_pool(table::pool& to, table::pool& from, const Keep& keep,
         const Index& index) NOEXCEPT;
 
     /// Currency (coalesced with a recent top), reported to head storage.
@@ -194,13 +207,20 @@ protected:
     Storage<one> output_head_;
     Storage<one> output_body_;
 
-    // aggregate (point spine + sequence satellite)
+    // record nomap
     Storage<one> ins_head_;
-    table::ins_storage<Storage> ins_body_;
+    Storage<one> ins_body_;
 
-    // aggregate (address spine + outs column), spine unbacked when disabled
+    // record nomap
     Storage<one> outs_head_;
-    const std::unique_ptr<storage> outs_body_;
+    Storage<one> outs_body_;
+
+    // headmap
+    Storage<one> spend_head_;
+
+    // record hashmap
+    Storage<one> unbound_head_;
+    Storage<one> unbound_body_;
 
     // record hashmap
     Storage<one> tx_head_;
@@ -219,8 +239,19 @@ protected:
     // headmap
     Storage<one> confirmed_head_;
 
-    // record hashmap
+    // headmap
     Storage<one> strong_head_;
+
+    // record hashmap
+    Storage<one> address_head_;
+    Storage<one> address_body_;
+
+    // record hashmap
+    Storage<one> conflict_head_;
+    Storage<one> conflict_body_;
+
+    // headmap
+    Storage<one> spender_head_;
     Storage<one> scan_head_;
     table::scan_storage<Storage> scan_body_;
     Storage<one> scan_prefix_head_;
@@ -254,9 +285,11 @@ protected:
     // headmap slab
     Storage<one> envelope_head_;
 
-    // blob arraymap
-    Storage<one> duplicate_head_;
-    Storage<one> duplicate_body_;
+    // record arraymap (banks)
+    Storage<one> points0_head_;
+    Storage<one> points0_body_;
+    Storage<one> points1_head_;
+    Storage<one> points1_body_;
 
     // array
     Storage<one> prevalid0_head_;
@@ -268,18 +301,12 @@ protected:
     Storage<one> presilent1_head_;
     Storage<one> presilent1_body_;
 
-    // blob arraymap
-    Storage<one> prevout_head_;
-    Storage<one> prevout_body_;
-
     // record hashmap
     Storage<one> state_head_;
 
     // record multimap
     Storage<one> pool_head_;
     table::pool_storage<Storage> pool_body_;
-    Storage<one> spends_head_;
-    Storage<one> spends_body_;
     Storage<one> wtxid_head_;
     Storage<one> wtxid_body_;
 
@@ -303,10 +330,10 @@ protected:
     shared_timed_mutex transactor_mutex_{};
 
     // This is thread safe.
-    stopper dirty_{ true };
     stopper pooling_{ false };
     std::atomic<uint32_t> scan_frontier_{};
     std::atomic<uint32_t> latch_tx_{};
+    std::atomic_bool points_bank_{};
 
 private:
     static constexpr bool random = true;
@@ -360,8 +387,6 @@ private:
         return folder / (name + schema::ext::lock);
     }
 
-    static std::unique_ptr<storage> to_outs(const settings& config) NOEXCEPT;
-
 public:
     /// Tables.
     /// -----------------------------------------------------------------------
@@ -372,12 +397,17 @@ public:
     table::output output;
     table::ins ins;
     table::outs outs;
+    table::spend spend;
+    table::unbound unbound;
     table::transaction tx;
     table::txs txs;
 
     /// Indexes.
+    table::address address;
     table::height candidate;
     table::height confirmed;
+    table::conflict conflict;
+    table::spender spender;
     table::strong strong;
     table::scan<Storage> scan;
     table::scan_prefix scan_prefix;
@@ -392,15 +422,14 @@ public:
     table::silent_prefix silent0_prefix;
     table::silent_prefix silent1_prefix;
     table::envelope envelope;
-    table::duplicate duplicate;
+    table::points points0;
+    table::points points1;
     table::prevalid prevalid0;
     table::prevalid prevalid1;
     table::presilent presilent0;
     table::presilent presilent1;
-    table::prevout prevout;
     table::state state;
     table::pool pool;
-    table::spends spends;
     table::wtxid wtxid;
 
     /// Optionals.

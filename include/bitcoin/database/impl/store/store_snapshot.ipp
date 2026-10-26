@@ -49,12 +49,15 @@ code CLASS::snapshot(const event_handler& handler, bool prune) NOEXCEPT
     flush(ec, input_body_, table_t::input_body);
     flush(ec, output_body_, table_t::output_body);
     flush(ec, ins_body_, table_t::ins_body);
-    flush(ec, *outs_body_, table_t::outs_body);
+    flush(ec, outs_body_, table_t::outs_body);
+    flush(ec, unbound_body_, table_t::unbound_body);
     flush(ec, tx_body_, table_t::tx_body);
     flush(ec, txs_body_, table_t::txs_body);
 
     flush(ec, scan_body_, table_t::scan_body);
     flush(ec, scan_prefix_body_, table_t::scan_prefix_body);
+    flush(ec, address_body_, table_t::address_body);
+    flush(ec, conflict_body_, table_t::conflict_body);
 
     flush(ec, ecdsa0_body_, table_t::ecdsa0_body);
     flush(ec, ecdsa1_body_, table_t::ecdsa1_body);
@@ -64,14 +67,13 @@ code CLASS::snapshot(const event_handler& handler, bool prune) NOEXCEPT
     flush(ec, silent1_body_, table_t::silent1_body);
     flush(ec, silent0_prefix_body_, table_t::silent0_prefix_body);
     flush(ec, silent1_prefix_body_, table_t::silent1_prefix_body);
-    flush(ec, duplicate_body_, table_t::duplicate_body);
     flush(ec, prevalid0_body_, table_t::prevalid0_body);
     flush(ec, prevalid1_body_, table_t::prevalid1_body);
     flush(ec, presilent0_body_, table_t::presilent0_body);
     flush(ec, presilent1_body_, table_t::presilent1_body);
-    if (!prune) flush(ec, prevout_body_, table_t::prevout_body);
+    flush(ec, points0_body_, table_t::points0_body);
+    flush(ec, points1_body_, table_t::points1_body);
     if (!prune) flush(ec, pool_body_, table_t::pool_body);
-    if (!prune) flush(ec, spends_body_, table_t::spends_body);
     if (!prune) flush(ec, wtxid_body_, table_t::wtxid_body);
 
     flush(ec, filter_bk_body_, table_t::filter_bk_body);

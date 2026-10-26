@@ -180,6 +180,9 @@
     <ClCompile Include="..\..\..\..\test\query\batch\silent.cpp">
       <Filter>src\query\batch</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\test\query\bindings.cpp">
+      <Filter>src\query</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\..\test\query\confirmed.cpp">
       <Filter>src\query</Filter>
     </ClCompile>
@@ -196,9 +199,6 @@
       <Filter>src\query\consensus</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\test\query\consensus\consensus_populate.cpp">
-      <Filter>src\query\consensus</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\test\query\consensus\consensus_prevouts.cpp">
       <Filter>src\query\consensus</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\test\query\consensus\consensus_states.cpp">
@@ -315,6 +315,9 @@
     <ClCompile Include="..\..\..\..\test\store\store_unload_close.cpp">
       <Filter>src\store</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\test\tables\archives\bindings.cpp">
+      <Filter>src\tables\archives</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\..\test\tables\archives\header.cpp">
       <Filter>src\tables\archives</Filter>
     </ClCompile>
@@ -336,7 +339,13 @@
     <ClCompile Include="..\..\..\..\test\tables\archives\txs.cpp">
       <Filter>src\tables\archives</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\..\test\tables\archives\unbound.cpp">
+      <Filter>src\tables\archives</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\..\..\test\tables\caches\ecdsa.cpp">
+      <Filter>src\tables\caches</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\test\tables\caches\points.cpp">
       <Filter>src\tables\caches</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\test\tables\caches\pool.cpp">
@@ -345,25 +354,22 @@
     <ClCompile Include="..\..\..\..\test\tables\caches\prevalid.cpp">
       <Filter>src\tables\caches</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\test\tables\caches\prevout.cpp">
-      <Filter>src\tables\caches</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\..\test\tables\caches\schnorr.cpp">
-      <Filter>src\tables\caches</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\..\test\tables\caches\spends.cpp">
       <Filter>src\tables\caches</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\test\tables\envelope.cpp">
       <Filter>src\tables</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\test\tables\indexes\duplicate.cpp">
+    <ClCompile Include="..\..\..\..\test\tables\indexes\conflict.cpp">
       <Filter>src\tables\indexes</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\test\tables\indexes\height.cpp">
       <Filter>src\tables\indexes</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\test\tables\indexes\scan.cpp">
+      <Filter>src\tables\indexes</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\test\tables\indexes\spender.cpp">
       <Filter>src\tables\indexes</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\test\tables\indexes\state.cpp">
