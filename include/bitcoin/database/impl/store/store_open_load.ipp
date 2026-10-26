@@ -89,6 +89,7 @@ code CLASS::open_load(const event_handler& handler) NOEXCEPT
     open(ec, conflict_head_, table_t::conflict_head);
     open(ec, conflict_body_, table_t::conflict_body);
     open(ec, spender_head_, table_t::spender_head);
+    open(ec, contested_head_, table_t::contested_head);
     open(ec, scan_head_, table_t::scan_head);
     open(ec, scan_body_, table_t::scan_body);
     open(ec, scan_prefix_head_, table_t::scan_prefix_head);
@@ -159,6 +160,7 @@ code CLASS::open_load(const event_handler& handler) NOEXCEPT
     load(ec, conflict_head_, table_t::conflict_head);
     load(ec, conflict_body_, table_t::conflict_body);
     load(ec, spender_head_, table_t::spender_head);
+    load(ec, contested_head_, table_t::contested_head);
     load(ec, scan_head_, table_t::scan_head);
     load(ec, scan_body_, table_t::scan_body);
     load(ec, scan_prefix_head_, table_t::scan_prefix_head);

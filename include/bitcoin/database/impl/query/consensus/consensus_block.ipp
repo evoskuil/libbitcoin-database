@@ -146,11 +146,17 @@ code CLASS::block_confirmable(const header_link& link) NOEXCEPT
     }
 
     {
-        const auto ptr = store_.spender.get_memory();
+        const auto ptr = store_.contested.get_memory();
         for (auto& spend: spends)
-            if (!spend.internal &&
-                !header_link{ spend.block }.is_terminal())
-                spend.holder = store_.spender.at(ptr, spend.outs).value;
+        {
+            if (spend.internal || header_link{ spend.block }.is_terminal())
+                continue;
+
+            const auto cell = store_.contested.at(ptr,
+                table::contested::to_cell(spend.outs));
+            spend.contested = is_nonzero(bit_and<uint8_t>(cell,
+                table::contested::to_mask(spend.outs)));
+        }
     }
 
     // Checks all spends for spendability (strong, unlocked, mature, unspent).
@@ -391,8 +397,9 @@ system::error::transaction_error_t CLASS::spendable(const confirm_spend& spend,
 
     if (strong_fk == parent)
     {
-        if (const auto ec = contested(spender, spent, spend.holder))
-            return ec;
+        if (spend.contested)
+            if (const auto ec = contested(spender, spent))
+                return ec;
     }
     else
     {
@@ -443,29 +450,10 @@ TEMPLATE
 system::error::transaction_error_t CLASS::contested(const tx_link& spender,
     const outs_link& spent) const NOEXCEPT
 {
-    return contested(spender, spent, store_.spender.at(spent.value).value);
-}
-
-TEMPLATE
-system::error::transaction_error_t CLASS::contested(const tx_link& spender,
-    const outs_link& spent,
-    table::spender::value::integer holder) const NOEXCEPT
-{
     // Only a strong spender of another tx conflicts (instances are one tx).
-    const auto conflicts = [&](const tx_link& other) NOEXCEPT
-    {
-        return (other != spender) && (get_tx_key(other) !=
-            get_tx_key(spender)) && is_strong_tx(other);
-    };
-
-    if (!table::spender::is_contested(holder))
-        return table::spender::is_spent(holder) &&
-            conflicts(table::spender::spender_fk(holder)) ?
-            system::error::confirmed_double_spend :
-            system::error::transaction_success;
-
     for (const auto& other: to_spender_txs(spent))
-        if (conflicts(other))
+        if ((other != spender) && (get_tx_key(other) != get_tx_key(spender)) &&
+            is_strong_tx(other))
             return system::error::confirmed_double_spend;
 
     return system::error::transaction_success;

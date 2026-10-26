@@ -27,39 +27,20 @@ namespace libbitcoin {
 namespace database {
 namespace table {
 
-/// Spender is a head-only array of spender tx fks indexed by outs.fk, each
-/// merged with a contested bit set when another tx has spent the output (its
-/// spenders beyond the first are in the conflict table). A terminal cell is
-/// unspent. Cells are content: set at spend, never cleared.
+/// Spender is a head-only array of spender tx fks indexed by outs.fk (an
+/// output with other spenders is contested, its spenders beyond the first are
+/// in the conflict table). A terminal cell is unspent. Cells are content: set
+/// at spend, never cleared.
 struct spender
   : public value_map<schema::spender>
 {
     using tx = schema::transaction::link;
     using value = schema::spender::value;
     using value_map<schema::spender>::headmap;
-    static constexpr auto offset = tx::bits;
-    static_assert(offset < to_bits(value::size));
 
-    static constexpr value::integer merge(bool contested,
-        tx::integer spender_fk) NOEXCEPT
+    static constexpr bool is_spent(value::integer spender_fk) NOEXCEPT
     {
-        BC_ASSERT_MSG(!system::get_right(spender_fk, offset), "overflow");
-        return system::set_right(spender_fk, offset, contested);
-    }
-
-    static constexpr bool is_spent(value::integer merged) NOEXCEPT
-    {
-        return merged != value::terminal;
-    }
-
-    static constexpr bool is_contested(value::integer merged) NOEXCEPT
-    {
-        return system::get_right(merged, offset);
-    }
-
-    static constexpr tx::integer spender_fk(value::integer merged) NOEXCEPT
-    {
-        return system::set_right(merged, offset, false);
+        return spender_fk != value::terminal;
     }
 
     /// Set the spender if the cell is unspent, holder is the prior cell.
@@ -75,32 +56,12 @@ struct spender
         inline bool to_data(flipper& sink) const NOEXCEPT
         {
             sink.write_little_endian<value::integer, cell>(is_spent(holder) ?
-                holder : merge(false, spender_fk));
+                holder : spender_fk);
             return sink;
         }
 
         value::integer& holder;
         tx::integer spender_fk{};
-    };
-
-    /// Set the contested bit, retaining the spender.
-    struct contest
-      : public schema::spender
-    {
-        inline bool from_data(reader& source) NOEXCEPT
-        {
-            current = source.read_little_endian<value::integer, cell>();
-            return source;
-        }
-
-        inline bool to_data(flipper& sink) const NOEXCEPT
-        {
-            sink.write_little_endian<value::integer, cell>(
-                system::set_right(current, offset, true));
-            return sink;
-        }
-
-        value::integer current{};
     };
 };
 

@@ -216,8 +216,7 @@ bool CLASS::set_spends(block_spends& spends) NOEXCEPT
             spend.pending = !outs_link{ spend.outs }.is_terminal() &&
                 (!store_.spender.set(ptr, spend.outs,
                     table::spender::spend{ {}, holder, spend.tx }) ||
-                (table::spender::is_spent(holder) &&
-                    table::spender::spender_fk(holder) != spend.tx));
+                (table::spender::is_spent(holder) && holder != spend.tx));
         }
     }
 
@@ -265,7 +264,7 @@ bool CLASS::mark(const tx_link& spender, const outs_link& spent) NOEXCEPT
         return true;
 
     // The same tx (any instance) is not a conflict.
-    const tx_link other{ table::spender::spender_fk(holder) };
+    const tx_link other{ holder };
     if ((other == spender) || (get_tx_key(other) == get_tx_key(spender)))
         return true;
 
@@ -282,7 +281,9 @@ bool CLASS::mark(const tx_link& spender, const outs_link& spent) NOEXCEPT
     }
 
     return store_.conflict.put(key, table::conflict::record{ {}, spender }) &&
-        store_.spender.set(spent.value, table::spender::contest{});
+        store_.contested.set(table::contested::to_cell(spent.value),
+            table::contested::contest{ {},
+                table::contested::to_mask(spent.value) });
 }
 
 TEMPLATE

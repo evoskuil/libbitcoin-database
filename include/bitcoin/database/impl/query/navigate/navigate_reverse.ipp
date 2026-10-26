@@ -289,6 +289,16 @@ outs_link CLASS::to_spent(const ins_link& link) const NOEXCEPT
 // rows are enumerated.
 
 TEMPLATE
+bool CLASS::is_contested(const outs_link& link) const NOEXCEPT
+{
+    using namespace system;
+    const auto cell = store_.contested.at(
+        table::contested::to_cell(link.value));
+    return is_nonzero(bit_and<uint8_t>(cell,
+        table::contested::to_mask(link.value)));
+}
+
+TEMPLATE
 tx_links CLASS::to_spender_txs(const outs_link& link) const NOEXCEPT
 {
     tx_links out{};
@@ -296,8 +306,8 @@ tx_links CLASS::to_spender_txs(const outs_link& link) const NOEXCEPT
     if (!table::spender::is_spent(cell))
         return out;
 
-    out.push_back(table::spender::spender_fk(cell));
-    if (!table::spender::is_contested(cell))
+    out.push_back(cell);
+    if (!is_contested(link))
         return out;
 
     for (auto it = store_.conflict.it(table::conflict::to_key(link)); it; ++it)

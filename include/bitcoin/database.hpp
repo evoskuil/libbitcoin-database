@@ -84,6 +84,7 @@
 #include <bitcoin/database/tables/caches/schnorr.hpp>
 #include <bitcoin/database/tables/caches/silent.hpp>
 #include <bitcoin/database/tables/indexes/conflict.hpp>
+#include <bitcoin/database/tables/indexes/contested.hpp>
 #include <bitcoin/database/tables/indexes/height.hpp>
 #include <bitcoin/database/tables/indexes/scan.hpp>
 #include <bitcoin/database/tables/indexes/spender.hpp>

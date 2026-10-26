@@ -204,6 +204,11 @@ public:
         return spender_head_.file();
     }
 
+    inline const path& contested_head_file() const NOEXCEPT
+    {
+        return contested_head_.file();
+    }
+
     inline const path& state_head_file() const NOEXCEPT
     {
         return state_head_.file();

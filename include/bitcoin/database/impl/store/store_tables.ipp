@@ -70,6 +70,8 @@ const CLASS::table_map CLASS::tables
     { table_t::conflict_body, "conflict_body" },
     { table_t::spender_table, "spender_table" },
     { table_t::spender_head, "spender_head" },
+    { table_t::contested_table, "contested_table" },
+    { table_t::contested_head, "contested_head" },
     { table_t::strong_table, "strong_table" },
     { table_t::strong_head, "strong_head" },
     { table_t::scan_table, "scan_table" },

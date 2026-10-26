@@ -353,14 +353,13 @@ struct strong
     bool operator==(const strong&) const NOEXCEPT = default;
 };
 
-// headmap (spender tx fk with contested bit, by outs fk)
+// headmap (spender tx fk, by outs fk)
 struct spender
 {
     static constexpr size_t pk = schema::outs::pk;
     using link = schema::outs::link;
     using value = linkage<sizeof(uint32_t)>;
     static constexpr size_t minsize =
-        ////schema::bit +       // contested (merged into spender fk)
         schema::transaction::pk;// spender->tx
     static constexpr size_t minrow = minsize;
     static constexpr size_t size = minsize;
@@ -370,6 +369,23 @@ struct spender
     static_assert(link::size == 4u);
     static_assert(cell == 4u);
     bool operator==(const spender&) const NOEXCEPT = default;
+};
+
+// headmap (contested bits, eight outs fks to a cell)
+struct contested
+{
+    static constexpr size_t pk = schema::outs::pk;
+    using link = schema::outs::link;
+    using value = uint8_t;
+    static constexpr size_t minsize = one;
+    static constexpr size_t minrow = minsize;
+    static constexpr size_t size = minsize;
+    static constexpr size_t cell = minsize;
+    static_assert(minsize == 1u);
+    static_assert(minrow == 1u);
+    static_assert(link::size == 4u);
+    static_assert(cell == 1u);
+    bool operator==(const contested&) const NOEXCEPT = default;
 };
 
 /// Cache tables.

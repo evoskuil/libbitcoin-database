@@ -69,6 +69,8 @@ enum class table_t
     conflict_body,
     spender_table,
     spender_head,
+    contested_table,
+    contested_head,
     strong_table,
     strong_head,
     scan_table,

@@ -46,8 +46,7 @@ BOOST_AUTO_TEST_CASE(spender__spend__unspent__spent_by_first)
 
     const auto cell = instance.at(1u).value;
     BOOST_REQUIRE(table::spender::is_spent(cell));
-    BOOST_REQUIRE(!table::spender::is_contested(cell));
-    BOOST_REQUIRE_EQUAL(table::spender::spender_fk(cell), first);
+    BOOST_REQUIRE_EQUAL(cell, first);
 }
 
 BOOST_AUTO_TEST_CASE(spender__spend__spent__holder_retained)
@@ -61,22 +60,7 @@ BOOST_AUTO_TEST_CASE(spender__spend__spent__holder_retained)
     BOOST_REQUIRE(instance.set(1u, table::spender::spend{ {}, holder, second }));
     BOOST_REQUIRE_EQUAL(holder, first);
     BOOST_REQUIRE_EQUAL(head_file, expected_head);
-    BOOST_REQUIRE_EQUAL(table::spender::spender_fk(instance.at(1u).value), first);
-}
-
-BOOST_AUTO_TEST_CASE(spender__contest__spent__contested)
-{
-    auto head_file = expected_head;
-    test::chunk_storage head_store{ head_file, test::terminal_fill };
-    table::spender instance{ head_store };
-    BOOST_REQUIRE(instance.verify());
-    BOOST_REQUIRE(instance.set(1u, table::spender::contest{}));
-
-    const auto cell = instance.at(1u).value;
-    BOOST_REQUIRE(table::spender::is_spent(cell));
-    BOOST_REQUIRE(table::spender::is_contested(cell));
-    BOOST_REQUIRE_EQUAL(table::spender::spender_fk(cell), first);
-    BOOST_REQUIRE_EQUAL(cell, table::spender::merge(true, first));
+    BOOST_REQUIRE_EQUAL(instance.at(1u).value, first);
 }
 
 BOOST_AUTO_TEST_CASE(spender__at__unallocated__unspent)

@@ -80,6 +80,7 @@ code CLASS::open(const event_handler& handler) NOEXCEPT
     verify(ec, address, table_t::address_table);
     verify(ec, conflict, table_t::conflict_table);
     verify(ec, spender, table_t::spender_table);
+    verify(ec, contested, table_t::contested_table);
     verify(ec, scan, table_t::scan_table);
     verify(ec, scan_prefix, table_t::scan_prefix_table);
 

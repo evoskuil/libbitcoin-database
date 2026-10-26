@@ -42,6 +42,7 @@
 #include <bitcoin/database/tables/indexes/height.hpp>
 #include <bitcoin/database/tables/indexes/scan.hpp>
 #include <bitcoin/database/tables/indexes/spender.hpp>
+#include <bitcoin/database/tables/indexes/contested.hpp>
 #include <bitcoin/database/tables/indexes/state.hpp>
 #include <bitcoin/database/tables/indexes/strong.hpp>
 #include <bitcoin/database/tables/indexes/wtxid.hpp>

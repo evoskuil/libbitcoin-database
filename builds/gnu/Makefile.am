@@ -328,6 +328,7 @@ include_bitcoin_database_tables_indexesdir = \
 
 include_bitcoin_database_tables_indexes_HEADERS = \
     ${srcdir}/../../include/bitcoin/database/tables/indexes/conflict.hpp \
+    ${srcdir}/../../include/bitcoin/database/tables/indexes/contested.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/indexes/height.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/indexes/scan.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/indexes/spender.hpp \
@@ -502,6 +503,7 @@ test_libbitcoin_database_test_SOURCES = \
     ${srcdir}/../../test/tables/caches/prevalid.cpp \
     ${srcdir}/../../test/tables/caches/schnorr.cpp \
     ${srcdir}/../../test/tables/indexes/conflict.cpp \
+    ${srcdir}/../../test/tables/indexes/contested.cpp \
     ${srcdir}/../../test/tables/indexes/height.cpp \
     ${srcdir}/../../test/tables/indexes/scan.cpp \
     ${srcdir}/../../test/tables/indexes/spender.cpp \

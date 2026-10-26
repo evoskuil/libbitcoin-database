@@ -154,6 +154,7 @@ public:
     size_t address_head_size() const NOEXCEPT;
     size_t conflict_head_size() const NOEXCEPT;
     size_t spender_head_size() const NOEXCEPT;
+    size_t contested_head_size() const NOEXCEPT;
     size_t scan_head_size() const NOEXCEPT;
     size_t scan_prefix_head_size() const NOEXCEPT;
     size_t ecdsa0_head_size() const NOEXCEPT;
@@ -193,6 +194,7 @@ public:
     size_t address_body_size() const NOEXCEPT;
     size_t conflict_body_size() const NOEXCEPT;
     size_t spender_body_size() const NOEXCEPT;
+    size_t contested_body_size() const NOEXCEPT;
     size_t scan_body_size() const NOEXCEPT;
     size_t scan_prefix_body_size() const NOEXCEPT;
     size_t ecdsa0_body_size() const NOEXCEPT;
@@ -232,6 +234,7 @@ public:
     size_t address_size() const NOEXCEPT;
     size_t conflict_size() const NOEXCEPT;
     size_t spender_size() const NOEXCEPT;
+    size_t contested_size() const NOEXCEPT;
     size_t scan_size() const NOEXCEPT;
     size_t scan_prefix_size() const NOEXCEPT;
     size_t ecdsa0_size() const NOEXCEPT;
@@ -267,6 +270,7 @@ public:
     size_t address_buckets() const NOEXCEPT;
     size_t conflict_buckets() const NOEXCEPT;
     size_t spender_buckets() const NOEXCEPT;
+    size_t contested_buckets() const NOEXCEPT;
     size_t scan_buckets() const NOEXCEPT;
     size_t state_buckets() const NOEXCEPT;
     size_t pool_buckets() const NOEXCEPT;
@@ -368,6 +372,7 @@ public:
     outs_link to_spent(const ins_link& link) const NOEXCEPT;
 
     /// output to spender txs (the spender cell and conflict rows)
+    bool is_contested(const outs_link& link) const NOEXCEPT;
     tx_links to_spender_txs(const outs_link& link) const NOEXCEPT;
     ins_link to_spending_input(const tx_link& spender,
         const outs_link& link) const NOEXCEPT;
@@ -1197,9 +1202,6 @@ protected:
     /// Called by spendable (other spenders of the output, any instance).
     system::error::transaction_error_t contested(const tx_link& spender,
         const outs_link& spent) const NOEXCEPT;
-    system::error::transaction_error_t contested(const tx_link& spender,
-        const outs_link& spent,
-        table::spender::value::integer holder) const NOEXCEPT;
 
     input::cptr get_input(const ins_link& link, bool witness,
         bool coinbase) const NOEXCEPT;
