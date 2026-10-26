@@ -940,7 +940,8 @@ public:
     /// -----------------------------------------------------------------------
     /// These are used in consensus confirmation.
 
-    code block_confirmable(const header_link& link) NOEXCEPT;
+    code block_confirmable(const header_link& link,
+        bool parallel=false) NOEXCEPT;
 
     bool get_branch(header_states& branch, const hash_digest& hash) const NOEXCEPT;
     bool get_work(uint256_t& work, const header_states& states) const NOEXCEPT;

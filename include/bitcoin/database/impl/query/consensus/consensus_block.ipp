@@ -30,11 +30,14 @@ namespace database {
 // Called by organizer under strict order to determine if block is confirmable.
 // ----------------------------------------------------------------------------
 
-// Each pass holds the accessor of one table.
+// Each pass holds the accessor of one table, read by all of its tasks.
 TEMPLATE
-code CLASS::block_confirmable(const header_link& link) NOEXCEPT
+code CLASS::block_confirmable(const header_link& link, bool parallel) NOEXCEPT
 {
     using namespace system;
+    constexpr auto relaxed = std::memory_order_relaxed;
+    const auto policy = poolstl::execution::par_if(parallel, parallel_floor);
+
     context ctx{};
     if (!get_context(ctx, link))
         return error::integrity_block_confirmable1;
@@ -50,13 +53,23 @@ code CLASS::block_confirmable(const header_link& link) NOEXCEPT
         return error::success;
 
     // Get the records of all block txs (the coinbase for its outs range).
+    std::atomic_bool fault{};
     std::vector<table::transaction::record> records(txs.size());
     {
         const auto ptr = store_.tx.get_memory();
-        for (size_t index{}; index < txs.size(); ++index)
-            if (!store_.tx.get(ptr, txs.at(index), records.at(index)))
-                return error::integrity_block_confirmable2;
+        std::transform(policy, txs.cbegin(), txs.cend(), records.begin(),
+            [&](const auto& tx) NOEXCEPT
+            {
+                table::transaction::record record{};
+                if (!store_.tx.get(ptr, tx, record))
+                    fault.store(true, relaxed);
+
+                return record;
+            });
     }
+
+    if (fault.load(relaxed))
+        return error::integrity_block_confirmable2;
 
     // The outs ranges of the block's txs identify its internal spends.
     outs_ranges ranges(records.size());
@@ -85,25 +98,30 @@ code CLASS::block_confirmable(const header_link& link) NOEXCEPT
 
     {
         const auto ptr = store_.spend.get_memory();
-        for (auto& spend: spends)
-        {
-            spend.outs = store_.spend.at(ptr, spend.ins).value;
-            if (!table::spend::is_spent(spend.outs))
-                return error::integrity_spendable;
-        }
+        std::for_each(policy, spends.begin(), spends.end(),
+            [&](confirm_spend& spend) NOEXCEPT
+            {
+                spend.outs = store_.spend.at(ptr, spend.ins).value;
+                if (!table::spend::is_spent(spend.outs))
+                    fault.store(true, relaxed);
+            });
     }
 
     {
         const auto ptr = store_.ins.get_memory();
-        for (auto& spend: spends)
-        {
-            table::ins::get_input in{};
-            if (!store_.ins.get(ptr, spend.ins, in))
-                return error::integrity_spendable;
+        std::for_each(policy, spends.begin(), spends.end(),
+            [&](confirm_spend& spend) NOEXCEPT
+            {
+                table::ins::get_input in{};
+                if (!store_.ins.get(ptr, spend.ins, in))
+                    fault.store(true, relaxed);
 
-            spend.sequence = in.sequence;
-        }
+                spend.sequence = in.sequence;
+            });
     }
+
+    if (fault.load(relaxed))
+        return error::integrity_spendable;
 
     // A spend internal to the block has zero age and a non-coinbase parent
     // (the block check rejects a forward reference or coinbase spend).
@@ -117,46 +135,53 @@ code CLASS::block_confirmable(const header_link& link) NOEXCEPT
 
     {
         const auto ptr = store_.outs.get_memory();
-        for (auto& spend: spends)
-        {
-            table::outs::get_parent out{};
-            if (spend.internal)
-                continue;
+        std::for_each(policy, spends.begin(), spends.end(),
+            [&](confirm_spend& spend) NOEXCEPT
+            {
+                table::outs::get_parent out{};
+                if (spend.internal)
+                    return;
 
-            if (!store_.outs.get(ptr, spend.outs, out))
-                return error::integrity_spendable;
+                if (!store_.outs.get(ptr, spend.outs, out))
+                    fault.store(true, relaxed);
 
-            spend.parent = out.parent_fk;
-            spend.coinbase = out.coinbase;
-        }
+                spend.parent = out.parent_fk;
+                spend.coinbase = out.coinbase;
+            });
     }
+
+    if (fault.load(relaxed))
+        return error::integrity_spendable;
 
     // A parent strong in its own instance (others resolve by duplicates).
     {
         const auto ptr = store_.strong.get_memory();
-        for (auto& spend: spends)
-        {
-            if (spend.internal)
-                continue;
+        std::for_each(policy, spends.begin(), spends.end(),
+            [&](confirm_spend& spend) NOEXCEPT
+            {
+                if (spend.internal)
+                    return;
 
-            const auto strong = store_.strong.at(ptr, spend.parent);
-            if (table::strong::positive(strong))
-                spend.block = table::strong::header_fk(strong);
-        }
+                const auto strong = store_.strong.at(ptr, spend.parent);
+                if (table::strong::positive(strong))
+                    spend.block = table::strong::header_fk(strong);
+            });
     }
 
     {
         const auto ptr = store_.contested.get_memory();
-        for (auto& spend: spends)
-        {
-            if (spend.internal || header_link{ spend.block }.is_terminal())
-                continue;
+        std::for_each(policy, spends.begin(), spends.end(),
+            [&](confirm_spend& spend) NOEXCEPT
+            {
+                if (spend.internal ||
+                    header_link{ spend.block }.is_terminal())
+                    return;
 
-            const auto cell = store_.contested.at(ptr,
-                table::contested::to_cell(spend.outs));
-            spend.contested = is_nonzero(bit_and<uint8_t>(cell,
-                table::contested::to_mask(spend.outs)));
-        }
+                const auto cell = store_.contested.at(ptr,
+                    table::contested::to_cell(spend.outs));
+                spend.contested = is_nonzero(bit_and<uint8_t>(cell,
+                    table::contested::to_mask(spend.outs)));
+            });
     }
 
     // Checks all spends for spendability (strong, unlocked, mature, unspent).
