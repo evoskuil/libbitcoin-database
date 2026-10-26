@@ -73,6 +73,23 @@ struct block_spend
 
 using block_spends = std::vector<block_spend>;
 
+/// A spend of a block under confirmation: its tx (ordinal), input, spent
+/// output, sequence, and the parent, strong block and spender of the output.
+struct confirm_spend
+{
+    size_t tx{};
+    ins_link::integer ins{};
+    outs_link::integer outs{ outs_link::terminal };
+    uint32_t sequence{};
+    tx_link::integer parent{ tx_link::terminal };
+    header_link::integer block{ header_link::terminal };
+    table::spender::value::integer holder{};
+    bool coinbase{};
+    bool internal{};
+};
+
+using confirm_spends = std::vector<confirm_spend>;
+
 /// Point index (uint32_t).
 using index = table::transaction::ix::integer;
 

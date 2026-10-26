@@ -1190,13 +1190,16 @@ protected:
     /// -----------------------------------------------------------------------
 
     /// Called by block_confirmable (spendability and double spend).
-    system::error::transaction_error_t spendable(const tx_link& spender,
-        const outs_link& spent, uint32_t sequence, uint32_t version,
-        const context& ctx, const outs_ranges& ranges) NOEXCEPT;
+    system::error::transaction_error_t spendable(const confirm_spend& spend,
+        const tx_link& spender, uint32_t version,
+        const context& ctx) NOEXCEPT;
 
     /// Called by spendable (other spenders of the output, any instance).
     system::error::transaction_error_t contested(const tx_link& spender,
         const outs_link& spent) const NOEXCEPT;
+    system::error::transaction_error_t contested(const tx_link& spender,
+        const outs_link& spent,
+        table::spender::value::integer holder) const NOEXCEPT;
 
     input::cptr get_input(const ins_link& link, bool witness,
         bool coinbase) const NOEXCEPT;

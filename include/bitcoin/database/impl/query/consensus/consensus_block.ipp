@@ -30,12 +30,11 @@ namespace database {
 // Called by organizer under strict order to determine if block is confirmable.
 // ----------------------------------------------------------------------------
 
+// Each pass holds the accessor of one table.
 TEMPLATE
 code CLASS::block_confirmable(const header_link& link) NOEXCEPT
 {
-    constexpr auto parallel = poolstl::execution::par;
-    constexpr auto relaxed = std::memory_order_relaxed;
-
+    using namespace system;
     context ctx{};
     if (!get_context(ctx, link))
         return error::integrity_block_confirmable1;
@@ -51,20 +50,13 @@ code CLASS::block_confirmable(const header_link& link) NOEXCEPT
         return error::success;
 
     // Get the records of all block txs (the coinbase for its outs range).
-    stopper fault{};
     std::vector<table::transaction::record> records(txs.size());
-    std::transform(parallel, txs.cbegin(), txs.cend(), records.begin(),
-        [this, &fault](const tx_link& tx) NOEXCEPT
-        {
-            table::transaction::record record{};
-            if (!store_.tx.get(tx, record))
-                fault.store(true, relaxed);
-
-            return record;
-        });
-
-    if (fault.load(relaxed))
-        return error::integrity_block_confirmable2;
+    {
+        const auto ptr = store_.tx.get_memory();
+        for (size_t index{}; index < txs.size(); ++index)
+            if (!store_.tx.get(ptr, txs.at(index), records.at(index)))
+                return error::integrity_block_confirmable2;
+    }
 
     // The outs ranges of the block's txs identify its internal spends.
     outs_ranges ranges(records.size());
@@ -76,55 +68,106 @@ code CLASS::block_confirmable(const header_link& link) NOEXCEPT
 
     std::sort(ranges.begin(), ranges.end());
 
-    // Code non-integral (no atomic), so codes must be system::error.
-    std::atomic<system::error::transaction_error_t> consensus{};
+    size_t inputs{};
+    for (auto record = std::next(records.cbegin()); record != records.cend();
+        ++record)
+        inputs += record->ins_count;
+
+    confirm_spends spends{};
+    spends.reserve(inputs);
+    for (size_t index = one; index < records.size(); ++index)
+    {
+        const auto& record = records.at(index);
+        const auto end = record.point_fk + record.ins_count;
+        for (auto ins = record.point_fk; ins < end; ++ins)
+            spends.push_back({ index, ins });
+    }
+
+    {
+        const auto ptr = store_.spend.get_memory();
+        for (auto& spend: spends)
+        {
+            spend.outs = store_.spend.at(ptr, spend.ins).value;
+            if (!table::spend::is_spent(spend.outs))
+                return error::integrity_spendable;
+        }
+    }
+
+    {
+        const auto ptr = store_.ins.get_memory();
+        for (auto& spend: spends)
+        {
+            table::ins::get_input in{};
+            if (!store_.ins.get(ptr, spend.ins, in))
+                return error::integrity_spendable;
+
+            spend.sequence = in.sequence;
+        }
+    }
+
+    // A spend internal to the block has zero age and a non-coinbase parent
+    // (the block check rejects a forward reference or coinbase spend).
+    for (auto& spend: spends)
+    {
+        const auto next = std::upper_bound(ranges.cbegin(), ranges.cend(),
+            std::pair{ spend.outs, max_uint32 });
+        spend.internal = (next != ranges.cbegin()) &&
+            (spend.outs < std::prev(next)->second);
+    }
+
+    {
+        const auto ptr = store_.outs.get_memory();
+        for (auto& spend: spends)
+        {
+            table::outs::get_parent out{};
+            if (spend.internal)
+                continue;
+
+            if (!store_.outs.get(ptr, spend.outs, out))
+                return error::integrity_spendable;
+
+            spend.parent = out.parent_fk;
+            spend.coinbase = out.coinbase;
+        }
+    }
+
+    // A parent strong in its own instance (others resolve by duplicates).
+    {
+        const auto ptr = store_.strong.get_memory();
+        for (auto& spend: spends)
+        {
+            if (spend.internal)
+                continue;
+
+            const auto strong = store_.strong.at(ptr, spend.parent);
+            if (table::strong::positive(strong))
+                spend.block = table::strong::header_fk(strong);
+        }
+    }
+
+    {
+        const auto ptr = store_.spender.get_memory();
+        for (auto& spend: spends)
+            if (!spend.internal &&
+                !header_link{ spend.block }.is_terminal())
+                spend.holder = store_.spender.at(ptr, spend.outs).value;
+    }
 
     // Checks all spends for spendability (strong, unlocked, mature, unspent).
-    const auto confirmable = std::all_of(parallel, std::next(records.cbegin()),
-        records.cend(), [&](const table::transaction::record& record) NOEXCEPT
-        {
-            const auto index = &record - records.data();
-            const tx_link spender{ txs.at(index) };
-            std::vector<outs_link::integer> spent(record.ins_count);
-            if (!store_.spend.get_run(spent, record.point_fk))
-            {
-                fault.store(true, relaxed);
-                return false;
-            }
+    for (const auto& spend: spends)
+    {
+        const auto ec = spendable(spend, txs.at(spend.tx),
+            records.at(spend.tx).version, ctx);
 
-            auto fk = record.point_fk;
-            for (const auto& outs_fk: spent)
-            {
-                table::ins::get_input in{};
-                if (!table::spend::is_spent(outs_fk) || !store_.ins.get(fk++, in))
-                {
-                    fault.store(true, relaxed);
-                    return false;
-                }
+        // Recast previous_output_null as database integrity error.
+        if (ec == system::error::previous_output_null)
+            return error::integrity_spendable;
 
-                if (const auto ec = spendable(spender, outs_fk, in.sequence,
-                    record.version, ctx, ranges))
-                {
-                    consensus.store(ec, relaxed);
-                    return false;
-                }
-            }
+        if (ec)
+            return ec;
+    }
 
-            return true;
-        });
-
-    if (fault.load(relaxed))
-        return error::integrity_spendable;
-
-    if (confirmable)
-        return error::success;
-
-    // Recast previous_output_null as database integrity error.
-    const auto result = consensus.load(relaxed);
-    if (result == system::error::previous_output_null)
-        return error::integrity_spendable;
-
-    return result;
+    return error::success;
 }
 
 // Called by validator for a current block, prior to block production.
@@ -317,18 +360,15 @@ code CLASS::accept_pooled_block(const pooled_block& block,
 // validation posting, so this is a race on a reorg, and not routine.
 
 TEMPLATE
-system::error::transaction_error_t CLASS::spendable(const tx_link& spender,
-    const outs_link& spent, uint32_t sequence, uint32_t version,
-    const context& ctx, const outs_ranges& ranges) NOEXCEPT
+system::error::transaction_error_t CLASS::spendable(const confirm_spend& spend,
+    const tx_link& spender, uint32_t version, const context& ctx) NOEXCEPT
 {
     using namespace system;
     const auto bip68 = ctx.is_enabled(chain::flags::bip68_rule);
+    const auto sequence = spend.sequence;
+    const outs_link spent{ spend.outs };
 
-    // A spend internal to the block has zero age and a non-coinbase parent
-    // (the block check rejects a forward reference or coinbase spend).
-    const auto next = std::upper_bound(ranges.cbegin(), ranges.cend(),
-        std::pair{ spent.value, max_uint32 });
-    if ((next != ranges.cbegin()) && (spent.value < std::prev(next)->second))
+    if (spend.internal)
     {
         if (bip68 &&
             transaction::is_relative_locktime_applied(false, version,
@@ -340,29 +380,29 @@ system::error::transaction_error_t CLASS::spendable(const tx_link& spender,
         return system::error::transaction_success;
     }
 
-    table::outs::get_parent out{};
-    if (!store_.outs.get(spent, out))
-        return system::error::previous_output_null;
+    const tx_link parent{ spend.parent };
+    auto strong_fk = parent;
+    header_link link{ spend.block };
+    if (link.is_terminal())
+        link = find_strong(strong_fk, get_tx_key(parent));
 
-    tx_link strong_fk{};
-    const auto link = find_strong(strong_fk, out.parent_fk);
     if (link.is_terminal())
         return system::error::unconfirmed_spend;
 
-    if (strong_fk == out.parent_fk)
+    if (strong_fk == parent)
     {
-        if (const auto ec = contested(spender, spent))
+        if (const auto ec = contested(spender, spent, spend.holder))
             return ec;
     }
     else
     {
         table::transaction::get_output bound{};
-        if (!store_.tx.get(out.parent_fk, bound))
+        if (!store_.tx.get(parent, bound))
             return system::error::previous_output_null;
 
         const auto offset = spent.value - bound.outs_fk;
         const auto index = possible_narrow_cast<uint32_t>(offset);
-        for (const auto& instance: to_duplicates(get_tx_key(out.parent_fk)))
+        for (const auto& instance: to_duplicates(get_tx_key(parent)))
         {
             const auto row = to_output(tx_link{ instance }, index);
             if (row.is_terminal())
@@ -378,9 +418,9 @@ system::error::transaction_error_t CLASS::spendable(const tx_link& spender,
 
     // Avoids get_context call when relative locktime is not applicable.
     const auto relative = bip68 && transaction::is_relative_locktime_applied(
-        out.coinbase, version, sequence);
+        spend.coinbase, version, sequence);
 
-    if (relative || out.coinbase)
+    if (relative || spend.coinbase)
     {
         context prevout{};
         if (!get_context(prevout, link))
@@ -391,7 +431,7 @@ system::error::transaction_error_t CLASS::spendable(const tx_link& spender,
                 prevout.height, prevout.mtp))
             return system::error::relative_time_locked;
 
-        if (out.coinbase &&
+        if (spend.coinbase &&
             transaction::is_coinbase_immature(prevout.height, ctx.height))
             return system::error::coinbase_maturity;
     }
@@ -403,6 +443,14 @@ TEMPLATE
 system::error::transaction_error_t CLASS::contested(const tx_link& spender,
     const outs_link& spent) const NOEXCEPT
 {
+    return contested(spender, spent, store_.spender.at(spent.value).value);
+}
+
+TEMPLATE
+system::error::transaction_error_t CLASS::contested(const tx_link& spender,
+    const outs_link& spent,
+    table::spender::value::integer holder) const NOEXCEPT
+{
     // Only a strong spender of another tx conflicts (instances are one tx).
     const auto conflicts = [&](const tx_link& other) NOEXCEPT
     {
@@ -410,10 +458,9 @@ system::error::transaction_error_t CLASS::contested(const tx_link& spender,
             get_tx_key(spender)) && is_strong_tx(other);
     };
 
-    const auto cell = store_.spender.at(spent.value).value;
-    if (!table::spender::is_contested(cell))
-        return table::spender::is_spent(cell) &&
-            conflicts(table::spender::spender_fk(cell)) ?
+    if (!table::spender::is_contested(holder))
+        return table::spender::is_spent(holder) &&
+            conflicts(table::spender::spender_fk(holder)) ?
             system::error::confirmed_double_spend :
             system::error::transaction_success;
 
