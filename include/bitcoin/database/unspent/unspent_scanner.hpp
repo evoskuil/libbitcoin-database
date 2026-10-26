@@ -51,7 +51,7 @@ private:
     {
         gets txs{};
         output_links exclusions{};
-        system::chain::points spends{};
+        outs_links spends{};
     };
 
     code bounds(std_vector<size_t>& out,
@@ -68,10 +68,9 @@ private:
         const gets& txs) const NOEXCEPT;
     code read_exclusions(uint64_t& out,
         const output_links& exclusions) const NOEXCEPT;
-    code read_points(system::chain::points& out,
-        const gets& txs) const NOEXCEPT;
+    code read_spends(outs_links& out, const gets& txs) const NOEXCEPT;
     code toggle_spends(difference_set& set,
-        const system::chain::points& spends) const NOEXCEPT;
+        const outs_links& spends) const NOEXCEPT;
 
     const query<Store>& query_;
     const Store& store_;

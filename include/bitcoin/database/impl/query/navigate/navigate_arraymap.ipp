@@ -56,13 +56,6 @@ constexpr size_t CLASS::to_filter_tx(const header_link& link) const NOEXCEPT
 }
 
 TEMPLATE
-constexpr size_t CLASS::to_prevout(const header_link& link) const NOEXCEPT
-{
-    static_assert(header_link::terminal <= table::prevout::link::terminal);
-    return link.is_terminal() ? table::prevout::link::terminal : link.value;
-}
-
-TEMPLATE
 constexpr size_t CLASS::to_txs(const header_link& link) const NOEXCEPT
 {
     static_assert(header_link::terminal <= table::txs::link::terminal);

@@ -27,7 +27,7 @@ namespace database {
 
 // Reader directly from store to wire-encoded buffer (store to network).
 // ----------------------------------------------------------------------------
-// Due to the stoopid segwit serialization of witness after output there is are
+// Due to the stoopid segwit serialization of witness after output there are
 // duplicated navigations to store_.ins and store_.input by the witness reader.
 // This normalized approach is also the most efficient.
 
@@ -51,9 +51,9 @@ bool CLASS::is_witness_match(const tx_link& link,
     const auto ptr = store_.input.get_memory();
     for (const auto& in: *tx.inputs_ptr())
     {
-        table::ins_sequence::get_input ins{};
+        table::ins::get_input ins{};
         match.expected = &in->witness().stack();
-        if (!store_.ins.sequence.get(fk++, ins) ||
+        if (!store_.ins.get(fk++, ins) ||
             !store_.input.raw(ptr, ins.input_fk, match) || !match.match)
             return false;
     }
@@ -83,8 +83,8 @@ bool CLASS::is_witness_match(const tx_link& link,
     const auto ptr = store_.input.get_memory();
     for (auto fk = ins_begin; fk < ins_final; ++fk)
     {
-        table::ins_sequence::get_input ins{};
-        if (!store_.ins.sequence.get(fk, ins) ||
+        table::ins::get_input ins{};
+        if (!store_.ins.get(fk, ins) ||
             !store_.input.raw(ptr, ins.input_fk, match) || !match.match)
             return false;
     }
@@ -118,23 +118,23 @@ TEMPLATE
 bool CLASS::get_wire_input(bytewriter& sink,
     const ins_link& link) const NOEXCEPT
 {
-    return get_wire_input(sink, store_.ins.get_memory(),
-        store_.ins.sequence.get_memory(), store_.input.get_memory(), link);
+    return get_wire_input(sink, get_wire_accessors(), link, false);
 }
 
 TEMPLATE
 bool CLASS::get_wire_output(bytewriter& sink,
-    const output_link& link) const NOEXCEPT
+    const outs_link& link) const NOEXCEPT
 {
-    return get_wire_output(sink, store_.output.get_memory(), link);
+    table::outs::get_output outs{};
+    return store_.outs.get(link, outs) &&
+        get_wire_output(sink, store_.output.get_memory(), outs.out_fk);
 }
 
 TEMPLATE
 bool CLASS::get_wire_witness(bytewriter& sink,
     const ins_link& link) const NOEXCEPT
 {
-    return get_wire_witness(sink, store_.ins.sequence.get_memory(),
-        store_.input.get_memory(), link);
+    return get_wire_witness(sink, get_wire_accessors(), link);
 }
 
 TEMPLATE
@@ -151,9 +151,9 @@ CLASS::wire_accessors CLASS::get_wire_accessors() const NOEXCEPT
     return
     {
         store_.tx.get_memory(),
-        store_.outs.puts.get_memory(),
+        store_.outs.get_memory(),
+        store_.spend.get_memory(),
         store_.ins.get_memory(),
-        store_.ins.sequence.get_memory(),
         store_.input.get_memory(),
         store_.output.get_memory()
     };
@@ -161,18 +161,44 @@ CLASS::wire_accessors CLASS::get_wire_accessors() const NOEXCEPT
 
 // protected
 TEMPLATE
-bool CLASS::get_wire_input(bytewriter& sink, const memory& ins,
-    const memory& sequence, const memory& input,
-    const ins_link& link) const NOEXCEPT
+bool CLASS::get_wire_input(bytewriter& sink, const wire_accessors& ptrs,
+    const ins_link& link, bool coinbase) const NOEXCEPT
 {
-    table::ins_point::wire_point point{ {}, sink };
-    if (!store_.ins.get(ins, link, point))
+    // A coinbase input is the null point, a bound input resolves through its
+    // output row, otherwise its stored point.
+    outs_link spent{};
+    point key{};
+    if (coinbase)
+    {
+        sink.write_bytes(system::null_hash);
+        sink.write_4_bytes_little_endian(system::chain::point::null_index);
+    }
+    else if (!get_spent_or_point(spent, key, link, ptrs.spends))
+    {
         return false;
+    }
+    else if (!spent.is_terminal())
+    {
+        table::outs::get_parent outs{};
+        table::transaction::only_with_sk parent{};
+        if (!store_.outs.get(ptrs.outs, spent, outs) ||
+            !store_.tx.get(ptrs.tx, outs.parent_fk, parent))
+            return false;
 
-    table::ins_sequence::get_input in{};
+        sink.write_bytes(parent.key);
+        sink.write_4_bytes_little_endian(system::possible_narrow_cast<uint32_t>(
+            spent.value - parent.outs_fk));
+    }
+    else
+    {
+        sink.write_bytes(key.hash());
+        sink.write_4_bytes_little_endian(key.index());
+    }
+
+    table::ins::get_input in{};
     table::input::wire_script script{ {}, sink };
-    if (!store_.ins.sequence.get(sequence, link, in) ||
-        !store_.input.get(input, in.input_fk, script))
+    if (!store_.ins.get(ptrs.ins, link, in) ||
+        !store_.input.get(ptrs.input, in.input_fk, script))
         return false;
 
     sink.write_4_bytes_little_endian(in.sequence);
@@ -190,13 +216,13 @@ bool CLASS::get_wire_output(bytewriter& sink, const memory& output,
 
 // protected
 TEMPLATE
-bool CLASS::get_wire_witness(bytewriter& sink, const memory& sequence,
-    const memory& input, const ins_link& link) const NOEXCEPT
+bool CLASS::get_wire_witness(bytewriter& sink, const wire_accessors& ptrs,
+    const ins_link& link) const NOEXCEPT
 {
-    table::ins_sequence::get_input in{};
+    table::ins::get_input in{};
     table::input::wire_witness wire{ {}, sink };
-    return store_.ins.sequence.get(sequence, link, in)
-        && store_.input.get(input, in.input_fk, wire);
+    return store_.ins.get(ptrs.ins, link, in)
+        && store_.input.get(ptrs.input, in.input_fk, wire);
 }
 
 // protected
@@ -227,7 +253,7 @@ bool CLASS::get_wire_tx(bytewriter& sink, const wire_accessors& ptrs,
 
     sink.write_variable(ins_count);
     for (auto fk = ins_begin; fk < ins_final; ++fk)
-        if (!get_wire_input(sink, ptrs.ins, ptrs.sequence, ptrs.input, fk))
+        if (!get_wire_input(sink, ptrs, fk, tx.coinbase))
             return false;
 
     const auto outs_begin = tx.outs_fk;
@@ -236,7 +262,7 @@ bool CLASS::get_wire_tx(bytewriter& sink, const wire_accessors& ptrs,
     for (auto fk = outs_begin; fk < outs_final; ++fk)
     {
         table::outs::get_output put{};
-        if (!store_.outs.puts.get(ptrs.puts, fk, put) ||
+        if (!store_.outs.get(ptrs.outs, fk, put) ||
             !get_wire_output(sink, ptrs.output, put.out_fk))
             return false;
     }
@@ -244,7 +270,7 @@ bool CLASS::get_wire_tx(bytewriter& sink, const wire_accessors& ptrs,
     if (witnessed)
     {
         for (auto fk = ins_begin; fk < ins_final; ++fk)
-            if (!get_wire_witness(sink, ptrs.sequence, ptrs.input, fk))
+            if (!get_wire_witness(sink, ptrs, fk))
                 return false;
     }
 

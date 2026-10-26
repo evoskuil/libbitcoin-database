@@ -64,7 +64,7 @@ ins_link CLASS::find_confirmed_spender(const point& prevout) const NOEXCEPT
 
 // protected
 TEMPLATE
-bool CLASS::is_confirmed_unspent(const output_link& link) const NOEXCEPT
+bool CLASS::is_confirmed_unspent(const outs_link& link) const NOEXCEPT
 {
     return is_confirmed_output(link) && !is_confirmed_spent(link);
 }
@@ -116,7 +116,7 @@ bool CLASS::is_confirmed_input(const ins_link& link) const NOEXCEPT
 }
 
 TEMPLATE
-bool CLASS::is_confirmed_output(const output_link& link) const NOEXCEPT
+bool CLASS::is_confirmed_output(const outs_link& link) const NOEXCEPT
 {
     // The output.tx is strong *and* its block is confirmed (by height).
     const auto fk = to_output_tx(link);
@@ -143,7 +143,7 @@ bool CLASS::is_confirmed_all_prevouts(const tx_link& link) const NOEXCEPT
 }
 
 TEMPLATE
-bool CLASS::is_confirmed_spent(const output_link& link) const NOEXCEPT
+bool CLASS::is_confirmed_spent(const outs_link& link) const NOEXCEPT
 {
     // At least one spender is strong *and* its block is confirmed (by height).
     const auto ins = to_spenders(link);
@@ -155,7 +155,7 @@ bool CLASS::is_confirmed_spent(const output_link& link) const NOEXCEPT
 }
 
 TEMPLATE
-bool CLASS::is_unconfirmed_spent(const output_link& link) const NOEXCEPT
+bool CLASS::is_unconfirmed_spent(const outs_link& link) const NOEXCEPT
 {
     // At least one spender and no spender is in a confirmed block (by height).
     const auto ins = to_spenders(link);
@@ -167,17 +167,26 @@ bool CLASS::is_unconfirmed_spent(const output_link& link) const NOEXCEPT
 }
 
 TEMPLATE
-bool CLASS::is_spent(const output_link& link) const NOEXCEPT
+bool CLASS::is_spent(const outs_link& link) const NOEXCEPT
 {
-    return is_spent(get_outpoint(link).point());
+    return is_spent(get_outpoint_key(link));
 }
 
 TEMPLATE
 bool CLASS::is_spent(const point& prevout) const NOEXCEPT
 {
-    // *Any* tx spends the point. Note that this could even be a tx that is in
-    // conflict with another long-confirmed tx, or a valid tx in invalid block.
-    return store_.ins.exists(prevout);
+    // *Any* bound tx spends the point. Note that this could even be a tx that
+    // is in conflict with another long-confirmed tx, or a valid tx in invalid
+    // block. The output has a row for each instance of its tx.
+    for (const auto& instance: to_duplicates(prevout.hash()))
+    {
+        const auto row = to_output(tx_link{ instance }, prevout.index());
+        if (!row.is_terminal() &&
+            table::spender::is_spent(store_.spender.at(row.value).value))
+            return true;
+    }
+
+    return false;
 }
 
 } // namespace database

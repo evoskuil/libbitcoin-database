@@ -267,13 +267,10 @@ static header_link set_below_coinbase(test::query_accessor& query, const chain::
     return stored && !query.set_code(link, { coinbase, spend }, false) ? link : header_link{};
 }
 
-// Pool the block's spend, its parents linked to the genesis coinbase.
+// Pool the block's spend.
 static bool set_pooled(test::query_accessor& query, const chain::block& block) NOEXCEPT
 {
     const auto& spend = *block.transactions_ptr()->back();
-    for (const auto& in: *spend.inputs_ptr())
-        in->metadata.parent_tx = 0;
-
     const auto link = query.to_tx(spend.hash(false));
     return query.set_pooled(link, spend, database::context{ 0, 1, 0 }, 0);
 }
@@ -385,7 +382,8 @@ BOOST_AUTO_TEST_CASE(query_batch_silent__set_silents__eligible_view__banked_row)
     const auto link = query.to_header(block.hash());
 
     chain::view::block view{ block.to_data(true), true };
-    BOOST_REQUIRE(!view.populate(chain::context{}, to_prevouts(block)));
+    BOOST_REQUIRE(!view.populate(chain::context{}));
+    BOOST_REQUIRE(view.populate(to_prevouts(block)));
 
     size_t rows{};
     BOOST_REQUIRE(query.set_silents(rows, link, view, true));
@@ -414,7 +412,7 @@ static chain::block spend_block(const chain::script& script) NOEXCEPT
     return { test::block2.header(), { coinbase, { 1, ins, outs, 0 } } };
 }
 
-BOOST_AUTO_TEST_CASE(query_batch_silent__get_silent_prevouts__taproot_spend__selected)
+BOOST_AUTO_TEST_CASE(query_batch_silent__select_silent__taproot_spend__populated)
 {
     database::settings settings{};
     settings.path = TEST_DIRECTORY;
@@ -428,16 +426,18 @@ BOOST_AUTO_TEST_CASE(query_batch_silent__get_silent_prevouts__taproot_spend__sel
     BOOST_REQUIRE(query.set(block, database::context{ 0, 2, 0 }, {}, false, false));
     const auto link = query.to_header(block.hash());
 
-    data_chunk prevouts{};
-    std::vector<bool> selected{};
-    const chain::view::block view{ block.to_data(true), true };
+    auto view = query.get_block_view(link, true);
     const auto& parent = *test::block1.transactions_ptr()->front();
-    BOOST_REQUIRE(query.get_silent_prevouts(prevouts, selected, link, view));
-    BOOST_REQUIRE(selected == (std::vector<bool>{ false, true }));
-    BOOST_REQUIRE_EQUAL(prevouts, parent.outputs_ptr()->front()->to_data());
+    BOOST_REQUIRE(query.select_silent(link, view));
+    BOOST_REQUIRE(!view.populate(chain::context{}));
+    BOOST_REQUIRE(!query.populate_with_metadata(link, view));
+
+    const auto in = view.views().back().inputs_begin();
+    BOOST_REQUIRE(!is_null(in->prevout));
+    BOOST_REQUIRE_EQUAL(in->prevout->value(), parent.outputs_ptr()->front()->value());
 }
 
-BOOST_AUTO_TEST_CASE(query_batch_silent__get_silent_prevouts__no_taproot_output__unselected)
+BOOST_AUTO_TEST_CASE(query_batch_silent__select_silent__no_taproot_output__excluded_with_links)
 {
     database::settings settings{};
     settings.path = TEST_DIRECTORY;
@@ -451,15 +451,21 @@ BOOST_AUTO_TEST_CASE(query_batch_silent__get_silent_prevouts__no_taproot_output_
     BOOST_REQUIRE(query.set(block, database::context{ 0, 2, 0 }, {}, false, false));
     const auto link = query.to_header(block.hash());
 
-    data_chunk prevouts{};
-    std::vector<bool> selected{};
-    const chain::view::block view{ block.to_data(true), true };
-    BOOST_REQUIRE(query.get_silent_prevouts(prevouts, selected, link, view));
-    BOOST_REQUIRE(selected == (std::vector<bool>{ false, false }));
-    BOOST_REQUIRE(prevouts.empty());
+    auto view = query.get_block_view(link, true);
+    const auto& parent = *test::block1.transactions_ptr()->front();
+    BOOST_REQUIRE(query.select_silent(link, view));
+    BOOST_REQUIRE(!view.populate(chain::context{}));
+    BOOST_REQUIRE(!query.populate_with_metadata(link, view));
+
+    const auto in = view.views().back().inputs_begin();
+    const auto spender = query.to_tx(block.transactions_ptr()->back()->hash(false));
+    BOOST_REQUIRE(is_null(in->prevout));
+    BOOST_REQUIRE(view.prevouts().empty());
+    BOOST_REQUIRE_EQUAL(in->metadata.input_link, query.to_point(spender, 0).value);
+    BOOST_REQUIRE_EQUAL(in->metadata.output_link, query.to_output(query.to_tx(parent.hash(false)), 0).value);
 }
 
-BOOST_AUTO_TEST_CASE(query_batch_silent__get_block_prevouts__no_taproot_output__selected)
+BOOST_AUTO_TEST_CASE(query_batch_silent__populate_with_metadata__unselected_not_excluded__populated)
 {
     database::settings settings{};
     settings.path = TEST_DIRECTORY;
@@ -473,13 +479,14 @@ BOOST_AUTO_TEST_CASE(query_batch_silent__get_block_prevouts__no_taproot_output__
     BOOST_REQUIRE(query.set(block, database::context{ 0, 2, 0 }, {}, false, false));
     const auto link = query.to_header(block.hash());
 
-    data_chunk prevouts{};
-    std::vector<bool> selected{};
-    const chain::view::block view{ block.to_data(true), true };
+    auto view = query.get_block_view(link, true);
     const auto& parent = *test::block1.transactions_ptr()->front();
-    BOOST_REQUIRE(query.get_block_prevouts(prevouts, selected, link, view));
-    BOOST_REQUIRE(selected == (std::vector<bool>{ false, true }));
-    BOOST_REQUIRE_EQUAL(prevouts, parent.outputs_ptr()->front()->to_data());
+    BOOST_REQUIRE(!view.populate(chain::context{}));
+    BOOST_REQUIRE(!query.populate_with_metadata(link, view));
+
+    const auto in = view.views().back().inputs_begin();
+    BOOST_REQUIRE(!is_null(in->prevout));
+    BOOST_REQUIRE_EQUAL(in->prevout->value(), parent.outputs_ptr()->front()->value());
 }
 
 BOOST_AUTO_TEST_CASE(query_batch_silent__compute_silents__banked_row__scanned)

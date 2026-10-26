@@ -34,9 +34,11 @@ BOOST_AUTO_TEST_CASE(query_properties_tx__get_wtxid__not_pooled__computed)
     test::query_accessor query{ store };
     BOOST_REQUIRE(!store.create(test::events_handler));
     BOOST_REQUIRE(query.initialize(test::genesis));
+    BOOST_REQUIRE(query.set(test::block1a, context{ 0, 1, 0 }, {}, false, false));
 
     tx_link link{};
     BOOST_REQUIRE(!query.set_code(link, test::tx4));
+    BOOST_REQUIRE(test::bind(query, test::tx4));
     BOOST_REQUIRE_EQUAL(query.get_wtxid(link), test::tx4.hash(true));
     BOOST_REQUIRE_NE(query.get_wtxid(link), test::tx4.hash(false));
 }
@@ -55,7 +57,6 @@ BOOST_AUTO_TEST_CASE(query_properties_tx__get_wtxid__pooled__pool_columns)
 
     // Pool another tx under the link, so the result must come from the pool.
     const transaction source{ test::tx5.to_data(true), true };
-    source.inputs_ptr()->front()->metadata.parent_tx = 42;
     BOOST_REQUIRE(query.set_pooled(link, source, context{ bip113, 8, 9 }, 0));
     BOOST_REQUIRE_EQUAL(query.get_wtxid(link), test::tx5.hash(true));
 }

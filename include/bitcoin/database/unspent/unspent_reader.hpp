@@ -61,9 +61,9 @@ public:
         const unspent_elements& elements, size_t begin,
         size_t end) const NOEXCEPT;
 
-    /// Parent tx links of the output links from offset.
-    code read_parents(tx_links& out, const output_links& puts, size_t offset,
-        size_t count) const NOEXCEPT;
+    /// Parent tx links of the elements.
+    code read_parents(tx_links& out, const unspent_elements& elements,
+        size_t begin, size_t end) const NOEXCEPT;
 
     /// Hashes of the tx links.
     code read_hashes(system::hashes& out,

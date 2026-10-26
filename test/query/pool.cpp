@@ -38,14 +38,18 @@ static const system::hash_digest& genesis_coinbase() NOEXCEPT
     return hash;
 }
 
+// Populate (for the fee), archive, bind and pool the tx.
 static bool archive_pool(test::query_accessor& query, const transaction& tx) NOEXCEPT
 {
-    const auto stored = query.set(tx);
+    const auto populated = query.populate_with_metadata(tx);
+    const auto stored = populated && query.set(tx);
+    const auto bound = stored && test::bind(query, tx);
     const auto link = query.to_tx(tx.hash(false));
-    return stored && query.set_pooled(link, tx, context{ bip113, 8, 9 }, 0);
+    return bound && query.set_pooled(link, tx, context{ bip113, 8, 9 }, 0);
 }
 
-// Confirm a block of a coinbase and the tx above genesis, returning its link.
+// Confirm a block of a coinbase and the tx above genesis (bound, as validated),
+// returning its link.
 static header_link archive_confirm(test::query_accessor& query, const transaction& tx) NOEXCEPT
 {
     const input null{ point{ system::null_hash, point::null_index }, script{}, max_uint32 };
@@ -53,8 +57,9 @@ static header_link archive_confirm(test::query_accessor& query, const transactio
     const header header{ 1u, test::genesis.hash(), system::null_hash, 1u, 2u, 3u };
     const block block{ header, { coinbase, tx } };
     const auto stored = query.set(block, context{ 0, 1, 0 }, {}, false, true);
+    const auto bound = stored && test::bind(query, block);
     const auto link = query.to_header(block.hash());
-    const auto candidate = stored && query.push_candidate(link);
+    const auto candidate = bound && query.push_candidate(link);
     const auto confirmed = candidate && query.push_confirmed(link, true);
     return confirmed ? link : header_link{};
 }
@@ -85,19 +90,16 @@ BOOST_AUTO_TEST_CASE(query_pool__get_pooled__sufficient__success)
     BOOST_REQUIRE(!store.create(test::events_handler));
     BOOST_REQUIRE(query.initialize(test::genesis));
 
-    const auto& tx = test::tx_spend_one_hash;
-    const auto& in = *tx.inputs_ptr()->front();
-    in.prevout = system::to_shared<output>(0x30, script{});
-    in.metadata.parent_tx = 42;
-    in.metadata.coinbase = true;
-    BOOST_REQUIRE(query.set_pooled(1, tx, context{ bip113, 8, 9 }, 0));
+    // The genesis output is 5'000'000'000.
+    const auto tx = to_spend(genesis_coinbase(), 5'000'000'000 - 0x20);
+    BOOST_REQUIRE(archive_pool(query, tx));
 
     pooled_tx pooled{};
     pooled.prevouts.resize(one);
     BOOST_REQUIRE_EQUAL(query.get_pooled(pooled, 1, context{ bip113, 8, 9 }), error::success);
     BOOST_REQUIRE_EQUAL(pooled.fee, 0x20u);
     BOOST_REQUIRE_EQUAL(pooled.sigops, tx.signature_operations(false, false));
-    BOOST_REQUIRE_EQUAL(pooled.prevouts.front().parent, 42u);
+    BOOST_REQUIRE_EQUAL(pooled.prevouts.front().spent, 0u);
     BOOST_REQUIRE(pooled.prevouts.front().coinbase);
 
     BOOST_REQUIRE_EQUAL(query.get_pooled(pooled, 1, context{ bip113, 9, 10 }), error::success);
@@ -112,11 +114,8 @@ BOOST_AUTO_TEST_CASE(query_pool__get_pooled__insufficient__unvalidated)
     BOOST_REQUIRE(!store.create(test::events_handler));
     BOOST_REQUIRE(query.initialize(test::genesis));
 
-    const auto& tx = test::tx_spend_one_hash;
-    const auto& in = *tx.inputs_ptr()->front();
-    in.metadata.parent_tx = 42;
-    in.metadata.coinbase = false;
-    BOOST_REQUIRE(query.set_pooled(1, tx, context{ bip113, 8, 9 }, 0));
+    const auto tx = to_spend(genesis_coinbase(), 1u);
+    BOOST_REQUIRE(archive_pool(query, tx));
 
     pooled_tx pooled{};
     pooled.prevouts.resize(one);
@@ -135,8 +134,10 @@ BOOST_AUTO_TEST_CASE(query_pool__get_pooled__without_bip113__unvalidated)
     BOOST_REQUIRE(!store.create(test::events_handler));
     BOOST_REQUIRE(query.initialize(test::genesis));
 
-    const auto& tx = test::tx_spend_one_hash;
-    tx.inputs_ptr()->front()->metadata.parent_tx = 42;
+    const auto tx = to_spend(genesis_coinbase(), 1u);
+    BOOST_REQUIRE(query.populate_with_metadata(tx));
+    BOOST_REQUIRE(query.set(tx));
+    BOOST_REQUIRE(test::bind(query, tx));
     BOOST_REQUIRE(query.set_pooled(1, tx, context{ 0, 8, 9 }, 0));
 
     pooled_tx pooled{};
@@ -274,7 +275,6 @@ BOOST_AUTO_TEST_CASE(query_pool__set_pooled__disabled__no_record)
     BOOST_REQUIRE(query.initialize(test::genesis));
 
     const auto& tx = test::tx_spend_one_hash;
-    tx.inputs_ptr()->front()->metadata.parent_tx = 42;
     BOOST_REQUIRE(query.set_pooled(1, tx, context{ bip113, 8, 9 }, 0));
 
     pooled_tx pooled{};
@@ -294,7 +294,6 @@ BOOST_AUTO_TEST_CASE(query_pool__set_pooled__time__stored)
 
     const auto& tx = test::tx_spend_one_hash;
     const auto& in = *tx.inputs_ptr()->front();
-    in.metadata.parent_tx = 42;
     in.metadata.coinbase = false;
     BOOST_REQUIRE(query.set_pooled(1, tx, context{ bip113, 8, 9 }, 0x01020304));
 
@@ -303,7 +302,7 @@ BOOST_AUTO_TEST_CASE(query_pool__set_pooled__time__stored)
     BOOST_REQUIRE_EQUAL(record.time, 0x01020304u);
 }
 
-BOOST_AUTO_TEST_CASE(query_pool__set_pooled__unlinked_parent__resolved)
+BOOST_AUTO_TEST_CASE(query_pool__set_pooled__bound_parent__resolved)
 {
     settings settings{};
     settings.path = TEST_DIRECTORY;
@@ -312,21 +311,20 @@ BOOST_AUTO_TEST_CASE(query_pool__set_pooled__unlinked_parent__resolved)
     BOOST_REQUIRE(!store.create(test::events_handler));
     BOOST_REQUIRE(query.initialize(test::genesis));
 
-    tx_link parent{};
-    BOOST_REQUIRE_EQUAL(query.set_code(parent, test::tx4), error::success);
-
-    const auto& tx = test::tx_spend_tx4;
-    tx.inputs_ptr()->front()->metadata.parent_tx = max_uint32;
-    BOOST_REQUIRE(query.set_pooled(2, tx, context{ bip113, 8, 9 }, 0));
+    const auto parent = to_spend(genesis_coinbase(), 2u);
+    const auto child = to_spend(parent.hash(false), 1u);
+    BOOST_REQUIRE(query.set(parent));
+    BOOST_REQUIRE(archive_pool(query, child));
 
     pooled_tx pooled{};
     pooled.prevouts.resize(one);
-    BOOST_REQUIRE_EQUAL(query.get_pooled(pooled, 2, context{ bip113, 8, 9 }), error::success);
-    BOOST_REQUIRE_EQUAL(pooled.prevouts.front().parent, parent);
+    const auto link = query.to_tx(child.hash(false));
+    BOOST_REQUIRE_EQUAL(query.get_pooled(pooled, link, context{ bip113, 8, 9 }), error::success);
+    BOOST_REQUIRE_EQUAL(pooled.prevouts.front().spent, query.to_output(query.to_tx(parent.hash(false)), 0));
     BOOST_REQUIRE(!pooled.prevouts.front().coinbase);
 }
 
-BOOST_AUTO_TEST_CASE(query_pool__set_pooled__missing_parent__false)
+BOOST_AUTO_TEST_CASE(query_pool__get_pooled__unbound__integrity)
 {
     settings settings{};
     settings.path = TEST_DIRECTORY;
@@ -335,13 +333,14 @@ BOOST_AUTO_TEST_CASE(query_pool__set_pooled__missing_parent__false)
     BOOST_REQUIRE(!store.create(test::events_handler));
     BOOST_REQUIRE(query.initialize(test::genesis));
 
+    // The parent is missing, so the tx cannot be bound.
     const auto& tx = test::tx_spend_one_hash;
-    tx.inputs_ptr()->front()->metadata.parent_tx = max_uint32;
-    BOOST_REQUIRE(!query.set_pooled(1, tx, context{ bip113, 8, 9 }, 0));
+    BOOST_REQUIRE(query.set(tx));
+    BOOST_REQUIRE(query.set_pooled(1, tx, context{ bip113, 8, 9 }, 0));
 
     pooled_tx pooled{};
     pooled.prevouts.resize(one);
-    BOOST_REQUIRE_EQUAL(query.get_pooled(pooled, 1, context{ bip113, 8, 9 }), error::unvalidated);
+    BOOST_REQUIRE_EQUAL(query.get_pooled(pooled, 1, context{ bip113, 8, 9 }), error::integrity);
 }
 
 // is_confirmable_tx
@@ -461,7 +460,6 @@ BOOST_AUTO_TEST_CASE(query_pool__get_confirmable_txs__confirmed__skipped)
 
     const auto& in = *test::tx_spend_one_hash.inputs_ptr()->front();
     in.prevout = system::to_shared<output>(0x30, script{});
-    in.metadata.parent_tx = 42;
     BOOST_REQUIRE(query.set_pooled(0, test::tx_spend_one_hash, context{ bip113, 8, 9 }, 0));
     BOOST_REQUIRE(query.set_pooled(1, test::tx_spend_one_hash, context{ bip113, 8, 9 }, 0));
 
@@ -485,7 +483,6 @@ BOOST_AUTO_TEST_CASE(query_pool__get_confirmable_txs__all__confirmed_skipped)
 
     const auto& in = *test::tx_spend_one_hash.inputs_ptr()->front();
     in.prevout = system::to_shared<output>(0x30, script{});
-    in.metadata.parent_tx = 42;
     BOOST_REQUIRE(query.set_pooled(0, test::tx_spend_one_hash, context{ bip113, 8, 9 }, 0));
     BOOST_REQUIRE(query.set_pooled(1, test::tx_spend_one_hash, context{ bip113, 8, 9 }, 0));
 
@@ -507,7 +504,6 @@ BOOST_AUTO_TEST_CASE(query_pool__get_confirmable_txs__duplicate_record__first_on
 
     const auto& in = *test::tx_spend_one_hash.inputs_ptr()->front();
     in.prevout = system::to_shared<output>(0x30, script{});
-    in.metadata.parent_tx = 42;
     BOOST_REQUIRE(query.set_pooled(1, test::tx_spend_one_hash, context{ bip113, 8, 9 }, 0));
     BOOST_REQUIRE(query.set_pooled(1, test::tx_spend_one_hash, context{ bip113, 8, 9 }, 0));
 
@@ -532,7 +528,6 @@ BOOST_AUTO_TEST_CASE(query_pool__get_confirmable_txs__limit__resumed)
 
     const auto& in = *test::tx_spend_one_hash.inputs_ptr()->front();
     in.prevout = system::to_shared<output>(0x30, script{});
-    in.metadata.parent_tx = 42;
     BOOST_REQUIRE(query.set_pooled(1, test::tx_spend_one_hash, context{ bip113, 8, 9 }, 0));
     BOOST_REQUIRE(query.set_pooled(2, test::tx_spend_one_hash, context{ bip113, 8, 9 }, 0));
 
@@ -566,7 +561,6 @@ BOOST_AUTO_TEST_CASE(query_pool__get_confirmable_txs__end__bounded)
 
     const auto& in = *test::tx_spend_one_hash.inputs_ptr()->front();
     in.prevout = system::to_shared<output>(0x30, script{});
-    in.metadata.parent_tx = 42;
     BOOST_REQUIRE(query.set_pooled(1, test::tx_spend_one_hash, context{ bip113, 8, 9 }, 0));
     BOOST_REQUIRE(query.set_pooled(2, test::tx_spend_one_hash, context{ bip113, 8, 9 }, 0));
 
@@ -625,7 +619,9 @@ BOOST_AUTO_TEST_CASE(query_pool__get_confirmable_fees__unconfirmed_and_confirmed
     BOOST_CHECK(!store.create(test::events_handler));
     BOOST_CHECK(query.initialize(test::genesis));
     BOOST_CHECK(query.set(test::block1b, context{ 0, 1, 0 }, {}, false, false));
+    BOOST_CHECK(test::bind(query, test::block1b));
     BOOST_CHECK(query.set(test::block_valid_spend_internal_2b, context{ 0, 2, 0 }, {}, false, false));
+    BOOST_CHECK(test::bind(query, test::block_valid_spend_internal_2b));
 
     // Block 1 is confirmed (tx 1 is strong), block 2 is not (txs 2, 3, 4).
     BOOST_CHECK(query.push_confirmed(1, false));

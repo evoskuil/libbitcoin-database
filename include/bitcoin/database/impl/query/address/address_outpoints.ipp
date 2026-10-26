@@ -36,12 +36,12 @@ code CLASS::get_unconfirmed_unspent_outpoints(const stopper& cancel,
     outpoints& out, const hash_digest& key, bool turbo) const NOEXCEPT
 {
     out.clear();
-    output_links links{};
+    outs_links links{};
     if (const code ec = to_address_outputs(cancel, links, key))
         return ec;
 
     return parallel_outpoint_transform(cancel, turbo, out, links,
-        [this](const output_link& link, auto& cancel, auto& fail) NOEXCEPT
+        [this](const outs_link& link, auto& cancel, auto& fail) NOEXCEPT
         {
             // Confirmed and spent must be filtered out. An unconfirmed output
             // can only be spent by an unconfirmed tx, so is_spent() suffices.
@@ -62,12 +62,12 @@ code CLASS::get_confirmed_unspent_outpoints(const stopper& cancel,
     outpoints& out, const hash_digest& key, bool turbo) const NOEXCEPT
 {
     out.clear();
-    output_links links{};
+    outs_links links{};
     if (const code ec = to_address_outputs(cancel, links, key))
         return ec;
 
     return parallel_outpoint_transform(cancel, turbo, out, links,
-        [this](const output_link& link, auto& cancel, auto& fail) NOEXCEPT
+        [this](const outs_link& link, auto& cancel, auto& fail) NOEXCEPT
         {
             // !is_confirmed_unspent must be filtered out.
             if (cancel || fail || !is_confirmed_unspent(link))
@@ -88,12 +88,12 @@ code CLASS::get_minimum_unspent_outpoints(const stopper& cancel,
     bool turbo) const NOEXCEPT
 {
     out.clear();
-    output_links links{};
+    outs_links links{};
     if (const code ec = to_address_outputs(cancel, links, key))
         return ec;
 
     return parallel_outpoint_transform(cancel, turbo, out, links,
-        [this, minimum](const output_link& link, auto& cancel, auto& fail) NOEXCEPT
+        [this, minimum](const outs_link& link, auto& cancel, auto& fail) NOEXCEPT
         {
             // !is_confirmed_unspent must be filtered out.
             if (cancel || fail || !is_confirmed_unspent(link))
@@ -124,12 +124,12 @@ code CLASS::get_address_outpoints(const stopper& cancel, outpoints& out,
     const hash_digest& key, bool turbo) const NOEXCEPT
 {
     out.clear();
-    output_links links{};
+    outs_links links{};
     if (const code ec = to_address_outputs(cancel, links, key))
         return ec;
 
     return parallel_outpoint_transform(cancel, turbo, out, links,
-        [this](const output_link& link, auto& cancel, auto& fail) NOEXCEPT
+        [this](const outs_link& link, auto& cancel, auto& fail) NOEXCEPT
         {
             if (cancel || fail)
                 return outpoint{};
@@ -149,7 +149,7 @@ code CLASS::get_address_outpoints(const stopper& cancel, outpoints& out,
 TEMPLATE
 template <typename Functor>
 code CLASS::parallel_outpoint_transform(const stopper& cancel, bool turbo,
-    outpoints& out, const output_links& links, Functor&& functor) NOEXCEPT
+    outpoints& out, const outs_links& links, Functor&& functor) NOEXCEPT
 {
     const auto policy = poolstl::execution::par_if(turbo, parallel_floor);
     stopper fail{};

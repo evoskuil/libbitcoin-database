@@ -107,7 +107,7 @@ code CLASS::fill(unspent_coins& out, output_links& puts, size_t offset,
         return ec;
 
     tx_links parents{};
-    if (const auto ec = read_parents(parents, puts, offset, end - begin))
+    if (const auto ec = read_parents(parents, elements, begin, end))
         return ec;
 
     if (const auto ec = read_transactions(out, offset, previous, parents,
@@ -150,33 +150,34 @@ code CLASS::read_puts(output_links& out, size_t offset,
 {
     const auto count = end - begin;
 
-    const auto ptr = store_.outs.puts.get_memory();
+    const auto ptr = store_.outs.get_memory();
     for (size_t at{}; at < count; ++at)
     {
-        table::outs::get_output output{};
-        if (!store_.outs.puts.get(ptr, elements.at(begin + at), output))
+        table::outs::get_output outs{};
+        if (!store_.outs.get(ptr, elements.at(begin + at), outs))
             return error::integrity;
 
-        out.at(offset + at) = output.out_fk;
+        out.at(offset + at) = outs.out_fk;
     }
 
     return error::success;
 }
 
 TEMPLATE
-code CLASS::read_parents(tx_links& out, const output_links& puts,
-    size_t offset, size_t count) const NOEXCEPT
+code CLASS::read_parents(tx_links& out, const unspent_elements& elements,
+    size_t begin, size_t end) const NOEXCEPT
 {
+    const auto count = end - begin;
     out.resize(count);
 
-    const auto ptr = store_.output.get_memory();
+    const auto ptr = store_.outs.get_memory();
     for (size_t at{}; at < count; ++at)
     {
-        table::output::get_parent output{};
-        if (!store_.output.get(ptr, puts.at(offset + at), output))
+        table::outs::get_parent outs{};
+        if (!store_.outs.get(ptr, elements.at(begin + at), outs))
             return error::integrity;
 
-        out.at(at) = output.parent_fk;
+        out.at(at) = outs.parent_fk;
     }
 
     return error::success;

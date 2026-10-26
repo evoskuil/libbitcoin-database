@@ -369,6 +369,26 @@ scan_link CLASS::get_scan_floor(size_t height) const NOEXCEPT
     }
 }
 
+TEMPLATE
+bool CLASS::select_silent(const header_link& link,
+    const block_view& block) const NOEXCEPT
+{
+    using namespace system::wallet;
+    const auto& txs = block.views();
+    const auto links = to_transactions(link);
+    if (links.empty() || links.size() != txs.size())
+        return false;
+
+    for (auto index = one; index < txs.size(); ++index)
+    {
+        const auto& tx = txs.at(index);
+        tx.excluded = !is_silent_selected(links.at(index), links.front()) ||
+            !silent_payment::has_outputs(tx);
+    }
+
+    return true;
+}
+
 // setters
 // ----------------------------------------------------------------------------
 // Caller (node) controls which txs are indexed (e.g. by confirmed height).
@@ -488,73 +508,6 @@ bool CLASS::set_silents(size_t& rows, const header_link& link,
     const block_view& block, bool bank) NOEXCEPT
 {
     return set_silents_(rows, link, block, block.views().size(), bank);
-}
-
-TEMPLATE
-bool CLASS::get_silent_prevouts(data_chunk& prevouts,
-    std::vector<bool>& selected, const header_link& link,
-    const block_view& block) const NOEXCEPT
-{
-    return get_prevouts_(prevouts, selected, link, block, true);
-}
-
-TEMPLATE
-bool CLASS::get_block_prevouts(data_chunk& prevouts,
-    std::vector<bool>& selected, const header_link& link,
-    const block_view& block) const NOEXCEPT
-{
-    return get_prevouts_(prevouts, selected, link, block, false);
-}
-
-// Pooled txs linked below the coinbase are not silent selected (see set_silent).
-TEMPLATE
-bool CLASS::get_prevouts_(data_chunk& prevouts, std::vector<bool>& selected,
-    const header_link& link, const block_view& block,
-    bool silent) const NOEXCEPT
-{
-    using namespace system;
-    const auto& txs = block.views();
-    const auto links = to_transactions(link);
-    if (links.empty() || links.size() != txs.size())
-        return false;
-
-    selected.assign(txs.size(), false);
-    stream::out::data ostream(prevouts);
-    write::bytes::ostream sink(ostream);
-
-    using namespace system::wallet;
-    const auto first = links.front();
-    for (auto index = one; index < txs.size(); ++index)
-    {
-        if (silent && (!is_silent_selected(links.at(index), first) ||
-            !silent_payment::has_outputs(txs.at(index))))
-            continue;
-
-        table::transaction::get_puts record{};
-        if (!store_.tx.get(links.at(index), record))
-            return false;
-
-        // Point links are contiguous (computed).
-        const auto end = record.points_fk + record.ins_count;
-        for (auto fk = record.points_fk; fk < end; ++fk)
-        {
-            // Any instance of the parent hash yields the same output.
-            const auto point = get_point_key(fk);
-            const auto parent = to_tx(point.hash());
-            table::transaction::get_output parent_tx{ {}, point.index() };
-            table::outs::get_output outs{};
-            if (parent.is_terminal() || !store_.tx.get(parent, parent_tx) ||
-                parent_tx.outs_fk == table::transaction::outs::terminal ||
-                !store_.outs.puts.get(parent_tx.outs_fk, outs) ||
-                !get_wire_output(sink, outs.out_fk))
-                return false;
-        }
-
-        selected.at(index) = true;
-    }
-
-    sink.flush();
-    return !!sink;
 }
 
 // The bank is quiescent (drain claimed, no writers), so it is read across the

@@ -84,16 +84,12 @@ bool CLASS::to_tx_base(size_t& out, size_t element) const NOEXCEPT
     using namespace system;
     const outs_link link{ possible_narrow_cast<outs_link::integer>(element) };
 
-    table::outs::get_output outs{};
-    if (!store_.outs.puts.get(link, outs))
-        return false;
-
-    table::output::get_parent output{};
-    if (!store_.output.get(outs.out_fk, output))
+    table::outs::get_parent outs{};
+    if (!store_.outs.get(link, outs))
         return false;
 
     table::transaction::get_output tx{};
-    if (!store_.tx.get(output.parent_fk, tx))
+    if (!store_.tx.get(outs.parent_fk, tx))
         return false;
 
     out = tx.outs_fk;

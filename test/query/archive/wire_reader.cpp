@@ -219,6 +219,7 @@ BOOST_AUTO_TEST_CASE(query_wire_reader__get_wire_tx__empty_input_script__expecte
     const chain::outputs outputs{ { 42, chain::script{} } };
     const chain::transaction tx{ 1, inputs, outputs, 0 };
     BOOST_CHECK(query.set(tx));
+    BOOST_CHECK(test::bind(query, tx));
     BOOST_CHECK_EQUAL(query.get_wire_tx(1, true), tx.to_data(true));
     BOOST_CHECK_EQUAL(query.get_wire_tx(1, false), tx.to_data(false));
     BOOST_CHECK(!store.close(test::events_handler));

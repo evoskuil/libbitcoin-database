@@ -158,15 +158,27 @@ code CLASS::snapshot(const typename Store::event_handler& handler) const NOEXCEP
 }
 
 TEMPLATE
+code CLASS::flip_points(const typename Store::event_handler& handler) const NOEXCEPT
+{
+    return store_.flip_points(handler);
+}
+
+TEMPLATE
+code CLASS::drop_points(const typename Store::event_handler& handler) const NOEXCEPT
+{
+    return store_.drop_points(handler);
+}
+
+TEMPLATE
 size_t CLASS::positive_search_count() const NOEXCEPT
 {
-    return store_.ins.positive_search_count();
+    return store_.tx.positive_search_count();
 }
 
 TEMPLATE
 size_t CLASS::negative_search_count() const NOEXCEPT
 {
-    return store_.ins.negative_search_count();
+    return store_.tx.negative_search_count();
 }
 
 } // namespace database

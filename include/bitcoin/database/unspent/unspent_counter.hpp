@@ -43,7 +43,7 @@ private:
     code span(unspent_totals& out, const difference_set& set, size_t begin,
         size_t end) const NOEXCEPT;
     code read_totals(unspent_totals& out, tx_link::integer& previous,
-        const output_links& puts) const NOEXCEPT;
+        const output_links& puts, const tx_links& parents) const NOEXCEPT;
 
     const Store& store_;
     const stopper& cancel_;

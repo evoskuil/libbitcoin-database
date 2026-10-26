@@ -74,18 +74,4 @@ BOOST_AUTO_TEST_CASE(query_navigate__top_tx__genesis_bucket__genesis_tx)
     BOOST_REQUIRE_EQUAL(query.top_tx(0), 0u);
 }
 
-// top_point
-// ----------------------------------------------------------------------------
-
-BOOST_AUTO_TEST_CASE(query_navigate__top_point__empty_bucket__terminal)
-{
-    settings settings{};
-    settings.path = TEST_DIRECTORY;
-    settings.ins.buckets = 8;
-    test::chunk_store store{ settings };
-    test::query_accessor query{ store };
-    BOOST_REQUIRE(!store.create(test::events_handler));
-    BOOST_REQUIRE(query.top_point(7).is_terminal());
-}
-
 BOOST_AUTO_TEST_SUITE_END()

@@ -59,6 +59,7 @@ code CLASS::span(unspent_totals& out, const difference_set& set,
     size_t begin, size_t end) const NOEXCEPT
 {
     output_links puts{};
+    tx_links parents{};
     auto previous = tx_link::terminal;
     return reader_.elements(set, begin, end,
         [&](const unspent_elements& elements) NOEXCEPT
@@ -68,26 +69,30 @@ code CLASS::span(unspent_totals& out, const difference_set& set,
                 elements.size()))
                 return ec;
 
-            return read_totals(out, previous, puts);
+            if (const auto ec = reader_.read_parents(parents, elements, zero,
+                elements.size()))
+                return ec;
+
+            return read_totals(out, previous, puts, parents);
         });
 }
 
 TEMPLATE
 code CLASS::read_totals(unspent_totals& out, tx_link::integer& previous,
-    const output_links& puts) const NOEXCEPT
+    const output_links& puts, const tx_links& parents) const NOEXCEPT
 {
     constexpr auto fixed = unspent_writer::fixed_size;
 
     const auto ptr = store_.output.get_memory();
-    for (const auto& put: puts)
+    for (size_t at{}; at < puts.size(); ++at)
     {
-        table::output::get_parent_coin output{};
-        if (!store_.output.get(ptr, put, output))
+        table::output::get_value_size output{};
+        if (!store_.output.get(ptr, puts.at(at), output))
             return error::integrity;
 
-        if (output.parent_fk != previous)
+        if (parents.at(at) != previous)
         {
-            previous = output.parent_fk;
+            previous = parents.at(at);
             ++out.transactions;
         }
 

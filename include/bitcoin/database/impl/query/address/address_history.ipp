@@ -254,7 +254,7 @@ TEMPLATE
 code CLASS::get_address_txs(const stopper& cancel, tx_links& out,
     const hash_digest& key, size_t limit, bool turbo) const NOEXCEPT
 {
-    output_links links{};
+    outs_links links{};
     tx_links parents{};
     outs_link cursor{};
     if (const auto ec = to_address_outputs(cancel, cursor, links, parents, key, limit))

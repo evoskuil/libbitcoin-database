@@ -36,14 +36,14 @@ TEMPLATE
 code CLASS::get_unconfirmed_unspent(const stopper& cancel, unspent_outputs& out,
     const hash_digest& key, bool turbo) const NOEXCEPT
 {
-    output_links outs{};
+    outs_links outs{};
     if (const auto ec = to_address_outputs(cancel, outs, key))
         return ec;
 
     out.clear();
     out.resize(outs.size());
     return parallel_unspent_transform(cancel, turbo, out, outs,
-        [this](const output_link& link, auto& cancel, auto& fail) NOEXCEPT
+        [this](const outs_link& link, auto& cancel, auto& fail) NOEXCEPT
         {
             // Exclude if spent by any tx. Given that output must be confirmed
             // this is only unconfirmeds, but checking both via is_spent() is
@@ -63,14 +63,14 @@ TEMPLATE
 code CLASS::get_confirmed_unspent(const stopper& cancel, unspent_outputs& out,
     const hash_digest& key, bool turbo) const NOEXCEPT
 {
-    output_links outs{};
+    outs_links outs{};
     if (const auto ec = to_address_outputs(cancel, outs, key))
         return ec;
 
     out.clear();
     out.resize(outs.size());
     return parallel_unspent_transform(cancel, turbo, out, outs,
-        [this](const output_link& link, auto& cancel, auto& fail) NOEXCEPT
+        [this](const outs_link& link, auto& cancel, auto& fail) NOEXCEPT
         {
             // Exclude if spent by confirmed tx, ignore unconfirmed spenders.
             if (cancel || fail || is_confirmed_spent(link))
@@ -88,14 +88,14 @@ TEMPLATE
 code CLASS::get_unspent(const stopper& cancel, unspent_outputs& out,
     const hash_digest& key, bool turbo) const NOEXCEPT
 {
-    output_links outs{};
+    outs_links outs{};
     if (const auto ec = to_address_outputs(cancel, outs, key))
         return ec;
 
     out.clear();
     out.resize(outs.size());
     return parallel_unspent_transform(cancel, turbo, out, outs,
-        [this](const output_link& link, auto& cancel, auto& fail) NOEXCEPT
+        [this](const outs_link& link, auto& cancel, auto& fail) NOEXCEPT
         {
             // Exclude if spent by any tx, confirmed or unconfirmed.
             if (cancel || fail || is_spent(link))
@@ -111,13 +111,14 @@ code CLASS::get_unspent(const stopper& cancel, unspent_outputs& out,
 // ----------------------------------------------------------------------------
 
 TEMPLATE
-unspent_output CLASS::get_tx_unspent(const output_link& link) const NOEXCEPT
+unspent_output CLASS::get_tx_unspent(const outs_link& link) const NOEXCEPT
 {
-    table::output::get_parent_value out{};
-    if (!store_.output.get(link, out))
+    table::outs::record outs{};
+    table::output::get_value out{};
+    if (!store_.outs.get(link, outs) || !store_.output.get(outs.out_fk, out))
         return {};
 
-    const auto tx = out.parent_fk;
+    const auto tx = outs.parent_fk;
     auto hash = get_tx_key(tx);
     const auto index = to_output_index(tx, link);
     if ((index == point::null_index) || (hash == system::null_hash))
@@ -140,14 +141,15 @@ unspent_output CLASS::get_tx_unspent(const output_link& link) const NOEXCEPT
 }
 
 TEMPLATE
-unspent_output CLASS::get_tx_confirmed_unspent(const output_link& link) const NOEXCEPT
+unspent_output CLASS::get_tx_confirmed_unspent(const outs_link& link) const NOEXCEPT
 {
     // unspent_output is invalid in default construction with position.
-    table::output::get_parent_value out{};
-    if (!store_.output.get(link, out))
+    table::outs::record outs{};
+    table::output::get_value out{};
+    if (!store_.outs.get(link, outs) || !store_.output.get(outs.out_fk, out))
         return {};
 
-    const auto tx = out.parent_fk;
+    const auto tx = outs.parent_fk;
     tx_link strong{};
     const auto block = find_strong(strong, tx);
     const auto at = get_confirmed_height(block);
@@ -167,14 +169,15 @@ unspent_output CLASS::get_tx_confirmed_unspent(const output_link& link) const NO
 }
 
 TEMPLATE
-unspent_output CLASS::get_tx_unconfirmed_unspent(const output_link& link) const NOEXCEPT
+unspent_output CLASS::get_tx_unconfirmed_unspent(const outs_link& link) const NOEXCEPT
 {
     // unspent_output is invalid in default construction with position.
-    table::output::get_parent_value out{};
-    if (!store_.output.get(link, out))
+    table::outs::record outs{};
+    table::output::get_value out{};
+    if (!store_.outs.get(link, outs) || !store_.output.get(outs.out_fk, out))
         return {};
 
-    const auto tx = out.parent_fk;
+    const auto tx = outs.parent_fk;
 
     // Invalid with unconfirmed_position signals no fault.
     if (!get_confirmed_height(find_strong(tx)).is_terminal())
@@ -196,7 +199,7 @@ unspent_output CLASS::get_tx_unconfirmed_unspent(const output_link& link) const 
 TEMPLATE
 template <typename Functor>
 code CLASS::parallel_unspent_transform(const stopper& cancel, bool turbo,
-    unspent_outputs& out, const output_links& outs, Functor&& functor) NOEXCEPT
+    unspent_outputs& out, const outs_links& outs, Functor&& functor) NOEXCEPT
 {
     const auto policy = poolstl::execution::par_if(turbo, parallel_floor);
     stopper fail{};

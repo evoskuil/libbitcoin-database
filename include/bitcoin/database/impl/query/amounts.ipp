@@ -30,10 +30,11 @@ namespace database {
 
 // unused
 TEMPLATE
-bool CLASS::get_value(uint64_t& out, const output_link& link) const NOEXCEPT
+bool CLASS::get_value(uint64_t& out, const outs_link& link) const NOEXCEPT
 {
+    table::outs::get_output outs{};
     table::output::get_value output{};
-    if (!store_.output.get(link, output))
+    if (!store_.outs.get(link, outs) || !store_.output.get(outs.out_fk, output))
         return false;
 
     out = output.value;
@@ -173,13 +174,13 @@ bool CLASS::get_block_fee(uint64_t& out,
 // protected
 TEMPLATE
 bool CLASS::get_outputs_total_value(uint64_t& out,
-    const output_links& links) const NOEXCEPT
+    const outs_links& links) const NOEXCEPT
 {
     out = zero;
-    for (const auto& output_fk: links)
+    for (const auto& outs_fk: links)
     {
         uint64_t value{};
-        if (!get_value(value, output_fk)) return false;
+        if (!get_value(value, outs_fk)) return false;
         out = system::ceilinged_add(out, value);
     }
 

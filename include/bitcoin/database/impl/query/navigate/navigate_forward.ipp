@@ -39,24 +39,20 @@ ins_link CLASS::to_point(const tx_link& link,
 }
 
 TEMPLATE
-output_link CLASS::to_output(const tx_link& link,
+outs_link CLASS::to_output(const tx_link& link,
     uint32_t output_index) const NOEXCEPT
 {
     table::transaction::get_output tx{ {}, output_index };
     if (!store_.tx.get(link, tx))
         return {};
 
-    table::outs::get_output outs{};
-    if (!store_.outs.puts.get(tx.outs_fk, outs))
-        return {};
-
-    return outs.out_fk;
+    return tx.outs_fk;
 }
 
 TEMPLATE
-output_link CLASS::to_previous_output(const ins_link& link) const NOEXCEPT
+outs_link CLASS::to_previous_output(const ins_link& link) const NOEXCEPT
 {
-    return to_output(get_point_key(link));
+    return to_spent(link);
 }
 
 // tx->inputs|outputs|prevouts
@@ -78,31 +74,31 @@ ins_links CLASS::to_points(const tx_link& link) const NOEXCEPT
 }
 
 TEMPLATE
-output_links CLASS::to_outputs(const tx_link& link) const NOEXCEPT
+outs_links CLASS::to_outputs(const tx_link& link) const NOEXCEPT
 {
     table::transaction::get_output tx{};
     if (!store_.tx.get(link, tx))
         return {};
 
-    table::outs::record outs{};
-    outs.out_fks.resize(tx.number);
-    if (!store_.outs.puts.get(tx.outs_fk, outs))
-        return {};
+    // Transaction outputs are stored in a contiguous array of records.
+    outs_links outs(tx.number);
+    for (auto& out: outs)
+        out = tx.outs_fk++;
 
-    return std::move(outs.out_fks);
+    return outs;
 }
 
 TEMPLATE
-output_links CLASS::to_prevouts(const tx_link& link) const NOEXCEPT
+outs_links CLASS::to_prevouts(const tx_link& link) const NOEXCEPT
 {
     const auto points = to_points(link);
     if (points.empty())
         return {};
 
-    output_links prevouts{};
+    outs_links prevouts{};
     prevouts.reserve(points.size());
     for (const auto& point: points)
-        prevouts.push_back(to_previous_output(point));
+        prevouts.push_back(to_spent(point));
 
     return prevouts;
 }
@@ -125,9 +121,9 @@ ins_links CLASS::to_points(const tx_links& txs) const NOEXCEPT
 }
 
 TEMPLATE
-output_links CLASS::to_outputs(const tx_links& txs) const NOEXCEPT
+outs_links CLASS::to_outputs(const tx_links& txs) const NOEXCEPT
 {
-    output_links outputs{};
+    outs_links outputs{};
     for (const auto& tx: txs)
     {
         const auto tx_outputs = to_outputs(tx);
@@ -138,10 +134,10 @@ output_links CLASS::to_outputs(const tx_links& txs) const NOEXCEPT
 }
 
 TEMPLATE
-output_links CLASS::to_prevouts(const tx_links& txs) const NOEXCEPT
+outs_links CLASS::to_prevouts(const tx_links& txs) const NOEXCEPT
 {
     const auto ins = to_points(txs);
-    output_links outs(ins.size());
+    outs_links outs(ins.size());
     constexpr auto parallel = poolstl::execution::par;
 
     std::transform(parallel, ins.cbegin(), ins.cend(), outs.begin(),
@@ -163,13 +159,13 @@ ins_links CLASS::to_block_points(const header_link& link) const NOEXCEPT
 }
 
 TEMPLATE
-output_links CLASS::to_block_outputs(const header_link& link) const NOEXCEPT
+outs_links CLASS::to_block_outputs(const header_link& link) const NOEXCEPT
 {
     return to_outputs(to_transactions(link));
 }
 
 TEMPLATE
-output_links CLASS::to_block_prevouts(const header_link& link) const NOEXCEPT
+outs_links CLASS::to_block_prevouts(const header_link& link) const NOEXCEPT
 {
     return to_prevouts(to_spending_txs(link));
 }

@@ -168,7 +168,7 @@ code CLASS::block(difference_set& set, uint64_t& unspendable,
     if (const auto ec = read_exclusions(unspendable, buffer.exclusions))
         return ec;
 
-    if (const auto ec = read_points(buffer.spends, buffer.txs))
+    if (const auto ec = read_spends(buffer.spends, buffer.txs))
         return ec;
 
     return toggle_spends(set, buffer.spends);
@@ -215,11 +215,11 @@ code CLASS::toggle_creates(difference_set& set, output_links& exclusions,
 {
     exclusions.clear();
 
-    const auto ptr = store_.outs.puts.get_memory();
+    const auto ptr = store_.outs.get_memory();
     for (const auto& tx: txs)
     {
         table::outs::get_excluded outs{ .number = tx.outs_count };
-        if (!store_.outs.puts.get(ptr, tx.outs_fk, outs))
+        if (!store_.outs.get(ptr, tx.outs_fk, outs))
             return error::integrity;
 
         auto excluded = outs.excluded.cbegin();
@@ -252,13 +252,13 @@ code CLASS::read_exclusions(uint64_t& out,
     return error::success;
 }
 
+// Confirmed txs are bound, so the spent outputs are read from spends rows.
 TEMPLATE
-code CLASS::read_points(system::chain::points& out,
-    const gets& txs) const NOEXCEPT
+code CLASS::read_spends(outs_links& out, const gets& txs) const NOEXCEPT
 {
     out.clear();
 
-    const auto ptr = store_.ins.get_memory();
+    const auto ptr = store_.spend.get_memory();
     for (const auto& tx: txs)
     {
         if (tx.coinbase)
@@ -266,36 +266,23 @@ code CLASS::read_points(system::chain::points& out,
 
         for (ins_link::integer in{}; in < tx.ins_count; ++in)
         {
-            table::ins_point::get_composed point{};
-            if (!store_.ins.get(ptr, tx.points_fk + in, point))
+            const auto spent = store_.spend.at(ptr, tx.points_fk + in);
+            if (spent.is_terminal())
                 return error::integrity;
 
-            out.push_back(point.key);
+            out.push_back(spent.value);
         }
     }
 
     return error::success;
 }
 
-// As validation, the first tx of the hash resolves the spend.
 TEMPLATE
 code CLASS::toggle_spends(difference_set& set,
-    const system::chain::points& spends) const NOEXCEPT
+    const outs_links& spends) const NOEXCEPT
 {
-    const auto ptr = store_.tx.get_memory();
-    for (const auto& spend: spends)
-    {
-        const auto spent = store_.tx.first(ptr, spend.hash());
-        if (spent.is_terminal())
-            return error::integrity;
-
-        table::transaction::get_output prevout{ {}, spend.index() };
-        if (!store_.tx.get(ptr, spent, prevout) ||
-            prevout.outs_fk == outs_link::terminal)
-            return error::integrity;
-
-        set.toggle(prevout.outs_fk);
-    }
+    for (const auto& spent: spends)
+        set.toggle(spent);
 
     return error::success;
 }

@@ -57,7 +57,7 @@ public:
     using chain_state = system::chain::chain_state;
     using chain_state_cptr = system::chain::chain_state::cptr;
     using chain_context = system::chain::context;
-    using prevout_spends = table::prevout::spends;
+    using outs_ranges = std::vector<std::pair<outs_link::integer, outs_link::integer>>;
     using short_id = system::chain::short_id::integer;
     using ec_compresseds = system::ec_compresseds;
     using ec_compressed = system::ec_compressed;
@@ -111,6 +111,12 @@ public:
     /// Snapshot the store while running.
     code snapshot(const typename Store::event_handler& handler) const NOEXCEPT;
 
+    /// Drain the other points bank and make it current, while running.
+    code flip_points(const typename Store::event_handler& handler) const NOEXCEPT;
+
+    /// Drain both points banks, while running.
+    code drop_points(const typename Store::event_handler& handler) const NOEXCEPT;
+
     /// Count of puts resulting in table body search to detect duplication.
     size_t positive_search_count() const NOEXCEPT;
 
@@ -145,6 +151,9 @@ public:
     size_t candidate_head_size() const NOEXCEPT;
     size_t confirmed_head_size() const NOEXCEPT;
     size_t strong_head_size() const NOEXCEPT;
+    size_t address_head_size() const NOEXCEPT;
+    size_t conflict_head_size() const NOEXCEPT;
+    size_t spender_head_size() const NOEXCEPT;
     size_t scan_head_size() const NOEXCEPT;
     size_t scan_prefix_head_size() const NOEXCEPT;
     size_t ecdsa0_head_size() const NOEXCEPT;
@@ -155,15 +164,16 @@ public:
     size_t silent1_head_size() const NOEXCEPT;
     size_t silent0_prefix_head_size() const NOEXCEPT;
     size_t silent1_prefix_head_size() const NOEXCEPT;
-    size_t duplicate_head_size() const NOEXCEPT;
     size_t prevalid0_head_size() const NOEXCEPT;
     size_t prevalid1_head_size() const NOEXCEPT;
     size_t presilent0_head_size() const NOEXCEPT;
     size_t presilent1_head_size() const NOEXCEPT;
-    size_t prevout_head_size() const NOEXCEPT;
+    size_t points0_head_size() const NOEXCEPT;
+    size_t points1_head_size() const NOEXCEPT;
     size_t state_head_size() const NOEXCEPT;
     size_t pool_head_size() const NOEXCEPT;
-    size_t spends_head_size() const NOEXCEPT;
+    size_t spend_head_size() const NOEXCEPT;
+    size_t unbound_head_size() const NOEXCEPT;
     size_t wtxid_head_size() const NOEXCEPT;
     size_t filter_bk_head_size() const NOEXCEPT;
     size_t filter_tx_head_size() const NOEXCEPT;
@@ -180,6 +190,9 @@ public:
     size_t candidate_body_size() const NOEXCEPT;
     size_t confirmed_body_size() const NOEXCEPT;
     size_t strong_body_size() const NOEXCEPT;
+    size_t address_body_size() const NOEXCEPT;
+    size_t conflict_body_size() const NOEXCEPT;
+    size_t spender_body_size() const NOEXCEPT;
     size_t scan_body_size() const NOEXCEPT;
     size_t scan_prefix_body_size() const NOEXCEPT;
     size_t ecdsa0_body_size() const NOEXCEPT;
@@ -190,15 +203,16 @@ public:
     size_t silent1_body_size() const NOEXCEPT;
     size_t silent0_prefix_body_size() const NOEXCEPT;
     size_t silent1_prefix_body_size() const NOEXCEPT;
-    size_t duplicate_body_size() const NOEXCEPT;
     size_t prevalid0_body_size() const NOEXCEPT;
     size_t prevalid1_body_size() const NOEXCEPT;
     size_t presilent0_body_size() const NOEXCEPT;
     size_t presilent1_body_size() const NOEXCEPT;
-    size_t prevout_body_size() const NOEXCEPT;
+    size_t points0_body_size() const NOEXCEPT;
+    size_t points1_body_size() const NOEXCEPT;
     size_t state_body_size() const NOEXCEPT;
     size_t pool_body_size() const NOEXCEPT;
-    size_t spends_body_size() const NOEXCEPT;
+    size_t spend_body_size() const NOEXCEPT;
+    size_t unbound_body_size() const NOEXCEPT;
     size_t wtxid_body_size() const NOEXCEPT;
     size_t filter_bk_body_size() const NOEXCEPT;
     size_t filter_tx_body_size() const NOEXCEPT;
@@ -215,6 +229,9 @@ public:
     size_t candidate_size() const NOEXCEPT;
     size_t confirmed_size() const NOEXCEPT;
     size_t strong_size() const NOEXCEPT;
+    size_t address_size() const NOEXCEPT;
+    size_t conflict_size() const NOEXCEPT;
+    size_t spender_size() const NOEXCEPT;
     size_t scan_size() const NOEXCEPT;
     size_t scan_prefix_size() const NOEXCEPT;
     size_t ecdsa0_size() const NOEXCEPT;
@@ -225,33 +242,33 @@ public:
     size_t silent1_size() const NOEXCEPT;
     size_t silent0_prefix_size() const NOEXCEPT;
     size_t silent1_prefix_size() const NOEXCEPT;
-    size_t duplicate_size() const NOEXCEPT;
     size_t prevalid0_size() const NOEXCEPT;
     size_t prevalid1_size() const NOEXCEPT;
     size_t presilent0_size() const NOEXCEPT;
     size_t presilent1_size() const NOEXCEPT;
-    size_t prevout_size() const NOEXCEPT;
+    size_t points0_size() const NOEXCEPT;
+    size_t points1_size() const NOEXCEPT;
     size_t state_size() const NOEXCEPT;
     size_t pool_size() const NOEXCEPT;
-    size_t spends_size() const NOEXCEPT;
+    size_t spend_size() const NOEXCEPT;
+    size_t unbound_size() const NOEXCEPT;
     size_t wtxid_size() const NOEXCEPT;
     size_t filter_bk_size() const NOEXCEPT;
     size_t filter_tx_size() const NOEXCEPT;
 
     /// Buckets (hashmap + arraymap + headmap).
     size_t header_buckets() const NOEXCEPT;
-    size_t ins_buckets() const NOEXCEPT;
-    size_t outs_buckets() const NOEXCEPT;
     size_t txs_buckets() const NOEXCEPT;
     size_t tx_buckets() const NOEXCEPT;
 
     size_t candidate_buckets() const NOEXCEPT;
     size_t confirmed_buckets() const NOEXCEPT;
     size_t strong_buckets() const NOEXCEPT;
+    size_t address_buckets() const NOEXCEPT;
+    size_t conflict_buckets() const NOEXCEPT;
+    size_t spender_buckets() const NOEXCEPT;
     size_t scan_buckets() const NOEXCEPT;
     size_t state_buckets() const NOEXCEPT;
-    size_t duplicate_buckets() const NOEXCEPT;
-    size_t prevout_buckets() const NOEXCEPT;
     size_t pool_buckets() const NOEXCEPT;
     size_t wtxid_buckets() const NOEXCEPT;
     size_t filter_bk_buckets() const NOEXCEPT;
@@ -262,6 +279,8 @@ public:
     size_t ins_records() const NOEXCEPT;
     size_t outs_records() const NOEXCEPT;
     size_t tx_records() const NOEXCEPT;
+    size_t address_records() const NOEXCEPT;
+    size_t conflict_records() const NOEXCEPT;
 
     size_t scan_records() const NOEXCEPT;
     size_t scan_prefix_records() const NOEXCEPT;
@@ -273,13 +292,15 @@ public:
     size_t silent1_records() const NOEXCEPT;
     size_t silent0_prefix_records() const NOEXCEPT;
     size_t silent1_prefix_records() const NOEXCEPT;
-    size_t duplicate_records() const NOEXCEPT;
     size_t prevalid0_records() const NOEXCEPT;
     size_t prevalid1_records() const NOEXCEPT;
     size_t presilent0_records() const NOEXCEPT;
     size_t presilent1_records() const NOEXCEPT;
+    size_t points0_records() const NOEXCEPT;
+    size_t points1_records() const NOEXCEPT;
     size_t pool_records() const NOEXCEPT;
-    size_t spends_records() const NOEXCEPT;
+    size_t spend_records() const NOEXCEPT;
+    size_t unbound_records() const NOEXCEPT;
     size_t wtxid_records() const NOEXCEPT;
     size_t filter_bk_records() const NOEXCEPT;
 
@@ -334,21 +355,29 @@ public:
     inline tx_link to_tx(const hash_digest& key) const NOEXCEPT;
     inline tx_link to_witness_tx(const hash_digest& key) const NOEXCEPT;
     inline filter_link to_filter(const header_link& key) const NOEXCEPT;
-    inline output_link to_output(const point& prevout) const NOEXCEPT;
-    inline output_link to_output(const hash_digest& key,
+    inline outs_link to_output(const point& prevout) const NOEXCEPT;
+    inline outs_link to_output(const hash_digest& key,
         uint32_t output_index) const NOEXCEPT;
 
     /// put to tx (reverse navigation)
-    tx_link to_output_tx(const output_link& link) const NOEXCEPT;
+    tx_link to_output_tx(const outs_link& link) const NOEXCEPT;
     tx_link to_prevout_tx(const ins_link& link) const NOEXCEPT;
     tx_link to_input_tx(const ins_link& link) const NOEXCEPT;
+
+    /// input to spent output (bound, otherwise resolved by point)
+    outs_link to_spent(const ins_link& link) const NOEXCEPT;
+
+    /// output to spender txs (the spender cell and conflict rows)
+    tx_links to_spender_txs(const outs_link& link) const NOEXCEPT;
+    ins_link to_spending_input(const tx_link& spender,
+        const outs_link& link) const NOEXCEPT;
 
     /// point to put (forward navigation)
     ins_link to_point(const tx_link& link,
         uint32_t input_index) const NOEXCEPT;
-    output_link to_output(const tx_link& link,
+    outs_link to_output(const tx_link& link,
         uint32_t output_index) const NOEXCEPT;
-    output_link to_previous_output(const ins_link& link) const NOEXCEPT;
+    outs_link to_previous_output(const ins_link& link) const NOEXCEPT;
 
     /// block/tx to block (reverse navigation)
     tx_link find_strong_tx(const tx_link& link) const NOEXCEPT;
@@ -372,28 +401,28 @@ public:
 
     /// output to spenders (reverse navigation)
     ins_links to_spenders(const point& prevout) const NOEXCEPT;
-    ins_links to_spenders(const output_link& link) const NOEXCEPT;
+    ins_links to_spenders(const outs_link& link) const NOEXCEPT;
     ins_links to_spenders(const hash_digest& point_hash,
         uint32_t output_index) const NOEXCEPT;
     ins_links to_spenders(const tx_link& output_tx,
         uint32_t output_index) const NOEXCEPT;
     ins_links to_spenders(const tx_link& output_tx,
-        const output_link& link) const NOEXCEPT;
+        const outs_link& link) const NOEXCEPT;
 
     /// tx to puts (forward navigation)
     ins_links to_points(const tx_link& link) const NOEXCEPT;
-    output_links to_outputs(const tx_link& link) const NOEXCEPT;
-    output_links to_prevouts(const tx_link& link) const NOEXCEPT;
+    outs_links to_outputs(const tx_link& link) const NOEXCEPT;
+    outs_links to_prevouts(const tx_link& link) const NOEXCEPT;
 
     /// txs to puts (forward navigation)
     ins_links to_points(const tx_links& txs) const NOEXCEPT;
-    output_links to_outputs(const tx_links& txs) const NOEXCEPT;
-    output_links to_prevouts(const tx_links& txs) const NOEXCEPT;
+    outs_links to_outputs(const tx_links& txs) const NOEXCEPT;
+    outs_links to_prevouts(const tx_links& txs) const NOEXCEPT;
 
     /// block to puts (forward navigation)
     ins_links to_block_points(const header_link& link) const NOEXCEPT;
-    output_links to_block_outputs(const header_link& link) const NOEXCEPT;
-    output_links to_block_prevouts(const header_link& link) const NOEXCEPT;
+    outs_links to_block_outputs(const header_link& link) const NOEXCEPT;
+    outs_links to_block_prevouts(const header_link& link) const NOEXCEPT;
 
     /// block to txs (forward navigation)
     tx_links to_transactions(const header_link& link) const NOEXCEPT;
@@ -407,33 +436,31 @@ public:
     constexpr size_t to_scan_start(const header_link& link) const NOEXCEPT;
     constexpr size_t to_filter_bk(const header_link& link) const NOEXCEPT;
     constexpr size_t to_filter_tx(const header_link& link) const NOEXCEPT;
-    constexpr size_t to_prevout(const header_link& link) const NOEXCEPT;
     constexpr size_t to_txs(const header_link& link) const NOEXCEPT;
 
     /// hashmap enumeration
     header_link top_header(size_t bucket) const NOEXCEPT;
-    ins_link top_point(size_t bucket) const NOEXCEPT;
     tx_link top_tx(size_t bucket) const NOEXCEPT;
 
     /// address outputs enumeration (reverse navigation)
     code to_touched_txs(tx_links& out,
-        const output_links& outputs) const NOEXCEPT;
+        const outs_links& outputs) const NOEXCEPT;
     code to_touched_txs(const stopper& cancel, tx_links& out,
-        const output_links& outputs) const NOEXCEPT;
+        const outs_links& outputs) const NOEXCEPT;
     code to_touched_txs(const stopper& cancel, tx_links& out,
-        const output_links& outputs, const tx_links& parents,
+        const outs_links& outputs, const tx_links& parents,
         bool turbo) const NOEXCEPT;
 
-    code to_address_outputs(output_links& out,
+    code to_address_outputs(outs_links& out,
         const hash_digest& key) const NOEXCEPT;
-    code to_address_outputs(const stopper& cancel, output_links& out,
+    code to_address_outputs(const stopper& cancel, outs_links& out,
         const hash_digest& key) const NOEXCEPT;
 
     code to_address_outputs(const stopper& cancel, outs_link& cursor,
-        output_links& out, const hash_digest& key,
+        outs_links& out, const hash_digest& key,
         size_t limit) const NOEXCEPT;
     code to_address_outputs(const stopper& cancel, outs_link& cursor,
-        output_links& out, tx_links& parents, const hash_digest& key,
+        outs_links& out, tx_links& parents, const hash_digest& key,
         size_t limit) const NOEXCEPT;
 
     /// Archive reads.
@@ -469,6 +496,7 @@ public:
     inline hash_digest get_outs_key(const outs_link& link) const NOEXCEPT;
     inline hash_digest get_wtxid_key(const pool_link& link) const NOEXCEPT;
     inline hash_digest get_point_hash(const ins_link& link) const NOEXCEPT;
+    point get_outpoint_key(const outs_link& link) const NOEXCEPT;
 
     /// False position implies not confirmed (or fault).
     bool get_tx_height(size_t& out, const tx_link& link) const NOEXCEPT;
@@ -491,7 +519,7 @@ public:
     bool get_height(size_t& out, const header_link& link) const NOEXCEPT;
 
     /// Values (value, spend, fees).
-    bool get_value(uint64_t& out, const output_link& link) const NOEXCEPT;
+    bool get_value(uint64_t& out, const outs_link& link) const NOEXCEPT;
     bool get_tx_value(uint64_t& out, const tx_link& link) const NOEXCEPT;
     bool get_tx_spend(uint64_t& out, const tx_link& link) const NOEXCEPT;
     bool get_tx_fee(uint64_t& out, const tx_link& link) const NOEXCEPT;
@@ -507,7 +535,7 @@ public:
     bool is_witness_match(const tx_link& link,
         const transaction_view& tx) const NOEXCEPT;
     bool get_wire_input(bytewriter& sink, const ins_link& link) const NOEXCEPT;
-    bool get_wire_output(bytewriter& sink, const output_link& link) const NOEXCEPT;
+    bool get_wire_output(bytewriter& sink, const outs_link& link) const NOEXCEPT;
     bool get_wire_witness(bytewriter& sink, const ins_link& link) const NOEXCEPT;
     bool get_wire_header(bytewriter& sink, const header_link& link) const NOEXCEPT;
     bool get_wire_tx(bytewriter& sink, const tx_link& link,
@@ -535,6 +563,8 @@ public:
 
     header::cptr get_header(const header_link& link) const NOEXCEPT;
     block::cptr get_block(const header_link& link, bool witness) const NOEXCEPT;
+    block_view get_block_view(const header_link& link,
+        bool witness) const NOEXCEPT;
     transaction::cptr get_transaction(const tx_link& link,
         bool witness) const NOEXCEPT;
 
@@ -545,14 +575,14 @@ public:
     input::cptr get_input(const tx_link& link, uint32_t index,
         bool witness) const NOEXCEPT;
 
-    script::cptr get_output_script(const output_link& link) const NOEXCEPT;
-    output::cptr get_output(const output_link& link) const NOEXCEPT;
+    script::cptr get_output_script(const outs_link& link) const NOEXCEPT;
+    output::cptr get_output(const outs_link& link) const NOEXCEPT;
     output::cptr get_output(const tx_link& link, uint32_t index) const NOEXCEPT;
-    inputs_ptr get_spenders(const output_link& link,
+    inputs_ptr get_spenders(const outs_link& link,
         bool witness) const NOEXCEPT;
 
     /// Inpoint and outpoint result sets.
-    outpoint get_outpoint(const output_link& link) const NOEXCEPT;
+    outpoint get_outpoint(const outs_link& link) const NOEXCEPT;
     inpoint get_spender(const ins_link& link) const NOEXCEPT;
     inpoints get_spenders(const point& point) const NOEXCEPT;
 
@@ -568,6 +598,10 @@ public:
     bool populate_with_metadata(const block& block, bool chain=false) const NOEXCEPT;
     bool populate_with_metadata(const transaction& tx, bool chain=false,
         bool pool=false) const NOEXCEPT;
+
+    /// Populate block view prevouts and metadata.
+    code populate_with_metadata(const header_link& link,
+        block_view& block) const NOEXCEPT;
 
     /// Success implies tx pooled under sufficient context, input.metadata is
     /// populated for each input not populated by its block (internal spend).
@@ -727,7 +761,7 @@ public:
     bool is_confirmable_tx(const tx_link& link) const NOEXCEPT;
 
     /// Spent by a pooled and confirmable tx.
-    bool is_confirmable_spent(const output_link& link) const NOEXCEPT;
+    bool is_confirmable_spent(const outs_link& link) const NOEXCEPT;
 
     /// Spender of prevout in a pooled and confirmable tx, terminal if none.
     ins_link find_confirmable_spender(const point& prevout) const NOEXCEPT;
@@ -769,6 +803,10 @@ public:
     /// Batching.
     /// -----------------------------------------------------------------------
 
+    /// Exclude txs not silent payment selected from prevout population.
+    bool select_silent(const header_link& link,
+        const block_view& block) const NOEXCEPT;
+
     /// Set silent payment records.
     bool set_silent(const tx_link& link, const transaction& tx) NOEXCEPT;
     bool set_silent(const tx_link& link, const transaction_view& tx) NOEXCEPT;
@@ -781,16 +819,6 @@ public:
         const block& block, bool bank) NOEXCEPT;
     bool set_silents(size_t& rows, const header_link& link,
         const block_view& block, bool bank) NOEXCEPT;
-
-    /// The wire prevouts of the spends of the block's silent payment eligible
-    /// txs in block order, with the selection of those txs.
-    bool get_silent_prevouts(data_chunk& prevouts, std::vector<bool>& selected,
-        const header_link& link, const block_view& block) const NOEXCEPT;
-
-    /// The wire prevouts of the spends of all of the block's txs in block
-    /// order, with the selection of those txs (all but the coinbase).
-    bool get_block_prevouts(data_chunk& prevouts, std::vector<bool>& selected,
-        const header_link& link, const block_view& block) const NOEXCEPT;
 
     /// Compute a bank's silent payment batch, then set its scan records.
     code compute_silents(const stopper& cancel, bool& use_gpu,
@@ -891,11 +919,11 @@ public:
     bool is_confirmed_block(const header_link& link) const NOEXCEPT;
     bool is_confirmed_tx(const tx_link& link) const NOEXCEPT;
     bool is_confirmed_input(const ins_link& link) const NOEXCEPT;
-    bool is_confirmed_output(const output_link& link) const NOEXCEPT;
+    bool is_confirmed_output(const outs_link& link) const NOEXCEPT;
     bool is_confirmed_all_prevouts(const tx_link& link) const NOEXCEPT;
-    bool is_unconfirmed_spent(const output_link& link) const NOEXCEPT;
-    bool is_confirmed_spent(const output_link& link) const NOEXCEPT;
-    bool is_spent(const output_link& link) const NOEXCEPT;
+    bool is_unconfirmed_spent(const outs_link& link) const NOEXCEPT;
+    bool is_confirmed_spent(const outs_link& link) const NOEXCEPT;
+    bool is_spent(const outs_link& link) const NOEXCEPT;
     bool is_spent(const point& prevout) const NOEXCEPT;
 
     /// Height index not used by these.
@@ -907,13 +935,7 @@ public:
     /// -----------------------------------------------------------------------
     /// These are used in consensus confirmation.
 
-    code block_confirmable(const header_link& link) const NOEXCEPT;
-
-    bool set_strong(const header_link& link) NOEXCEPT;
-    bool set_unstrong(const header_link& link) NOEXCEPT;
-    bool set_prevouts(const header_link& link, const block& block) NOEXCEPT;
-    bool set_prevouts(const header_link& link, const prevout_spends& spends,
-        const tx_links& conflicts) NOEXCEPT;
+    code block_confirmable(const header_link& link) NOEXCEPT;
 
     bool get_branch(header_states& branch, const hash_digest& hash) const NOEXCEPT;
     bool get_work(uint256_t& work, const header_states& states) const NOEXCEPT;
@@ -922,10 +944,22 @@ public:
     bool get_strong_fork(bool& strong, const uint256_t& fork_work,
         size_t fork_point, bool tie=false) const NOEXCEPT;
 
-    /// Wire-encoded prevouts of each spend of the block (in block order),
-    /// with the spends and conflicts for set_prevouts. False if any missing.
-    bool get_block_prevouts(data_chunk& prevouts, prevout_spends& spends,
-        tx_links& conflicts, const header_link& link) const NOEXCEPT;
+    bool set_strong(const header_link& link) NOEXCEPT;
+    bool set_unstrong(const header_link& link) NOEXCEPT;
+
+    /// Bindings.
+    /// -----------------------------------------------------------------------
+
+    /// Bind the input to the output it spends (rebinding is idempotent).
+    bool spend(const ins_link& link, const outs_link& spent) NOEXCEPT;
+
+    /// Bind the spends of the populated block view/tx.
+    code bind(const header_link& link, const block_view& block) NOEXCEPT;
+    code bind(const tx_link& link, const transaction& tx) NOEXCEPT;
+
+    /// Bind the spends of the archived block/tx.
+    code bind(const header_link& link) NOEXCEPT;
+    code bind(const tx_link& link) NOEXCEPT;
 
     /// Height indexation.
     /// -----------------------------------------------------------------------
@@ -1030,9 +1064,9 @@ public:
         uint32_t index) const NOEXCEPT;
 
     /// Unspent queries.
-    unspent_output get_tx_unspent(const output_link& link) const NOEXCEPT;
-    unspent_output get_tx_confirmed_unspent(const output_link& link) const NOEXCEPT;
-    unspent_output get_tx_unconfirmed_unspent(const output_link& link) const NOEXCEPT;
+    unspent_output get_tx_unspent(const outs_link& link) const NOEXCEPT;
+    unspent_output get_tx_confirmed_unspent(const outs_link& link) const NOEXCEPT;
+    unspent_output get_tx_unconfirmed_unspent(const outs_link& link) const NOEXCEPT;
 
     /// Filters.
     /// -----------------------------------------------------------------------
@@ -1107,13 +1141,13 @@ protected:
     uint32_t to_input_index(const tx_link& parent_fk,
         const ins_link& point_fk) const NOEXCEPT;
     uint32_t to_output_index(const tx_link& parent_fk,
-        const output_link& output_fk) const NOEXCEPT;
+        const outs_link& output_fk) const NOEXCEPT;
 
     /// Objects.
     /// -----------------------------------------------------------------------
 
     bool get_outputs_total_value(uint64_t& out,
-        const output_links& links) const NOEXCEPT;
+        const outs_links& links) const NOEXCEPT;
 
     /// Validate.
     /// -----------------------------------------------------------------------
@@ -1148,19 +1182,23 @@ protected:
 
     /// Confirm.
     /// -----------------------------------------------------------------------
-    bool is_confirmed_unspent(const output_link& link) const NOEXCEPT;
-    bool is_unconfirmed_unspent(const output_link& link) const NOEXCEPT;
+    bool is_confirmed_unspent(const outs_link& link) const NOEXCEPT;
+    bool is_unconfirmed_unspent(const outs_link& link) const NOEXCEPT;
 
     /// Consensus.
     /// -----------------------------------------------------------------------
 
-    /// Called by block_confirmable (populate and check double spends).
-    system::error::transaction_error_t spendable(const point_set::point& point,
-        uint32_t version, const context& ctx) const NOEXCEPT;
+    /// Called by block_confirmable (spendability and double spend).
+    system::error::transaction_error_t spendable(const tx_link& spender,
+        const outs_link& spent, uint32_t sequence, uint32_t version,
+        const context& ctx, const outs_ranges& ranges) NOEXCEPT;
 
-    /// Called by block_confirmable (populate and check double spends).
-    code get_prevouts(point_sets& sets, size_t points,
-        const header_link& link) const NOEXCEPT;
+    /// Called by spendable (other spenders of the output, any instance).
+    system::error::transaction_error_t contested(const tx_link& spender,
+        const hash_digest& spender_hash, const outs_link& spent) const NOEXCEPT;
+
+    input::cptr get_input(const ins_link& link, bool witness,
+        bool coinbase) const NOEXCEPT;
 
     /// Called by validate_pooled.
     code get_pooled_block(pooled_block& out, const header_link& link,
@@ -1179,9 +1217,17 @@ protected:
     bool set_strong(const header_link& link, const tx_links& fks,
         bool positive) NOEXCEPT;
 
-    /// Get all tx links for any point of block that is also in duplicate table.
-    bool get_doubles(tx_links& out, const block& block) const NOEXCEPT;
-    bool get_doubles(tx_links& out, const point& point) const NOEXCEPT;
+    /// Bindings.
+    /// -----------------------------------------------------------------------
+
+    code get_binds(tx_binds& out, const header_link& link) const NOEXCEPT;
+    code get_binds(binds& out, const tx_link& link) const NOEXCEPT;
+
+    /// Caller holds transactor.
+    bool spend(const ins_link& link, const outs_link& spent,
+        const tx_link& spender) NOEXCEPT;
+    code bind(const tx_link& link, const binds& values) NOEXCEPT;
+    bool mark(const tx_link& spender, const outs_link& spent) NOEXCEPT;
 
     /// Context.
     /// -----------------------------------------------------------------------
@@ -1246,7 +1292,7 @@ protected:
     /// -----------------------------------------------------------------------
 
     code set_code(const tx_link& tx_fk, const transaction& tx,
-        bool bypass, bool prune) NOEXCEPT;
+        bool block, bool prune) NOEXCEPT;
 
     /// Associate txs to header, caller must hold transactor.
     code set_txs(const header_link& key, tx_links&& links, size_t light,
@@ -1279,12 +1325,6 @@ protected:
     bool is_silent_cut(const tx_link& link, size_t height, size_t start,
         size_t stop, bool time) const NOEXCEPT;
 
-    /// The wire prevouts of the spends of the block's selected txs, where
-    /// silent selects the silent payment eligible txs and otherwise all.
-    bool get_prevouts_(data_chunk& prevouts, std::vector<bool>& selected,
-        const header_link& link, const block_view& block,
-        bool silent) const NOEXCEPT;
-
     /// Mark the blocks of a bank's presilent table scanned.
     bool set_scanned_(bool bank) NOEXCEPT;
 
@@ -1310,7 +1350,9 @@ protected:
         memory input;
         memory output;
         memory ins;
+        memory points;
         memory outs;
+        memory address;
         memory tx;
     };
 
@@ -1322,11 +1364,12 @@ protected:
         output_link out_fk;
         ins_link ins_fk;
         outs_link outs_fk;
+        table::points::link points_fk;
+        bool bank;
     };
 
-    code set_code(std::vector<point>& twins, const accessors& ptrs,
-        const allocation& fks,const transaction_view& tx, bool bypass,
-        bool prune) NOEXCEPT;
+    code set_code(const accessors& ptrs, const allocation& fks,
+        const transaction_view& tx, bool prune) NOEXCEPT;
 
     /// Wire reading (all accessors held across the txs read).
     /// -----------------------------------------------------------------------
@@ -1335,21 +1378,20 @@ protected:
     struct wire_accessors
     {
         memory tx;
-        memory puts;
+        memory outs;
+        memory spends;
         memory ins;
-        memory sequence;
         memory input;
         memory output;
     };
 
     wire_accessors get_wire_accessors() const NOEXCEPT;
-    bool get_wire_input(bytewriter& sink, const memory& ins,
-        const memory& sequence, const memory& input,
-        const ins_link& link) const NOEXCEPT;
+    bool get_wire_input(bytewriter& sink, const wire_accessors& ptrs,
+        const ins_link& link, bool coinbase) const NOEXCEPT;
     bool get_wire_output(bytewriter& sink, const memory& output,
         const output_link& link) const NOEXCEPT;
-    bool get_wire_witness(bytewriter& sink, const memory& sequence,
-        const memory& input, const ins_link& link) const NOEXCEPT;
+    bool get_wire_witness(bytewriter& sink, const wire_accessors& ptrs,
+        const ins_link& link) const NOEXCEPT;
     bool get_wire_tx(bytewriter& sink, const wire_accessors& ptrs,
         const tx_link& link, bool witness) const NOEXCEPT;
 
@@ -1381,17 +1423,23 @@ private:
         const Bool& element) NOEXCEPT;
     template <typename Functor>
     static code parallel_outpoint_transform(const stopper& cancel, bool turbo,
-        outpoints& out, const output_links& links, Functor&& functor) NOEXCEPT;
+        outpoints& out, const outs_links& links, Functor&& functor) NOEXCEPT;
     template <typename Functor>
     static code parallel_history_transform(const stopper& cancel, bool turbo,
         histories& out, const tx_links& links, Functor&& functor) NOEXCEPT;
     template <typename Functor>
     static code parallel_unspent_transform(const stopper& cancel, bool turbo,
-        unspent_outputs& out, const output_links& outs, Functor&& functor) NOEXCEPT;
+        unspent_outputs& out, const outs_links& outs, Functor&& functor) NOEXCEPT;
 
     static point::cptr make_point(hash_digest&& hash,
         uint32_t index) NOEXCEPT;
 
+    // Input navigation.
+    bool get_spent_or_point(outs_link& spent, point& key,
+        const ins_link& link) const NOEXCEPT;
+    bool get_spent_or_point(outs_link& spent, point& key,
+        const ins_link& link, const memory& spends) const NOEXCEPT;
+    bool get_unbound_point(point& key, const ins_link& link) const NOEXCEPT;
 
     // Not thread safe.
     size_t get_fork_() const NOEXCEPT;
@@ -1431,7 +1479,6 @@ BC_PUSH_WARNING(NO_THROW_IN_NOEXCEPT)
 #include <bitcoin/database/impl/query/consensus/consensus_compact.ipp>
 #include <bitcoin/database/impl/query/consensus/consensus_forks.ipp>
 #include <bitcoin/database/impl/query/consensus/consensus_populate.ipp>
-#include <bitcoin/database/impl/query/consensus/consensus_prevouts.ipp>
 #include <bitcoin/database/impl/query/consensus/consensus_states.ipp>
 #include <bitcoin/database/impl/query/consensus/consensus_strong.ipp>
 #include <bitcoin/database/impl/query/consensus/consensus_transaction.ipp>
@@ -1444,6 +1491,7 @@ BC_PUSH_WARNING(NO_THROW_IN_NOEXCEPT)
 #include <bitcoin/database/impl/query/navigate/navigate_reverse.ipp>
 
 #include <bitcoin/database/impl/query/amounts.ipp>
+#include <bitcoin/database/impl/query/bindings.ipp>
 #include <bitcoin/database/impl/query/confirmed.ipp>
 #include <bitcoin/database/impl/query/extent.ipp>
 #include <bitcoin/database/impl/query/fee_rate.ipp>

@@ -93,13 +93,13 @@ inline filter_link CLASS::to_filter(const header_link& key) const NOEXCEPT
 }
 
 TEMPLATE
-output_link CLASS::to_output(const point& prevout) const NOEXCEPT
+outs_link CLASS::to_output(const point& prevout) const NOEXCEPT
 {
     return to_output(prevout.hash(), prevout.index());
 }
 
 TEMPLATE
-output_link CLASS::to_output(const hash_digest& key,
+outs_link CLASS::to_output(const hash_digest& key,
     uint32_t input_index) const NOEXCEPT
 {
     return to_output(to_tx(key), input_index);
@@ -123,18 +123,84 @@ inline hash_digest CLASS::get_tx_key(const tx_link& link) const NOEXCEPT
 TEMPLATE
 inline ins_key CLASS::get_point_key(const ins_link& link) const NOEXCEPT
 {
-    table::ins_point::get_composed point{};
-    if (!store_.ins.get(link, point))
+    outs_link spent{};
+    ins_key key{};
+    if (!get_spent_or_point(spent, key, link))
         return {};
 
-    return point.key;
+    return spent.is_terminal() ? key : get_outpoint_key(spent);
+}
+
+// private
+TEMPLATE
+bool CLASS::get_spent_or_point(outs_link& spent, point& key,
+    const ins_link& link) const NOEXCEPT
+{
+    return get_spent_or_point(spent, key, link, {});
+}
+
+// private
+// An input resolves to its bound output, or to its point while unbound (a
+// coinbase input is bound to no output and has the null point). A points miss
+// implies a drain since the bindings read, so the binding is reread (a drained
+// input is bound or unbound). Bindings are read through the caller's accessor
+// if given.
+TEMPLATE
+bool CLASS::get_spent_or_point(outs_link& spent, point& key,
+    const ins_link& link, const memory& spends) const NOEXCEPT
+{
+    outs_link bound{};
+    const auto read = [&]() NOEXCEPT
+    {
+        bound = spends ? store_.spend.at(spends, link.value) :
+            store_.spend.at(link.value);
+        return !bound.is_terminal();
+    };
+
+    if (!read())
+    {
+        table::points::get_composed row{};
+        if (store_.points0.at(link.value, row) ||
+            store_.points1.at(link.value, row))
+        {
+            spent = outs_link{};
+            key = std::move(row.key);
+            return true;
+        }
+
+        if (!read())
+        {
+            if (!get_unbound_point(key, link))
+                return false;
+
+            spent = outs_link{};
+            return true;
+        }
+    }
+
+    spent = bound;
+    key = {};
+    return true;
+}
+
+// private
+TEMPLATE
+bool CLASS::get_unbound_point(point& key, const ins_link& link) const NOEXCEPT
+{
+    table::unbound::record record{};
+    const auto fk = store_.unbound.first(table::unbound::to_key(link));
+    if (fk.is_terminal() || !store_.unbound.get(fk, record))
+        return false;
+
+    key = std::move(record.key);
+    return true;
 }
 
 TEMPLATE
 inline hash_digest CLASS::get_outs_key(const outs_link& link) const NOEXCEPT
 {
     table::outs::get_output put{};
-    if (!store_.outs.puts.get_raw(link, put))
+    if (!store_.outs.get(link, put))
         return {};
 
     table::output::get_script_hash output{};
@@ -142,6 +208,23 @@ inline hash_digest CLASS::get_outs_key(const outs_link& link) const NOEXCEPT
         return {};
 
     return output.hash;
+}
+
+TEMPLATE
+typename CLASS::point CLASS::get_outpoint_key(
+    const outs_link& link) const NOEXCEPT
+{
+    table::outs::get_parent out{};
+    if (!store_.outs.get(link, out))
+        return {};
+
+    table::transaction::only_with_sk parent{};
+    if (!store_.tx.get(out.parent_fk, parent))
+        return {};
+
+    const auto offset = link.value - parent.outs_fk;
+    const auto index = system::possible_narrow_cast<uint32_t>(offset);
+    return { std::move(parent.key), index };
 }
 
 TEMPLATE
@@ -153,11 +236,7 @@ inline hash_digest CLASS::get_wtxid_key(const pool_link& link) const NOEXCEPT
 TEMPLATE
 inline hash_digest CLASS::get_point_hash(const ins_link& link) const NOEXCEPT
 {
-    table::ins_point::record point{};
-    if (!store_.ins.get(link, point))
-        return {};
-
-    return point.hash;
+    return get_point_key(link).hash();
 }
 
 } // namespace database

@@ -198,13 +198,9 @@ TEMPLATE
 code CLASS::slots(sizes& out,
     const unspent_elements& elements) const NOEXCEPT
 {
-    output_links puts(elements.size());
-    if (const auto ec = reader_.read_puts(puts, zero, elements, zero,
-        elements.size()))
-        return ec;
-
     tx_links parents{};
-    if (const auto ec = reader_.read_parents(parents, puts, zero, puts.size()))
+    if (const auto ec = reader_.read_parents(parents, elements, zero,
+        elements.size()))
         return ec;
 
     system::hashes hashes{};

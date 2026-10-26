@@ -56,12 +56,14 @@ code CLASS::get_block_amounts(block_amounts& out,
         return error::integrity;
 
     auto coinbase = true;
+    table::outs::get_output outs{};
     table::output::get_spendable value{};
     for (const auto& tx: to_transactions(link))
     {
-        for (const auto& put: to_outputs(tx))
+        for (const auto& fk: to_outputs(tx))
         {
-            if (!store_.output.get(put, value))
+            if (!store_.outs.get(fk, outs) ||
+                !store_.output.get(outs.out_fk, value))
                 return error::integrity;
 
             if (value.unspendable)
@@ -80,9 +82,10 @@ code CLASS::get_block_amounts(block_amounts& out,
     if (bip30_exception)
         out.bip30 = out.coinbase;
 
-    for (const auto& put: to_block_prevouts(link))
+    for (const auto& fk: to_block_prevouts(link))
     {
-        if (!store_.output.get(put, value))
+        if (!store_.outs.get(fk, outs) ||
+            !store_.output.get(outs.out_fk, value))
             return error::integrity;
 
         out.prevouts += value.value;

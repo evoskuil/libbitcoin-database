@@ -35,13 +35,6 @@ header_link CLASS::top_header(size_t bucket) const NOEXCEPT
 }
 
 TEMPLATE
-ins_link CLASS::top_point(size_t bucket) const NOEXCEPT
-{
-    using namespace system;
-    return store_.ins.top(possible_narrow_cast<ins_link::integer>(bucket));
-}
-
-TEMPLATE
 tx_link CLASS::top_tx(size_t bucket) const NOEXCEPT
 {
     using namespace system;

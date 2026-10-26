@@ -203,7 +203,7 @@ BOOST_AUTO_TEST_CASE(query_chain_reader__get_input__genesis__expected)
     const auto tx = test::genesis.transactions_ptr()->front();
     const auto input = tx->inputs_ptr()->front();
     const auto point = query.to_point(query.to_tx(tx->hash(false)), 0u);
-    BOOST_CHECK(*input == *query.get_input(point, false));
+    BOOST_CHECK(*input == *query.get_input(query.to_tx(tx->hash(false)), 0u, false));
     BOOST_CHECK(input->witness() == *query.get_witness(point));
     BOOST_CHECK(input->script() == *query.get_input_script(point));
 }
@@ -227,8 +227,10 @@ BOOST_AUTO_TEST_CASE(query_chain_reader__get_inputs__found__expected)
     test::query_accessor query{ store };
     BOOST_CHECK(!store.create(test::events_handler));
     BOOST_CHECK(query.initialize(test::genesis));
+    BOOST_CHECK(query.set(test::block1a, test::context, {}, false, false));
     BOOST_CHECK(query.set(test::tx4));
-    BOOST_CHECK_EQUAL(query.get_inputs(1, false)->size(), 2u);
+    BOOST_CHECK(test::bind(query, test::tx4));
+    BOOST_CHECK_EQUAL(query.get_inputs(query.to_tx(test::tx4.hash(false)), false)->size(), 2u);
 }
 
 BOOST_AUTO_TEST_CASE(query_chain_reader__get_output_script__not_found__nullptr)
@@ -359,6 +361,7 @@ BOOST_AUTO_TEST_CASE(query_chain_reader__get_transaction__empty_input_script__ex
     const system::chain::outputs outputs{ { 42, system::chain::script{} } };
     const system::chain::transaction tx{ 1, inputs, outputs, 0 };
     BOOST_CHECK(query.set(tx));
+    BOOST_CHECK(test::bind(query, tx));
 
     const auto stored = query.get_transaction(1, true);
     BOOST_REQUIRE(stored);
@@ -378,7 +381,7 @@ BOOST_AUTO_TEST_CASE(query_chain_reader__get_spenders__unspent_or_not_found__exp
     BOOST_CHECK(query.set(test::block3, test::context, {}, false, false));
 
     // Caller should always test for nullptr.
-    BOOST_CHECK(query.get_spenders(output_link::terminal, true)->empty());
+    BOOST_CHECK(query.get_spenders(outs_link::terminal, true)->empty());
     BOOST_CHECK(query.get_spenders(query.to_output(0, 0), true)->empty());
     BOOST_CHECK(query.get_spenders(query.to_output(0, 1), true)->empty());
     BOOST_CHECK(query.get_spenders(query.to_output(1, 0), true)->empty());

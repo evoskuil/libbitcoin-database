@@ -264,15 +264,17 @@ BOOST_AUTO_TEST_CASE(query_navigate__get_point_key__always__expected)
     BOOST_CHECK(query.initialize(test::genesis));
     BOOST_CHECK_EQUAL(query.get_point_hash(0), system::null_hash);
 
-    // tx4/5 prevouts are all block1a.tx1.
+    // block1a adds three (unbound) points of two txs.
+    BOOST_CHECK(query.set(test::block1a, context{}, {}, false, false));
+    BOOST_CHECK_EQUAL(query.get_point_hash(1), system::one_hash);
+    BOOST_CHECK_EQUAL(query.get_point_hash(3), hash_digest{ 0x02 });
+
+    // tx4/5 prevouts are all block1a.tx1, free txs are bound at archive.
     BOOST_CHECK(query.set(test::tx4));
     BOOST_CHECK(query.set(test::tx5));
-    BOOST_CHECK_EQUAL(query.get_point_hash(1), test::block1a.transactions_ptr()->front()->hash(false));
-    BOOST_CHECK_EQUAL(query.get_point_hash(2), test::block1a.transactions_ptr()->front()->hash(false));
-
-    // block1a adds three prevouts of two txs.
-    BOOST_CHECK(query.set(test::block1a, context{}, {}, false, false));
-    BOOST_CHECK_EQUAL(query.get_point_hash(4), system::one_hash);
+    BOOST_CHECK_EQUAL(query.get_point_hash(4), test::block1a.transactions_ptr()->front()->hash(false));
+    BOOST_CHECK_EQUAL(query.get_point_hash(5), test::block1a.transactions_ptr()->front()->hash(false));
+    BOOST_CHECK_EQUAL(query.get_point_hash(6), test::block1a.transactions_ptr()->front()->hash(false));
 }
 
 // get_outs_key

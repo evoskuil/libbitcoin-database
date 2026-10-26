@@ -59,7 +59,7 @@ bool CLASS::is_confirmable_tx(const tx_link& link) const NOEXCEPT
 }
 
 TEMPLATE
-bool CLASS::is_confirmable_spent(const output_link& link) const NOEXCEPT
+bool CLASS::is_confirmable_spent(const outs_link& link) const NOEXCEPT
 {
     for (const auto& in: to_spenders(link))
     {
@@ -88,7 +88,6 @@ TEMPLATE
 code CLASS::get_pooled(pooled_tx& out, const tx_link& link,
     const context& ctx) const NOEXCEPT
 {
-    using prevout = table::prevout::slab_get;
     if (!store_.pool.enabled())
         return error::unvalidated;
 
@@ -103,22 +102,27 @@ code CLASS::get_pooled(pooled_tx& out, const tx_link& link,
     if (!is_sufficient(ctx, valid.ctx))
         return error::unvalidated;
 
-    table::spends::get_refs::parents parents(out.prevouts.size());
-    table::spends::get_refs run{ {}, parents };
-    if (!store_.spends.get(valid.spends_fk, run))
+    // Pooled txs are bound, so parents are read from their spent outputs.
+    table::transaction::get_point tx{};
+    if (!store_.tx.get(link, tx))
         return error::integrity;
+
+    std::vector<outs_link::integer> spent(out.prevouts.size());
+    if (!store_.spend.get_run(spent, tx.points_fk))
+        return error::integrity;
+
+    auto prevout = out.prevouts.begin();
+    for (const auto& outs_fk: spent)
+    {
+        table::outs::get_parent parent{};
+        if (!table::spend::is_spent(outs_fk) || !store_.outs.get(outs_fk, parent))
+            return error::integrity;
+
+        *prevout++ = { outs_fk, parent.coinbase };
+    }
 
     out.fee = valid.fee;
     out.sigops = valid.sigops;
-    std::ranges::transform(parents, out.prevouts.begin(),
-        [](auto merged) NOEXCEPT
-        {
-            return pooled_tx::prevout
-            {
-                prevout::output_tx_fk(merged), prevout::coinbase(merged)
-            };
-        });
-
     return error::success;
 }
 
@@ -168,9 +172,9 @@ TEMPLATE
 tx_links CLASS::to_confirmable_parents(const tx_link& link) const NOEXCEPT
 {
     tx_links out{};
-    for (const auto& point: to_points(link))
+    for (const auto& prevout: to_prevouts(link))
     {
-        const auto parent = to_tx(get_point_key(point).hash());
+        const auto parent = to_output_tx(prevout);
         if (!parent.is_terminal() && !is_confirmed_tx(parent) &&
             is_pooled(parent) && !system::contains(out, parent.value))
             out.push_back(parent.value);
@@ -466,27 +470,6 @@ bool CLASS::set_pooled(const tx_link& link, const transaction& tx,
 
     using namespace system;
     using sigs = linkage<schema::sigops>;
-    const auto& ins = *tx.inputs_ptr();
-    tx_links prevouts(ins.size());
-
-    auto it = prevouts.begin();
-    for (const auto& in: ins)
-    {
-        tx_link parent{ in->metadata.parent_tx };
-        auto coinbase = in->metadata.coinbase;
-
-        // Prevouts populated from the tx's own package are not yet linked.
-        if (in->metadata.parent_tx == max_uint32)
-        {
-            if ((parent = to_tx(in->point().hash())).is_terminal())
-                return false;
-
-            coinbase = is_coinbase(parent);
-        }
-
-        *it++ = table::prevout::merge(coinbase, parent);
-    }
-
     const auto bip16 = ctx.is_enabled(chain::flags::bip16_rule);
     const auto bip141 = ctx.is_enabled(chain::flags::bip141_rule);
     const auto sigops = tx.signature_operations(bip16, bip141);
@@ -498,10 +481,6 @@ bool CLASS::set_pooled(const tx_link& link, const transaction& tx,
     const auto scope = get_transactor();
 
     // Clean single allocation failure (e.g. disk full).
-    table::spends::link first{};
-    if (!store_.spends.put_link(first, table::spends::put_refs{ {}, prevouts }))
-        return false;
-
     auto& vtx = store_.pool;
     const auto fk = vtx.allocate(1);
     if (fk.is_terminal())
@@ -529,7 +508,6 @@ bool CLASS::set_pooled(const tx_link& link, const transaction& tx,
         ctx,
         tx.fee(),
         possible_narrow_cast<sigs::integer>(sigops),
-        first,
         time
     });
     // ========================================================================

@@ -172,7 +172,9 @@ BOOST_AUTO_TEST_CASE(query_confirmed__is_confirmed_input__confirmed_weak__expect
     BOOST_REQUIRE(!store.create(test::events_handler));
     BOOST_REQUIRE(query.initialize(test::genesis));
     BOOST_REQUIRE(query.set(test::block1a, context{ 0, 1, 0 }, {}, false, false));
+    BOOST_REQUIRE(test::bind(query, test::block1a));
     BOOST_REQUIRE(query.set(test::block2a, context{ 0, 2, 0 }, {}, false, false));
+    BOOST_REQUIRE(test::bind(query, test::block2a));
 
     // test::genesis has one input, initialize always confirms strong.
     BOOST_REQUIRE(query.is_confirmed_input(query.to_point(0, 0)));
@@ -275,8 +277,11 @@ BOOST_AUTO_TEST_CASE(query_confirmed__is_confirmed_spent__strong_confirmed__true
     BOOST_REQUIRE(!store.create(test::events_handler));
     BOOST_REQUIRE(query.initialize(test::genesis));
     BOOST_REQUIRE(query.set(test::block1a, context{ 0, 1, 0 }, {}, false, false));
+    BOOST_REQUIRE(test::bind(query, test::block1a));
     BOOST_REQUIRE(query.set(test::block2a, context{ 0, 2, 0 }, {}, false, false));
+    BOOST_REQUIRE(test::bind(query, test::block2a));
     BOOST_REQUIRE(query.set(test::block3a, context{ 0, 3, 0 }, {}, false, false));
+    BOOST_REQUIRE(test::bind(query, test::block3a));
     BOOST_REQUIRE(!query.is_confirmed_spent(query.to_output(0, 0))); // genesis
     BOOST_REQUIRE(!query.is_confirmed_spent(query.to_output(1, 0))); // block1a
     BOOST_REQUIRE(!query.is_confirmed_spent(query.to_output(1, 1))); // block1a
@@ -318,6 +323,7 @@ BOOST_AUTO_TEST_CASE(query_confirmed__is_confirmed_all_prevouts__unconfirmed_coi
 
     // Block 1b has single null input so archived as (strong) coinbase.
     BOOST_REQUIRE(query.set(test::block1b, context{ 0, 1, 0 }, {}, false, true));
+    BOOST_REQUIRE(test::bind(query, test::block1b));
     BOOST_REQUIRE(!query.is_confirmed_all_prevouts(1));
 }
 
@@ -332,6 +338,7 @@ BOOST_AUTO_TEST_CASE(query_confirmed__is_confirmed_all_prevouts__confirmed_coinb
 
     // Block 1b has single null input so archived as (strong) coinbase.
     BOOST_REQUIRE(query.set(test::block1b, context{ 0, 1, 0 }, {}, false, true));
+    BOOST_REQUIRE(test::bind(query, test::block1b));
     BOOST_REQUIRE(query.push_confirmed(1, false));
     BOOST_REQUIRE(query.is_confirmed_all_prevouts(1));
 }
@@ -347,6 +354,7 @@ BOOST_AUTO_TEST_CASE(query_confirmed__is_confirmed_all_prevouts__missing_prevout
 
     // Tx1 is of block1a and consists of three inputs that do not exist.
     BOOST_REQUIRE(query.set(test::block1a, context{ 0, 1, 0 }, {}, false, true));
+    BOOST_REQUIRE(test::bind(query, test::block1a));
     BOOST_REQUIRE(!query.is_confirmed_all_prevouts(1));
 }
 
@@ -361,9 +369,11 @@ BOOST_AUTO_TEST_CASE(query_confirmed__is_confirmed_all_prevouts__prevouts_confir
 
     // Block 1a has 1 tx(1) with 2 outputs.
     BOOST_REQUIRE(query.set(test::block1a, context{ 0, 1, 0 }, {}, false, true));
+    BOOST_REQUIRE(test::bind(query, test::block1a));
 
     // Block 2a first tx(2) spends both block 1a outputs.
     BOOST_REQUIRE(query.set(test::block2a, context{ 0, 2, 0 }, {}, false, true));
+    BOOST_REQUIRE(test::bind(query, test::block2a));
 
     // Block 1a tx(1) is strong and not confirmed.
     BOOST_REQUIRE(!query.is_confirmed_all_prevouts(2));

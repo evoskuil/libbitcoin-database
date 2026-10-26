@@ -86,7 +86,7 @@ code CLASS::get_address_totals(const stopper& cancel,
     using namespace system;
     confirmed = {};
     unconfirmed = {};
-    output_links outs{};
+    outs_links outs{};
     if (const auto ec = to_address_outputs(cancel, outs, key))
         return ec;
 

@@ -51,53 +51,53 @@ BOOST_AUTO_TEST_CASE(query_navigate__to_output__various__expected)
     BOOST_REQUIRE(query.set(test::block3, test::context, {}, false, false));
     BOOST_REQUIRE(query.set(test::block1a, test::context, {}, false, false));
 
-    // All 5 blocks have one transaction with 1 output.
-    BOOST_REQUIRE_EQUAL(query.to_output_tx(0 * 0x51), 0u);
-    BOOST_REQUIRE_EQUAL(query.to_output_tx(1 * 0x51), 1u);
-    BOOST_REQUIRE_EQUAL(query.to_output_tx(2 * 0x51), 2u);
-    BOOST_REQUIRE_EQUAL(query.to_output_tx(3 * 0x51), 3u);
-    BOOST_REQUIRE_EQUAL(query.to_output_tx(4 * 0x51), 4u);
-    BOOST_REQUIRE_EQUAL(query.to_output_tx(4 * 0x51 + 7u), 4u);
+    // All 5 blocks have one transaction, block1a's with 2 outputs.
+    BOOST_REQUIRE_EQUAL(query.to_output_tx(0), 0u);
+    BOOST_REQUIRE_EQUAL(query.to_output_tx(1), 1u);
+    BOOST_REQUIRE_EQUAL(query.to_output_tx(2), 2u);
+    BOOST_REQUIRE_EQUAL(query.to_output_tx(3), 3u);
+    BOOST_REQUIRE_EQUAL(query.to_output_tx(4), 4u);
+    BOOST_REQUIRE_EQUAL(query.to_output_tx(5), 4u);
 
-    BOOST_REQUIRE_EQUAL(query.to_output(0, 0), 0u * 0x51u);
-    BOOST_REQUIRE_EQUAL(query.to_output(1, 0), 1u * 0x51u);
-    BOOST_REQUIRE_EQUAL(query.to_output(2, 0), 2u * 0x51u);
-    BOOST_REQUIRE_EQUAL(query.to_output(3, 0), 3u * 0x51u);
-    BOOST_REQUIRE_EQUAL(query.to_output(4, 0), 4u * 0x51u);
-    BOOST_REQUIRE_EQUAL(query.to_output(4, 1), 4u * 0x51u + 7u);
+    BOOST_REQUIRE_EQUAL(query.to_output(0, 0), 0u);
+    BOOST_REQUIRE_EQUAL(query.to_output(1, 0), 1u);
+    BOOST_REQUIRE_EQUAL(query.to_output(2, 0), 2u);
+    BOOST_REQUIRE_EQUAL(query.to_output(3, 0), 3u);
+    BOOST_REQUIRE_EQUAL(query.to_output(4, 0), 4u);
+    BOOST_REQUIRE_EQUAL(query.to_output(4, 1), 5u);
 
-    const output_links expected_outputs4{ 4 * 0x51, 4 * 0x51 + 7 };
-    BOOST_REQUIRE_EQUAL(query.to_outputs(0), output_links{ 0 * 0x51 });
-    BOOST_REQUIRE_EQUAL(query.to_outputs(1), output_links{ 1 * 0x51 });
-    BOOST_REQUIRE_EQUAL(query.to_outputs(2), output_links{ 2 * 0x51 });
-    BOOST_REQUIRE_EQUAL(query.to_outputs(3), output_links{ 3 * 0x51 });
+    const outs_links expected_outputs4{ 4, 5 };
+    BOOST_REQUIRE_EQUAL(query.to_outputs(0), outs_links{ 0 });
+    BOOST_REQUIRE_EQUAL(query.to_outputs(1), outs_links{ 1 });
+    BOOST_REQUIRE_EQUAL(query.to_outputs(2), outs_links{ 2 });
+    BOOST_REQUIRE_EQUAL(query.to_outputs(3), outs_links{ 3 });
     BOOST_REQUIRE_EQUAL(query.to_outputs(4), expected_outputs4);
 
     // All blocks have one transaction.
-    BOOST_REQUIRE_EQUAL(query.to_block_outputs(0), output_links{ 0 * 0x51 });
-    BOOST_REQUIRE_EQUAL(query.to_block_outputs(1), output_links{ 1 * 0x51 });
-    BOOST_REQUIRE_EQUAL(query.to_block_outputs(2), output_links{ 2 * 0x51 });
-    BOOST_REQUIRE_EQUAL(query.to_block_outputs(3), output_links{ 3 * 0x51 });
+    BOOST_REQUIRE_EQUAL(query.to_block_outputs(0), outs_links{ 0 });
+    BOOST_REQUIRE_EQUAL(query.to_block_outputs(1), outs_links{ 1 });
+    BOOST_REQUIRE_EQUAL(query.to_block_outputs(2), outs_links{ 2 });
+    BOOST_REQUIRE_EQUAL(query.to_block_outputs(3), outs_links{ 3 });
     BOOST_REQUIRE_EQUAL(query.to_block_outputs(4), expected_outputs4);
 
     // No prevouts that exist.
-    const output_links expected_prevouts4{ output_link::terminal, output_link::terminal, output_link::terminal };
-    BOOST_REQUIRE_EQUAL(query.to_prevouts(0), output_links{ output_link::terminal });
-    BOOST_REQUIRE_EQUAL(query.to_prevouts(1), output_links{ output_link::terminal });
-    BOOST_REQUIRE_EQUAL(query.to_prevouts(2), output_links{ output_link::terminal });
-    BOOST_REQUIRE_EQUAL(query.to_prevouts(3), output_links{ output_link::terminal });
+    const outs_links expected_prevouts4{ outs_link::terminal, outs_link::terminal, outs_link::terminal };
+    BOOST_REQUIRE_EQUAL(query.to_prevouts(0), outs_links{ outs_link::terminal });
+    BOOST_REQUIRE_EQUAL(query.to_prevouts(1), outs_links{ outs_link::terminal });
+    BOOST_REQUIRE_EQUAL(query.to_prevouts(2), outs_links{ outs_link::terminal });
+    BOOST_REQUIRE_EQUAL(query.to_prevouts(3), outs_links{ outs_link::terminal });
     BOOST_REQUIRE_EQUAL(query.to_prevouts(4), expected_prevouts4);
 
     // All blocks have one transaction.
-    BOOST_REQUIRE_EQUAL(query.to_block_prevouts(0), output_links{});
-    BOOST_REQUIRE_EQUAL(query.to_block_prevouts(1), output_links{});
-    BOOST_REQUIRE_EQUAL(query.to_block_prevouts(2), output_links{});
-    BOOST_REQUIRE_EQUAL(query.to_block_prevouts(3), output_links{});
-    BOOST_REQUIRE_EQUAL(query.to_block_prevouts(4), output_links{});
+    BOOST_REQUIRE_EQUAL(query.to_block_prevouts(0), outs_links{});
+    BOOST_REQUIRE_EQUAL(query.to_block_prevouts(1), outs_links{});
+    BOOST_REQUIRE_EQUAL(query.to_block_prevouts(2), outs_links{});
+    BOOST_REQUIRE_EQUAL(query.to_block_prevouts(3), outs_links{});
+    BOOST_REQUIRE_EQUAL(query.to_block_prevouts(4), outs_links{});
 
     // Past end.
-    BOOST_REQUIRE_EQUAL(query.to_output_tx(4 * 0x51 + 14), tx_link::terminal);
-    BOOST_REQUIRE_EQUAL(query.to_output(5, 0), output_link::terminal);
+    BOOST_REQUIRE_EQUAL(query.to_output_tx(6), tx_link::terminal);
+    BOOST_REQUIRE_EQUAL(query.to_output(5, 0), outs_link::terminal);
     BOOST_REQUIRE(query.to_outputs(5).empty());
     BOOST_REQUIRE(query.to_block_outputs(5).empty());
 }

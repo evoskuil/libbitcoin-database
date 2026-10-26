@@ -40,8 +40,9 @@ typename CLASS::inputs_ptr CLASS::get_inputs(
     const auto inputs = to_shared<chain::input_cptrs>();
     inputs->reserve(fks.size());
 
+    const auto coinbase = is_coinbase(link);
     for (const auto& fk: fks)
-        if (!push_bool(*inputs, get_input(fk, witness)))
+        if (!push_bool(*inputs, get_input(fk, witness, coinbase)))
             return {};
 
     return inputs;
@@ -144,6 +145,31 @@ typename CLASS::block::cptr CLASS::get_block(const header_link& link,
     );
 }
 
+TEMPLATE
+typename CLASS::block_view CLASS::get_block_view(const header_link& link,
+    bool witness) const NOEXCEPT
+{
+    block_view block{ get_wire_block(link, witness), witness };
+    const auto& txs = block.views();
+    const auto links = to_transactions(link);
+    if (!block.is_valid() || (links.size() != txs.size()))
+        return { {}, witness };
+
+    for (size_t index{}; index < txs.size(); ++index)
+    {
+        table::transaction::get_point record{};
+        if (!store_.tx.get(links.at(index), record))
+            return { {}, witness };
+
+        auto fk = record.points_fk;
+        const auto& tx = txs.at(index);
+        for (auto in = tx.inputs_begin(); in != tx.inputs_end(); ++in)
+            in->metadata.input_link = fk++;
+    }
+
+    return block;
+}
+
 // tx_link->tx
 // ----------------------------------------------------------------------------
 
@@ -156,22 +182,18 @@ typename CLASS::transaction::cptr CLASS::get_transaction(const tx_link& link,
     if (!store_.tx.get(link, tx))
         return {};
 
-    table::outs::record outs{};
-    outs.out_fks.resize(tx.outs_count);
-    if (!store_.outs.puts.get(tx.outs_fk, outs))
-        return {};
-
     const auto inputs = to_shared<chain::input_cptrs>();
     const auto outputs = to_shared<chain::output_cptrs>();
     inputs->reserve(tx.ins_count);
     outputs->reserve(tx.outs_count);
 
-    // Points are allocated contiguously.
+    // Points and outs are allocated contiguously.
+    const auto coinbase = is_coinbase(link);
     for (auto fk = tx.point_fk; fk < (tx.point_fk + tx.ins_count); ++fk)
-        if (!push_bool(*inputs, get_input(fk, witness)))
+        if (!push_bool(*inputs, get_input(fk, witness, coinbase)))
             return {};
 
-    for (const auto& fk: outs.out_fks)
+    for (auto fk = tx.outs_fk; fk < (tx.outs_fk + tx.outs_count); ++fk)
         if (!push_bool(*outputs, get_output(fk)))
             return {};
 
@@ -200,11 +222,7 @@ TEMPLATE
 typename CLASS::point CLASS::get_point(
     const ins_link& link) const NOEXCEPT
 {
-    table::ins_point::record point{};
-    if (!store_.ins.get(link, point))
-        return {};
-
-    return { point.hash, point.index };
+    return get_point_key(link);
 }
 
 // ins_link->witness
@@ -215,9 +233,8 @@ typename CLASS::witness::cptr CLASS::get_witness(
     const ins_link& link) const NOEXCEPT
 {
     table::input::get_witness in{};
-    table::ins_sequence::get_input ins{};
-    if (!store_.ins.sequence.get(link, ins) ||
-        !store_.input.get(ins.input_fk, in))
+    table::ins::get_input ins{};
+    if (!store_.ins.get(link, ins) || !store_.input.get(ins.input_fk, in))
         return {};
 
     return in.witness;
@@ -230,9 +247,8 @@ typename CLASS::script::cptr CLASS::get_input_script(
     const ins_link& link) const NOEXCEPT
 {
     table::input::get_script in{};
-    table::ins_sequence::get_input ins{};
-    if (!store_.ins.sequence.get(link, ins) ||
-        !store_.input.get(ins.input_fk, in))
+    table::ins::get_input ins{};
+    if (!store_.ins.get(link, ins) || !store_.input.get(ins.input_fk, in))
         return {};
 
     return in.script;
@@ -245,7 +261,7 @@ TEMPLATE
 typename CLASS::input::cptr CLASS::get_input(const tx_link& link,
     uint32_t index, bool witness) const NOEXCEPT
 {
-    return get_input(to_point(link, index), witness);
+    return get_input(to_point(link, index), witness, is_coinbase(link));
 }
 
 // ins_link->input
@@ -255,18 +271,30 @@ TEMPLATE
 typename CLASS::input::cptr CLASS::get_input(const ins_link& link,
     bool witness) const NOEXCEPT
 {
+    return get_input(link, witness, false);
+}
+
+// A coinbase input has the null point.
+TEMPLATE
+typename CLASS::input::cptr CLASS::get_input(const ins_link& link,
+    bool witness, bool coinbase) const NOEXCEPT
+{
     using namespace system;
     table::input::get_ptrs in{ {}, witness };
-    table::ins_sequence::get_input ins{};
-    table::ins_point::record point{};
-    if (!store_.ins.sequence.get(link, ins) ||
-        !store_.ins.get(link, point) ||
-        !store_.input.get(ins.input_fk, in))
+    table::ins::get_input ins{};
+    outs_link spent{};
+    point key{};
+    if (!store_.ins.get(link, ins) || !store_.input.get(ins.input_fk, in) ||
+        (!coinbase && !get_spent_or_point(spent, key, link)))
         return {};
 
+    if (!spent.is_terminal())
+        key = get_outpoint_key(spent);
+
+    auto hash = key.hash();
     const auto ptr = to_shared<input>
     (
-        make_point(std::move(point.hash), point.index),
+        make_point(std::move(hash), key.index()),
         in.script,
         in.witness,
         ins.sequence
@@ -274,19 +302,20 @@ typename CLASS::input::cptr CLASS::get_input(const ins_link& link,
 
     // Node only (cheap so always include).
     // Internally-populated points will have default link of max_uint32.
-    ptr->metadata.point_link = link;
+    ptr->metadata.input_link = link;
     return ptr;
 }
 
-// output_link->output_script
+// outs_link->output_script
 // ----------------------------------------------------------------------------
 
 TEMPLATE
 typename CLASS::script::cptr CLASS::get_output_script(
-    const output_link& link) const NOEXCEPT
+    const outs_link& link) const NOEXCEPT
 {
+    table::outs::get_output outs{};
     table::output::get_script out{};
-    if (!store_.output.get(link, out))
+    if (!store_.outs.get(link, outs) || !store_.output.get(outs.out_fk, out))
         return {};
 
     return out.script;
@@ -302,26 +331,27 @@ typename CLASS::output::cptr CLASS::get_output(const tx_link& link,
     return get_output(to_output(link, index));
 }
 
-// output_link->output
+// outs_link->output
 // ----------------------------------------------------------------------------
 
 TEMPLATE
 typename CLASS::output::cptr CLASS::get_output(
-    const output_link& link) const NOEXCEPT
+    const outs_link& link) const NOEXCEPT
 {
+    table::outs::get_output outs{};
     table::output::only out{};
-    if (!store_.output.get(link, out))
+    if (!store_.outs.get(link, outs) || !store_.output.get(outs.out_fk, out))
         return {};
 
     return out.output;
 }
 
-// output_link->inputs[spenders]
+// outs_link->inputs[spenders]
 // ----------------------------------------------------------------------------
 
 TEMPLATE
 typename CLASS::inputs_ptr CLASS::get_spenders(
-    const output_link& link, bool witness) const NOEXCEPT
+    const outs_link& link, bool witness) const NOEXCEPT
 {
     using namespace system;
     const auto point_fks = to_spenders(link);
@@ -369,21 +399,22 @@ inpoint CLASS::get_spender(const ins_link& link) const NOEXCEPT
     return { get_tx_key(tx_fk), index };
 }
 
-// output_link_->outpoint
+// outs_link->outpoint
 // ----------------------------------------------------------------------------
 
 TEMPLATE
-outpoint CLASS::get_outpoint(const output_link& link) const NOEXCEPT
+outpoint CLASS::get_outpoint(const outs_link& link) const NOEXCEPT
 {
-    table::output::get_parent_value out{};
-    if (!store_.output.get(link, out))
+    table::outs::record outs{};
+    table::output::get_value out{};
+    if (!store_.outs.get(link, outs) || !store_.output.get(outs.out_fk, out))
         return {};
 
-    const auto index = to_output_index(out.parent_fk, link);
+    const auto index = to_output_index(outs.parent_fk, link);
     if (index == point::null_index)
         return {};
 
-    return { { get_tx_key(out.parent_fk), index }, out.value };
+    return { { get_tx_key(outs.parent_fk), index }, out.value };
 }
 
 // utility
