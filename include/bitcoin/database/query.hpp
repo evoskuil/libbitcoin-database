@@ -1220,7 +1220,7 @@ protected:
     /// Bindings.
     /// -----------------------------------------------------------------------
 
-    code get_binds(tx_binds& out, const header_link& link) const NOEXCEPT;
+    code get_binds(block_binds& out, const header_link& link) const NOEXCEPT;
     code get_binds(binds& out, const tx_link& link) const NOEXCEPT;
 
     /// Caller holds transactor.

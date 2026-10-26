@@ -33,22 +33,31 @@ namespace database {
 
 // protected
 TEMPLATE
-code CLASS::get_binds(tx_binds& out, const header_link& link) const NOEXCEPT
+code CLASS::get_binds(block_binds& out, const header_link& link) const NOEXCEPT
 {
     const auto links = to_transactions(link);
     if (links.empty())
         return error::integrity;
 
     out.clear();
-    out.reserve(sub1(links.size()));
     for (auto index = one; index < links.size(); ++index)
     {
         const tx_link tx{ links.at(index) };
-        binds values{};
-        if (const auto ec = get_binds(values, tx))
-            return ec;
+        table::transaction::get_puts record{};
+        if (!store_.tx.get(tx, record))
+            return error::integrity;
 
-        out.emplace_back(tx.value, std::move(values));
+        const auto end = record.points_fk + record.ins_count;
+        for (auto fk = record.points_fk; fk < end; ++fk)
+        {
+            outs_link spent{};
+            point key{};
+            if (!get_spent_or_point(spent, key, fk))
+                return error::integrity;
+
+            out.emplace_back(tx.value, fk,
+                (spent.is_terminal() ? to_output(key) : spent).value);
+        }
     }
 
     return error::success;
@@ -224,7 +233,7 @@ code CLASS::bind(const tx_link& link, const transaction& tx) NOEXCEPT
 TEMPLATE
 code CLASS::bind(const header_link& link) NOEXCEPT
 {
-    tx_binds values{};
+    block_binds values{};
     if (const auto ec = get_binds(values, link))
         return ec;
 
@@ -233,13 +242,16 @@ code CLASS::bind(const header_link& link) NOEXCEPT
     // ========================================================================
     const auto scope = get_transactor();
 
-    for (const auto& [tx, spends]: values)
+    for (const auto& [tx, ins, outs]: values)
     {
-        const auto ec = bind(tx_link{ tx }, spends);
-        if (ec == system::error::missing_previous_output)
+        if (outs == outs_link::terminal)
+        {
             found = false;
-        else if (ec)
-            return ec;
+            continue;
+        }
+
+        if (!spend(ins, outs, tx))
+            return error::integrity;
     }
     // ========================================================================
 

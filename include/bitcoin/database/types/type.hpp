@@ -60,7 +60,10 @@ using ins_key = system::chain::point;
 
 /// The input and spent output links of the spends of a tx.
 using binds = std::vector<std::pair<ins_link::integer, outs_link::integer>>;
-using tx_binds = std::vector<std::pair<tx_link::integer, binds>>;
+
+/// The spender, input and spent output links of the spends of a block.
+using block_binds = std::vector<std::tuple<tx_link::integer,
+    ins_link::integer, outs_link::integer>>;
 
 /// Point index (uint32_t).
 using index = table::transaction::ix::integer;
