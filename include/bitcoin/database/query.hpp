@@ -957,7 +957,8 @@ public:
     code bind(const header_link& link, const block_view& block) NOEXCEPT;
     code bind(const tx_link& link, const transaction& tx) NOEXCEPT;
 
-    /// Bind the spends of the archived block/tx.
+    /// Bind the spends of the archived blocks/block/tx.
+    code bind(std::vector<code>& out, const header_links& links) NOEXCEPT;
     code bind(const header_link& link) NOEXCEPT;
     code bind(const tx_link& link) NOEXCEPT;
 
@@ -1221,6 +1222,9 @@ protected:
     /// -----------------------------------------------------------------------
 
     code get_spends(block_spends& out, const header_link& link) const NOEXCEPT;
+    code get_spends(block_spends& out,
+        const header_links& links) const NOEXCEPT;
+    code get_spent_outs(block_spends& spends) const NOEXCEPT;
 
     /// Caller holds transactor.
     bool set_spends(block_spends& spends) NOEXCEPT;

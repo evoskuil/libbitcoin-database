@@ -59,7 +59,7 @@ using ins_links = std::vector<ins_link::integer>;
 using ins_key = system::chain::point;
 
 /// A spend: its spender, input, points row, spent output and point, with
-/// binding pass state.
+/// binding pass state and the ordinal of its block in a multiple block bind.
 struct block_spend
 {
     tx_link::integer tx{};
@@ -69,6 +69,7 @@ struct block_spend
     system::chain::point key{};
     bool bank{};
     bool pending{};
+    size_t block{};
 };
 
 using block_spends = std::vector<block_spend>;

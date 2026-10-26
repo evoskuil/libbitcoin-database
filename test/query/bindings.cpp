@@ -296,4 +296,32 @@ BOOST_AUTO_TEST_CASE(query_bindings__bind__view_missing_then_found__found_bound)
     BOOST_REQUIRE_EQUAL(query.to_spender_txs(query.to_output(0, 0)), tx_links{ found_fk });
 }
 
+BOOST_AUTO_TEST_CASE(query_bindings__bind__store_blocks__result_per_block)
+{
+    settings settings{};
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BOOST_REQUIRE(!store.create(test::events_handler));
+    BOOST_REQUIRE(query.initialize(test::genesis));
+
+    const auto& genesis_coinbase = *test::genesis.transactions_ptr()->front();
+    const transaction found{ 1, inputs{ input{ point{ genesis_coinbase.hash(false), 0 }, script{}, witness{}, max_uint32 } }, outputs{ output{ 1, script{} } }, 0 };
+    const transaction missing{ 1, inputs{ input{ point{ system::one_hash, 0 }, script{}, witness{}, max_uint32 } }, outputs{ output{ 1, script{} } }, 0 };
+    const block first{ header{ 1, test::block0_hash, hash_digest{ 0x49 }, 0, 0, 0 }, transactions{ make_coinbase(), found } };
+    const block second{ header{ 1, first.hash(), hash_digest{ 0x4a }, 0, 0, 0 }, transactions{ make_coinbase(), missing } };
+    BOOST_REQUIRE(query.set(first, context{ 0, 1, 0 }, {}, false, false));
+    BOOST_REQUIRE(query.set(second, context{ 0, 2, 0 }, {}, false, false));
+
+    std::vector<code> out{};
+    BOOST_REQUIRE(!query.bind(out, header_links{ 1, 2 }));
+    BOOST_REQUIRE_EQUAL(out.size(), 2u);
+    BOOST_REQUIRE(!out.front());
+    BOOST_REQUIRE_EQUAL(out.back(), system::error::missing_previous_output);
+
+    const auto found_fk = query.to_tx(found.hash(false));
+    BOOST_REQUIRE_EQUAL(query.to_spent(query.to_point(found_fk, 0)), query.to_output(0, 0));
+    BOOST_REQUIRE_EQUAL(query.to_spender_txs(query.to_output(0, 0)), tx_links{ found_fk });
+}
+
 BOOST_AUTO_TEST_SUITE_END()

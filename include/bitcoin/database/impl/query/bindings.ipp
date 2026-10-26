@@ -64,6 +64,59 @@ code CLASS::get_spends(block_spends& out,
             out.push_back({ txs.at(add1(index)), ins });
     }
 
+    return get_spent_outs(out);
+}
+
+// protected
+TEMPLATE
+code CLASS::get_spends(block_spends& out,
+    const header_links& links) const NOEXCEPT
+{
+    std::vector<std::pair<size_t, tx_link::integer>> txs{};
+    for (size_t block{}; block < links.size(); ++block)
+    {
+        const auto fks = to_transactions(links.at(block));
+        if (fks.empty())
+            return error::integrity;
+
+        // The coinbase spends no output.
+        for (auto fk = std::next(fks.cbegin()); fk != fks.cend(); ++fk)
+            txs.emplace_back(block, *fk);
+    }
+
+    std::vector<table::transaction::get_puts> puts(txs.size());
+    {
+        const auto ptr = store_.tx.get_memory();
+        for (size_t index{}; index < txs.size(); ++index)
+            if (!store_.tx.get(ptr, txs.at(index).second, puts.at(index)))
+                return error::integrity;
+    }
+
+    size_t inputs{};
+    for (const auto& put: puts)
+        inputs += put.ins_count;
+
+    out.clear();
+    out.reserve(inputs);
+    for (size_t index{}; index < txs.size(); ++index)
+    {
+        const auto& [block, tx] = txs.at(index);
+        const auto& put = puts.at(index);
+        const auto end = put.points_fk + put.ins_count;
+        for (auto ins = put.points_fk; ins < end; ++ins)
+        {
+            out.push_back({ tx, ins });
+            out.back().block = block;
+        }
+    }
+
+    return get_spent_outs(out);
+}
+
+// protected
+TEMPLATE
+code CLASS::get_spent_outs(block_spends& out) const NOEXCEPT
+{
     for (const auto bank: { false, true })
     {
         const auto& points = store_.points_bank(bank);
@@ -287,6 +340,27 @@ code CLASS::bind(const tx_link& link, const transaction& tx) NOEXCEPT
 
     if (!found)
         return system::error::missing_previous_output;
+
+    return error::success;
+}
+
+TEMPLATE
+code CLASS::bind(std::vector<code>& out, const header_links& links) NOEXCEPT
+{
+    block_spends spends{};
+    if (const auto ec = get_spends(spends, links))
+        return ec;
+
+    out.assign(links.size(), error::success);
+    for (const auto& spend: spends)
+        if (outs_link{ spend.outs }.is_terminal())
+            out.at(spend.block) = system::error::missing_previous_output;
+
+    // ========================================================================
+    const auto scope = get_transactor();
+    if (!set_spends(spends))
+        return error::integrity;
+    // ========================================================================
 
     return error::success;
 }
