@@ -101,6 +101,12 @@ public:
     /// Query interface, iterator is not thread safe.
     /// -----------------------------------------------------------------------
 
+    /// Allocate count records or slab bytes at returned link (follow with put).
+    inline Link allocate(const Link& count) NOEXCEPT;
+
+    /// Return ptr for batch processing, holds shared lock on storage remap.
+    inline memory get_memory() const NOEXCEPT;
+
     /// Return element link at key, terminal if not found/error (unverified).
     inline Link at(size_t key) const NOEXCEPT;
 
@@ -115,10 +121,16 @@ public:
     template <typename Element, if_equal<Element::size, RowSize> = true>
     inline bool get(const Link& link, Element& element) const NOEXCEPT;
 
-    /// Allocate, set, commit element to key.
+    /// Allocate, set, commit element to key (each record to its own key).
     /// Expands table AND HEADER as necessary.
     template <typename Element, if_equal<Element::size, RowSize> = true>
     bool put(size_t key, const Element& element) NOEXCEPT;
+
+    /// Set/commit allocated element at link to key, using get_memory() ptr.
+    /// Each record is committed to its own key, from key.
+    template <typename Element, if_equal<Element::size, RowSize> = true>
+    bool put(const memory& ptr, const Link& link, size_t key,
+        const Element& element) NOEXCEPT;
 
 private:
     static constexpr auto is_slab = (RowSize == max_size_t);

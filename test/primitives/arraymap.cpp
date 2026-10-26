@@ -886,6 +886,76 @@ BOOST_AUTO_TEST_CASE(arraymap__record_body_count__non_empty_restore__truncates)
     BOOST_REQUIRE(!instance.get_fault());
 }
 
+// put records
+// ----------------------------------------------------------------------------
+
+class pair_record
+{
+public:
+    static constexpr size_t size = sizeof(uint32_t);
+    static constexpr link3 count() NOEXCEPT { return 2; }
+
+    bool to_data(database::finalizer& sink) const NOEXCEPT
+    {
+        sink.write_little_endian(first);
+        sink.write_little_endian(second);
+        return sink;
+    }
+
+    uint32_t first{ 0 };
+    uint32_t second{ 0 };
+};
+
+BOOST_AUTO_TEST_CASE(arraymap__put__records__each_keyed)
+{
+    test::chunk_storage head_store{ test::terminal_fill };
+    test::chunk_storage body_store{};
+    arraymap_<link3, little_record::size> instance{ head_store, body_store, initial_buckets };
+    BOOST_REQUIRE(instance.create());
+    BOOST_REQUIRE(instance.put(5u, pair_record{ 0x01020304_u32, 0x05060708_u32 }));
+    BOOST_REQUIRE_EQUAL(instance.count(), 2u);
+    BOOST_REQUIRE_EQUAL(instance.at(5u), 0u);
+    BOOST_REQUIRE_EQUAL(instance.at(6u), 1u);
+    BOOST_REQUIRE(instance.at(4u).is_terminal());
+    BOOST_REQUIRE(instance.at(7u).is_terminal());
+
+    little_record record{};
+    BOOST_REQUIRE(instance.at(6u, record));
+    BOOST_REQUIRE_EQUAL(record.value, 0x05060708_u32);
+}
+
+BOOST_AUTO_TEST_CASE(arraymap__put__allocated__each_keyed)
+{
+    test::chunk_storage head_store{ test::terminal_fill };
+    test::chunk_storage body_store{};
+    arraymap_<link3, little_record::size> instance{ head_store, body_store, initial_buckets };
+    BOOST_REQUIRE(instance.create());
+
+    const auto link = instance.allocate(4u);
+    BOOST_REQUIRE_EQUAL(link, 0u);
+
+    const auto ptr = instance.get_memory();
+    BOOST_REQUIRE(instance.put(ptr, 2u, 10u, pair_record{ 0x01020304_u32, 0x05060708_u32 }));
+    BOOST_REQUIRE(instance.put(ptr, 0u, 8u, pair_record{ 0x090a0b0c_u32, 0x0d0e0f00_u32 }));
+    BOOST_REQUIRE_EQUAL(instance.at(8u), 0u);
+    BOOST_REQUIRE_EQUAL(instance.at(9u), 1u);
+    BOOST_REQUIRE_EQUAL(instance.at(10u), 2u);
+    BOOST_REQUIRE_EQUAL(instance.at(11u), 3u);
+}
+
+BOOST_AUTO_TEST_CASE(arraymap__put__allocated_below_base__false)
+{
+    test::chunk_storage head_store{ test::terminal_fill };
+    test::chunk_storage body_store{};
+    arraymap_<link3, little_record::size, false, true> instance{ head_store, body_store, initial_buckets };
+    BOOST_REQUIRE(instance.create());
+    BOOST_REQUIRE(instance.drop(10u));
+
+    const auto link = instance.allocate(2u);
+    BOOST_REQUIRE(!instance.put(instance.get_memory(), link, 9u, pair_record{ 1, 2 }));
+    BOOST_REQUIRE(instance.at(10u).is_terminal());
+}
+
 // based
 // ----------------------------------------------------------------------------
 
