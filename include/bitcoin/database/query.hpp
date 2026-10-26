@@ -1220,13 +1220,10 @@ protected:
     /// Bindings.
     /// -----------------------------------------------------------------------
 
-    code get_binds(block_binds& out, const header_link& link) const NOEXCEPT;
-    code get_binds(binds& out, const tx_link& link) const NOEXCEPT;
+    code get_spends(block_spends& out, const header_link& link) const NOEXCEPT;
 
     /// Caller holds transactor.
-    bool spend(const ins_link& link, const outs_link& spent,
-        const tx_link& spender) NOEXCEPT;
-    code bind(const tx_link& link, const binds& values) NOEXCEPT;
+    bool set_spends(block_spends& spends) NOEXCEPT;
     bool mark(const tx_link& spender, const outs_link& spent) NOEXCEPT;
 
     /// Context.

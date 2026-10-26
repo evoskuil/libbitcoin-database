@@ -192,9 +192,14 @@ bool CLASS::set_base(const Link& base) NOEXCEPT
 }
 
 TEMPLATE
+memory CLASS::get_memory() const NOEXCEPT
+{
+    return file_.get();
+}
+
+TEMPLATE
 Link CLASS::at(size_t key) const NOEXCEPT
 {
-    using namespace system;
     const auto link = index(key);
     if (link.is_terminal())
         return {};
@@ -209,10 +214,35 @@ Link CLASS::at(size_t key) const NOEXCEPT
     if (!ptr)
         return {};
 
+    return load(ptr.data());
+}
+
+TEMPLATE
+Link CLASS::at(const memory& ptr, size_t key) const NOEXCEPT
+{
+    using namespace system;
+    const auto link = index(key);
+    if (!ptr || link.is_terminal())
+        return {};
+
+    // The accessor bounds the head to its size when taken.
+    const auto position = link_to_position(link);
+    if (is_limited<ptrdiff_t>(position + bucket_size) ||
+        possible_narrow_sign_cast<ptrdiff_t>(position + bucket_size) >
+        ptr.size())
+        return {};
+
+    return load(ptr.offset(position));
+}
+
+// private
+TEMPLATE
+Link CLASS::load(memory::iterator raw) const NOEXCEPT
+{
+    using namespace system;
     if constexpr (aligned)
     {
         // Reads full padded word.
-        const auto raw = ptr.data();
         const auto& head = *pointer_cast<std::atomic<CLASS::link>>(raw);
 
         // Aligned values must be masked to match terminal.
@@ -220,7 +250,7 @@ Link CLASS::at(size_t key) const NOEXCEPT
     }
     else
     {
-        const auto& head = to_array<bucket_size>(ptr.data());
+        const auto& head = to_array<bucket_size>(raw);
         mutex_.lock_shared();
         const auto top = head;
         mutex_.unlock_shared();

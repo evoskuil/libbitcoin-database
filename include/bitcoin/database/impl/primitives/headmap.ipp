@@ -387,8 +387,40 @@ bool CLASS::set(size_t index, const Element& element) NOEXCEPT
     if (!ptr)
         return false;
 
+    return exchange(ptr.data(), position, element);
+}
+
+TEMPLATE
+template <typename Element, if_equal<Element::size, Cell>,
+    if_not_equal<Element::size, max_size_t>>
+bool CLASS::set(const memory& ptr, size_t index,
+    const Element& element) NOEXCEPT
+{
+    using namespace system;
+    static_assert(!is_slab);
+    static_assert(aligned, "set requires an aligned cell");
+
+    // Buckets at or above the logical size are unallocated (count publishes).
+    if (!ptr || index >= count())
+        return false;
+
+    const auto position = link_to_position(index);
+    const auto raw = ptr.offset(position);
+    if (is_null(raw))
+        return false;
+
+    return exchange(raw, position, element);
+}
+
+// private
+TEMPLATE
+template <typename Element>
+bool CLASS::exchange(memory::iterator raw, size_t position,
+    const Element& element) NOEXCEPT
+{
+    using namespace system;
     file_.prepare(position, bucket_size);
-    auto& top = *pointer_cast<std::atomic<cell>>(ptr.data());
+    auto& top = *pointer_cast<std::atomic<cell>>(raw);
     auto head = top.load(std::memory_order_acquire);
     auto written = true;
     cell update{};

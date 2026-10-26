@@ -203,19 +203,19 @@ code CLASS::set_code(const tx_link& tx_fk, const transaction& tx, bool block,
     // A free tx is bound before it is committed to search.
     if (!block && !coinbase)
     {
-        binds values{};
-        values.reserve(inputs);
+        block_spends spends{};
+        spends.reserve(inputs);
         auto fk = ins_fk.value;
         for (const auto& in: *ins)
         {
             const outs_link spent{ in->metadata.output_link };
-            values.emplace_back(fk++, spent.is_terminal() ?
-                to_output(in->point()).value : spent.value);
+            spends.push_back({ tx_fk.value, fk++ });
+            spends.back().outs = (spent.is_terminal() ?
+                to_output(in->point()) : spent).value;
         }
 
-        const auto ec = bind(tx_fk, values);
-        if (ec && (ec != system::error::missing_previous_output))
-            return ec;
+        if (!set_spends(spends))
+            return error::integrity;
     }
 
     // Commit tx to search (hashmap).

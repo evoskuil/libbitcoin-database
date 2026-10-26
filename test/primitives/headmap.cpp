@@ -581,4 +581,19 @@ BOOST_AUTO_TEST_CASE(headmap__get__unaligned_link__expected)
     BOOST_REQUIRE_EQUAL(out.value, 0x112233_u32);
 }
 
+BOOST_AUTO_TEST_CASE(headmap__set__accessor_within_count__expected)
+{
+    data_chunk head_file{};
+    test::chunk_storage head_store{ head_file };
+    value_headmap instance{ head_store };
+    BOOST_REQUIRE(instance.create());
+    BOOST_REQUIRE(instance.set(3u, byte_put{ 0x2a }));
+
+    const auto ptr = instance.get_memory();
+    BOOST_REQUIRE(instance.set(ptr, 1u, byte_put{ 0x17 }));
+    BOOST_REQUIRE(!instance.set(ptr, 4u, byte_put{ 0x18 }));
+    BOOST_REQUIRE_EQUAL(instance.count(), 4u);
+    BOOST_REQUIRE_EQUAL(head_file, base16_chunk("0017002a"));
+}
+
 BOOST_AUTO_TEST_SUITE_END()

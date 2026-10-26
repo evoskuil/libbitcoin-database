@@ -223,4 +223,19 @@ BOOST_AUTO_TEST_CASE(arrayhead__clear__based__base_retained)
     BOOST_REQUIRE(head.at(43u).is_terminal());
 }
 
+BOOST_AUTO_TEST_CASE(arrayhead__at__accessor__expected)
+{
+    test::chunk_storage store{ test::terminal_fill };
+    based_header head{ store, buckets };
+    BOOST_REQUIRE(head.create());
+    BOOST_REQUIRE(head.set_base(42u));
+    BOOST_REQUIRE(head.push(7u, head.index(43u)));
+
+    const auto ptr = head.get_memory();
+    BOOST_REQUIRE_EQUAL(head.at(ptr, 43u), 7u);
+    BOOST_REQUIRE(head.at(ptr, 42u).is_terminal());
+    BOOST_REQUIRE(head.at(ptr, 41u).is_terminal());
+    BOOST_REQUIRE(head.at(ptr, 42u + buckets).is_terminal());
+}
+
 BOOST_AUTO_TEST_SUITE_END()

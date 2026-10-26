@@ -118,6 +118,12 @@ public:
         if_not_equal<Element::size, max_size_t> = true>
     bool set(size_t index, const Element& element) NOEXCEPT;
 
+    /// Set element at index using get_memory() ptr, false if not allocated
+    /// (does not extend count, which requires set without the accessor).
+    template <typename Element, if_equal<Element::size, Cell> = true,
+        if_not_equal<Element::size, max_size_t> = true>
+    bool set(const memory& ptr, size_t index, const Element& element) NOEXCEPT;
+
     /// Slab.
     /// -----------------------------------------------------------------------
 
@@ -187,6 +193,10 @@ private:
     }
 
     Value load(memory::iterator raw) const NOEXCEPT;
+
+    template <typename Element>
+    bool exchange(memory::iterator raw, size_t position,
+        const Element& element) NOEXCEPT;
 
     // These are thread safe.
     storage& file_;

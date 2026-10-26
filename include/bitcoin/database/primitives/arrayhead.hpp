@@ -76,8 +76,14 @@ public:
     /// Convert natural key to head bucket index (unvalidated).
     inline Link index(size_t key) const NOEXCEPT;
 
+    /// Head accessor (shared lock), for at(ptr, key) over many keys.
+    memory get_memory() const NOEXCEPT;
+
     /// Unsafe if verify false.
     Link at(size_t key) const NOEXCEPT;
+
+    /// Return link at key using get_memory() ptr, terminal if not allocated.
+    Link at(const memory& ptr, size_t key) const NOEXCEPT;
 
     /// Assign link value to bucket index.
     bool push(const Link& link, const Link& index) NOEXCEPT;
@@ -90,6 +96,8 @@ private:
     static constexpr auto bucket_size = Align ? sizeof(link) : Link::size;
     static constexpr bool aligned = (bucket_size == sizeof(link));
     static constexpr auto words = Based ? two : one;
+
+    Link load(memory::iterator raw) const NOEXCEPT;
 
     template <size_t Bytes>
     INLINE static auto& to_array(memory::iterator it) NOEXCEPT

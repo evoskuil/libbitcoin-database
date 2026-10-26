@@ -364,19 +364,39 @@ bool CLASS::copy_pool(table::pool& to, table::pool& from, const Keep& keep,
 TEMPLATE
 bool CLASS::save_unbound(const table::points& bank, size_t end) NOEXCEPT
 {
-    const auto base = bank.base().value;
-    const auto ptr = spend.get_memory();
-    for (auto fk = base; fk < end; ++fk)
+    using row_t = table::points::link::integer;
+    std::vector<std::pair<table::ins::link::integer, row_t>> rows{};
     {
-        const auto row = bank.at(fk);
-        if (row.is_terminal() || !spend.at(ptr, fk).is_terminal())
+        const auto ptr = spend.get_memory();
+        for (auto fk = bank.base().value; fk < end; ++fk)
+            if (spend.at(ptr, fk).is_terminal())
+                rows.emplace_back(fk, table::points::link::terminal);
+    }
+
+    {
+        const auto head = bank.get_head_memory();
+        for (auto& [fk, row]: rows)
+            row = bank.at(head, fk).value;
+    }
+
+    std::vector<table::points::record> points(rows.size());
+    {
+        const auto body = bank.get_memory();
+        for (size_t index{}; index < rows.size(); ++index)
+        {
+            const table::points::link row{ rows.at(index).second };
+            if (!row.is_terminal() && !bank.get(body, row, points.at(index)))
+                return false;
+        }
+    }
+
+    for (size_t index{}; index < rows.size(); ++index)
+    {
+        if (table::points::link{ rows.at(index).second }.is_terminal())
             continue;
 
-        table::points::record point{};
-        if (!bank.get(row, point))
-            return false;
-
-        const auto key = table::unbound::to_key(fk);
+        const auto& point = points.at(index);
+        const auto key = table::unbound::to_key(rows.at(index).first);
         if (unbound.first(key).is_terminal() && !unbound.put(key,
             table::unbound::record{ {}, { point.hash, point.index } }))
             return false;

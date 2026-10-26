@@ -58,12 +58,20 @@ using outs_links = std::vector<outs_link::integer>;
 using ins_links = std::vector<ins_link::integer>;
 using ins_key = system::chain::point;
 
-/// The input and spent output links of the spends of a tx.
-using binds = std::vector<std::pair<ins_link::integer, outs_link::integer>>;
+/// A spend: its spender, input, points row, spent output and point, with
+/// binding pass state.
+struct block_spend
+{
+    tx_link::integer tx{};
+    ins_link::integer ins{};
+    table::points::link::integer row{ table::points::link::terminal };
+    outs_link::integer outs{ outs_link::terminal };
+    system::chain::point key{};
+    bool bank{};
+    bool pending{};
+};
 
-/// The spender, input and spent output links of the spends of a block.
-using block_binds = std::vector<std::tuple<tx_link::integer,
-    ins_link::integer, outs_link::integer>>;
+using block_spends = std::vector<block_spend>;
 
 /// Point index (uint32_t).
 using index = table::transaction::ix::integer;

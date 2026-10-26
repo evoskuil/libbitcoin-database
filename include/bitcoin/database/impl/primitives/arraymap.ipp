@@ -177,9 +177,21 @@ inline memory CLASS::get_memory() const NOEXCEPT
 }
 
 TEMPLATE
+inline memory CLASS::get_head_memory() const NOEXCEPT
+{
+    return head_.get_memory();
+}
+
+TEMPLATE
 inline Link CLASS::at(size_t key) const NOEXCEPT
 {
     return head_.at(key);
+}
+
+TEMPLATE
+inline Link CLASS::at(const memory& head, size_t key) const NOEXCEPT
+{
+    return head_.at(head, key);
 }
 
 TEMPLATE
@@ -205,6 +217,35 @@ inline bool CLASS::get(const Link& link, Element& element) const NOEXCEPT
 
     using namespace system;
     iostream stream{ ptr };
+    reader source{ stream };
+
+    if constexpr (!is_slab) { BC_DEBUG_ONLY(source.set_limit(RowSize * element.count());) }
+    return element.from_data(source);
+}
+
+TEMPLATE
+ELEMENT_CONSTRAINT
+inline bool CLASS::get(const memory& ptr, const Link& link,
+    Element& element) const NOEXCEPT
+{
+    using namespace system;
+    if (!ptr || link.is_terminal())
+        return false;
+
+    const auto start = body::link_to_position(link);
+    if (is_limited<ptrdiff_t>(start))
+        return false;
+
+    const auto size = ptr.size();
+    const auto position = possible_narrow_sign_cast<ptrdiff_t>(start);
+    if (position >= size)
+        return false;
+
+    const auto offset = ptr.offset(start);
+    if (is_null(offset))
+        return false;
+
+    iostream stream{ offset, size - position };
     reader source{ stream };
 
     if constexpr (!is_slab) { BC_DEBUG_ONLY(source.set_limit(RowSize * element.count());) }
