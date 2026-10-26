@@ -38,6 +38,8 @@ BOOST_AUTO_TEST_CASE(query_consensus__get_validated_fork__bypassed_filters_pendi
     const auto link2 = query.to_header(test::block2_hash);
     BOOST_REQUIRE(query.push_candidate(link1));
     BOOST_REQUIRE(query.push_candidate(link2));
+    BOOST_REQUIRE(query.set_block_valid(link1));
+    BOOST_REQUIRE(query.set_block_valid(link2));
 
     size_t fork_point{};
     auto fork = query.get_validated_fork(fork_point);
@@ -76,6 +78,8 @@ BOOST_AUTO_TEST_CASE(query_consensus__get_validated_fork__filters_disabled__bypa
     const auto link2 = query.to_header(test::block2_hash);
     BOOST_REQUIRE(query.push_candidate(link1));
     BOOST_REQUIRE(query.push_candidate(link2));
+    BOOST_REQUIRE(query.set_block_valid(link1));
+    BOOST_REQUIRE(query.set_block_valid(link2));
 
     size_t fork_point{};
     const auto fork = query.get_validated_fork(fork_point);
@@ -106,6 +110,8 @@ BOOST_AUTO_TEST_CASE(query_consensus__get_validated_fork__bypassed_unscanned__st
     const auto link2 = query.to_header(test::block2_hash);
     BOOST_REQUIRE(query.push_candidate(link1));
     BOOST_REQUIRE(query.push_candidate(link2));
+    BOOST_REQUIRE(query.set_block_valid(link1));
+    BOOST_REQUIRE(query.set_block_valid(link2));
 
     size_t fork_point{};
     auto fork = query.get_validated_fork(fork_point);
@@ -119,6 +125,33 @@ BOOST_AUTO_TEST_CASE(query_consensus__get_validated_fork__bypassed_unscanned__st
     BOOST_REQUIRE_EQUAL(fork.size(), 2u);
     BOOST_REQUIRE(fork.back().link == link2);
     BOOST_REQUIRE(is_bypass(fork.back().state));
+}
+
+BOOST_AUTO_TEST_CASE(query_consensus__get_validated_fork__bypassed_unvalidated__stops_at_unvalidated)
+{
+    settings settings{};
+    settings.path = TEST_DIRECTORY;
+    settings.filter_tx.buckets = 0;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BOOST_REQUIRE(!store.create(test::events_handler));
+    BOOST_REQUIRE(query.initialize(test::genesis));
+    BOOST_REQUIRE(query.set(test::block1, database::context{ 0, 1, 0 }, {}, true, false));
+    BOOST_REQUIRE(query.set(test::block2, database::context{ 0, 2, 0 }, {}, true, false));
+
+    const auto link1 = query.to_header(test::block1_hash);
+    const auto link2 = query.to_header(test::block2_hash);
+    BOOST_REQUIRE(query.push_candidate(link1));
+    BOOST_REQUIRE(query.push_candidate(link2));
+
+    size_t fork_point{};
+    auto fork = query.get_validated_fork(fork_point);
+    BOOST_REQUIRE(fork.empty());
+
+    BOOST_REQUIRE(query.set_block_valid(link1));
+    fork = query.get_validated_fork(fork_point);
+    BOOST_REQUIRE_EQUAL(fork.size(), 1u);
+    BOOST_REQUIRE(fork.front().link == link1);
 }
 
 BOOST_AUTO_TEST_CASE(query_consensus__get_validated_fork__milestone_filter_pending__empty)

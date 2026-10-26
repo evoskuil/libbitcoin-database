@@ -135,7 +135,7 @@ header_states CLASS::get_validated_fork(size_t& fork_point) const NOEXCEPT
             !database::is_filtered(state))
             break;
 
-        if (!database::is_bypass(state) && !database::is_validated(state))
+        if (!database::is_validated(state))
             break;
 
         out.emplace_back(link, state);
