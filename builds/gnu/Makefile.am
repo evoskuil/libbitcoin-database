@@ -301,12 +301,12 @@ include_bitcoin_database_tables_archivesdir = \
     ${includedir}/bitcoin/database/tables/archives
 
 include_bitcoin_database_tables_archives_HEADERS = \
-    ${srcdir}/../../include/bitcoin/database/tables/archives/bindings.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/archives/header.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/archives/input.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/archives/ins.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/archives/output.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/archives/outs.hpp \
+    ${srcdir}/../../include/bitcoin/database/tables/archives/spend.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/archives/transaction.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/archives/txs.hpp \
     ${srcdir}/../../include/bitcoin/database/tables/archives/unbound.hpp
@@ -487,12 +487,12 @@ test_libbitcoin_database_test_SOURCES = \
     ${srcdir}/../../test/store/store_tables.cpp \
     ${srcdir}/../../test/store/store_unload_close.cpp \
     ${srcdir}/../../test/tables/envelope.cpp \
-    ${srcdir}/../../test/tables/archives/bindings.cpp \
     ${srcdir}/../../test/tables/archives/header.cpp \
     ${srcdir}/../../test/tables/archives/input.cpp \
     ${srcdir}/../../test/tables/archives/ins.cpp \
     ${srcdir}/../../test/tables/archives/output.cpp \
     ${srcdir}/../../test/tables/archives/outs.cpp \
+    ${srcdir}/../../test/tables/archives/spend.cpp \
     ${srcdir}/../../test/tables/archives/transaction.cpp \
     ${srcdir}/../../test/tables/archives/txs.cpp \
     ${srcdir}/../../test/tables/archives/unbound.cpp \

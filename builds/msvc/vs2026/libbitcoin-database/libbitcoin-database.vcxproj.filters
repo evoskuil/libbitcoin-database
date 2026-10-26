@@ -290,9 +290,6 @@
     <ClInclude Include="..\..\..\..\include\bitcoin\database\store.hpp">
       <Filter>include\bitcoin\database</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\archives\bindings.hpp">
-      <Filter>include\bitcoin\database\tables\archives</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\archives\header.hpp">
       <Filter>include\bitcoin\database\tables\archives</Filter>
     </ClInclude>
@@ -306,6 +303,9 @@
       <Filter>include\bitcoin\database\tables\archives</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\archives\outs.hpp">
+      <Filter>include\bitcoin\database\tables\archives</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\archives\spend.hpp">
       <Filter>include\bitcoin\database\tables\archives</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\..\include\bitcoin\database\tables\archives\transaction.hpp">

@@ -315,9 +315,6 @@
     <ClCompile Include="..\..\..\..\test\store\store_unload_close.cpp">
       <Filter>src\store</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\..\test\tables\archives\bindings.cpp">
-      <Filter>src\tables\archives</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\..\test\tables\archives\header.cpp">
       <Filter>src\tables\archives</Filter>
     </ClCompile>
@@ -331,6 +328,9 @@
       <Filter>src\tables\archives</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\test\tables\archives\outs.cpp">
+      <Filter>src\tables\archives</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\..\test\tables\archives\spend.cpp">
       <Filter>src\tables\archives</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\..\test\tables\archives\transaction.cpp">
