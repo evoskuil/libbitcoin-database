@@ -122,8 +122,15 @@ bool CLASS::expand(const Link& count) NOEXCEPT
     if (count.is_terminal())
         return false;
 
-    // Expand to count visible records (absolute, shared row count).
-    return files_.expand(link_to_elements(count));
+    // Expand to count visible records (absolute, shared row count), as
+    // allocations completed by the writers of the rows in place.
+    const auto target = link_to_elements(count);
+    for (auto logical = files_.size(); logical < target;
+        logical = files_.size())
+        if (files_.allocate(target - logical) == storage::eof)
+            return false;
+
+    return true;
 }
 
 TEMPLATE

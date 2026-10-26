@@ -157,6 +157,9 @@ public:
     /// Complete count allocated records at link that are never written.
     inline void abandon(const Link& link, const Link& count) NOEXCEPT;
 
+    /// Complete count expanded records at link, once written.
+    inline void complete(const Link& link, const Link& count) NOEXCEPT;
+
     /// Return ptr for batch processing, holds shared lock on storage remap.
     inline memory get_memory() const NOEXCEPT;
 
@@ -231,6 +234,9 @@ public:
     template <typename Element, if_equal<Element::size, RowSize> = true>
     inline bool put(bool& duplicate, const memory& ptr, const Link& link,
         const Key& key, const Element& element) NOEXCEPT;
+
+    /// Commit element at expanded (committed) link to key.
+    bool push(const memory& ptr, const Link& link, const Key& key) NOEXCEPT;
 
     /// Commit previously set element at link to key.
     inline Link commit_link(const Link& link, const Key& key) NOEXCEPT;

@@ -264,6 +264,12 @@ inline void CLASS::abandon(const Link& link, const Link& count) NOEXCEPT
 }
 
 TEMPLATE
+inline void CLASS::complete(const Link& link, const Link& count) NOEXCEPT
+{
+    body_.complete(link, count);
+}
+
+TEMPLATE
 inline memory CLASS::get_memory() const NOEXCEPT
 {
     return body_.get();
@@ -488,6 +494,18 @@ TEMPLATE
 bool CLASS::commit(const memory& ptr, const Link& link,
     const Key& key) NOEXCEPT
 {
+    if (!push(ptr, link, key))
+        return false;
+
+    // set/commit is limited to record tables, one row at a time.
+    body_.complete(link, one);
+    return true;
+}
+
+TEMPLATE
+bool CLASS::push(const memory& ptr, const Link& link,
+    const Key& key) NOEXCEPT
+{
     using namespace system;
     if (!ptr)
         return false;
@@ -499,12 +517,7 @@ bool CLASS::commit(const memory& ptr, const Link& link,
 
     // Commit element to search index (terminal is a valid bucket index).
     auto& next = unsafe_array_cast<uint8_t, Link::size>(offset);
-    if (!head_.push(link, next, key))
-        return false;
-
-    // set/commit is limited to record tables, one row at a time.
-    body_.complete(link, one);
-    return true;
+    return head_.push(link, next, key);
 }
 
 // protected

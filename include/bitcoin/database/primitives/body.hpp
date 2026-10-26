@@ -71,7 +71,7 @@ public:
     /// Reduce logical size to count records (false if exceeds logical).
     bool truncate(const Link& count) NOEXCEPT;
 
-    /// Increase logical size to count records as required (false if fails).
+    /// Increase logical size to count allocated records (false if fails).
     bool expand(const Link& count) NOEXCEPT;
 
     /// Thread safe but reservations do not accumulate (effectively unsafe).
