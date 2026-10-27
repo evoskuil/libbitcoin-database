@@ -306,11 +306,8 @@ BOOST_AUTO_TEST_CASE(query_bindings__bind__store_blocks__result_per_block)
     BOOST_REQUIRE(query.set(first, context{ 0, 1, 0 }, {}, false, false));
     BOOST_REQUIRE(query.set(second, context{ 0, 2, 0 }, {}, false, false));
 
-    std::vector<code> out{};
-    BOOST_REQUIRE(!query.bind(out, header_links{ 1, 2 }));
-    BOOST_REQUIRE_EQUAL(out.size(), 2u);
-    BOOST_REQUIRE(!out.front());
-    BOOST_REQUIRE_EQUAL(out.back(), system::error::missing_previous_output);
+    BOOST_REQUIRE(!query.bind(header_link{ 1 }));
+    BOOST_REQUIRE_EQUAL(query.bind(header_link{ 2 }), system::error::missing_previous_output);
 
     const auto found_fk = query.to_tx(found.hash(false));
     BOOST_REQUIRE_EQUAL(query.to_spent(query.to_point(found_fk, 0)), query.to_output(0, 0));

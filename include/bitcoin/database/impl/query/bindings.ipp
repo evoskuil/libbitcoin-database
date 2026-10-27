@@ -27,15 +27,16 @@ namespace database {
 // Binding.
 // An input is bound to the output it spends when its prevout is first
 // resolved, by writing its spend cell, and the first binding of the cell sets
-// the spent (and contested) bits of the output and puts its spender row.
-// Binding is content, so rebinding is idempotent and nothing here is written
-// or cleared by confirmation or reorganization (see consensus_block.ipp).
-// Each pass holds the accessor of one table.
+// the spent (and contested) bits of the output and puts its spender row. An
+// input that is not resolved remains banked, to be swept to the unbound table
+// by the drain of its bank. Binding is content, so rebinding is idempotent and
+// nothing here is written or cleared by confirmation or reorganization (see
+// consensus_block.ipp). Each pass holds the accessor of one table.
 // ----------------------------------------------------------------------------
 
 // protected
 TEMPLATE
-code CLASS::get_spends(block_spends& out,
+code CLASS::get_point_sets(point_sets& out,
     const header_link& link) const NOEXCEPT
 {
     const auto txs = to_transactions(link);
@@ -43,71 +44,19 @@ code CLASS::get_spends(block_spends& out,
         return error::integrity;
 
     // The coinbase spends no output.
-    std::vector<table::transaction::get_puts> puts(sub1(txs.size()));
+    out.resize(sub1(txs.size()));
     {
         const auto ptr = store_.tx.get_memory();
-        for (size_t index{}; index < puts.size(); ++index)
-            if (!store_.tx.get(ptr, txs.at(add1(index)), puts.at(index)))
-                return error::integrity;
-    }
-
-    size_t inputs{};
-    for (const auto& put: puts)
-        inputs += put.ins_count;
-
-    out.clear();
-    out.reserve(inputs);
-    for (size_t index{}; index < puts.size(); ++index)
-    {
-        const auto& put = puts.at(index);
-        const auto end = put.points_fk + put.ins_count;
-        for (auto ins = put.points_fk; ins < end; ++ins)
-            out.push_back({ txs.at(add1(index)), ins });
-    }
-
-    return get_spent_outs(out);
-}
-
-// protected
-TEMPLATE
-code CLASS::get_spends(block_spends& out,
-    const header_links& links) const NOEXCEPT
-{
-    std::vector<std::pair<size_t, tx_link::integer>> txs{};
-    for (size_t block{}; block < links.size(); ++block)
-    {
-        const auto fks = to_transactions(links.at(block));
-        if (fks.empty())
-            return error::integrity;
-
-        // The coinbase spends no output.
-        for (auto fk = std::next(fks.cbegin()); fk != fks.cend(); ++fk)
-            txs.emplace_back(block, *fk);
-    }
-
-    std::vector<table::transaction::get_puts> puts(txs.size());
-    {
-        const auto ptr = store_.tx.get_memory();
-        for (size_t index{}; index < txs.size(); ++index)
-            if (!store_.tx.get(ptr, txs.at(index).second, puts.at(index)))
-                return error::integrity;
-    }
-
-    size_t inputs{};
-    for (const auto& put: puts)
-        inputs += put.ins_count;
-
-    out.clear();
-    out.reserve(inputs);
-    for (size_t index{}; index < txs.size(); ++index)
-    {
-        const auto& [block, tx] = txs.at(index);
-        const auto& put = puts.at(index);
-        const auto end = put.points_fk + put.ins_count;
-        for (auto ins = put.points_fk; ins < end; ++ins)
+        for (size_t index{}; index < out.size(); ++index)
         {
-            out.push_back({ tx, ins });
-            out.back().block = block;
+            auto& set = out.at(index);
+            table::transaction::get_puts puts{};
+            set.tx = txs.at(add1(index));
+            if (!store_.tx.get(ptr, set.tx, puts))
+                return error::integrity;
+
+            set.ins = puts.points_fk;
+            set.points.resize(puts.ins_count);
         }
     }
 
@@ -115,75 +64,102 @@ code CLASS::get_spends(block_spends& out,
 }
 
 // protected
+// An unbound input's point is read in place from its bank (else from the
+// unbound table) and queried by tx hash. Blocks bind in parallel, so the txs
+// of a block bind in sequence.
 TEMPLATE
-code CLASS::get_spent_outs(block_spends& out) const NOEXCEPT
+code CLASS::get_spent_outs(point_sets& sets) const NOEXCEPT
 {
+    constexpr auto policy = poolstl::execution::seq;
+
     // Pooled txs of the block are bound.
     {
         const auto ptr = store_.spend.get_memory();
-        for (auto& spend: out)
-            spend.outs = store_.spend.at(ptr, spend.ins).value;
+        for (auto& set: sets)
+        {
+            auto ins = set.ins;
+            for (auto& point: set.points)
+                point.outs = store_.spend.at(ptr, ins++).value;
+        }
     }
 
-    // A banked input's point is positioned at its ins less the bank base.
-    for (const auto bank: { false, true })
     {
-        const auto& points = store_.points_bank(bank);
-        const auto base = points.base().value;
-        const auto body = points.get_memory();
-        for (auto& spend: out)
-        {
-            if (!outs_link{ spend.outs }.is_terminal() || spend.ins < base ||
-                !table::points::link{ spend.row }.is_terminal())
-                continue;
-
-            table::points::get_composed point{};
-            const table::points::link row{ spend.ins - base };
-            if (points.get(body, row, point))
+        std::atomic_bool fault{};
+        const auto& points0 = store_.points0;
+        const auto& points1 = store_.points1;
+        const auto base0 = points0.base().value;
+        const auto base1 = points1.base().value;
+        const auto rows0 = points0.get_memory();
+        const auto rows1 = points1.get_memory();
+        const auto txs = store_.tx.get_memory();
+        std::for_each(policy, sets.begin(), sets.end(),
+            [&](point_set& set) NOEXCEPT
             {
-                spend.row = row.value;
-                spend.key = std::move(point.key);
-            }
-        }
-    }
+                auto ins = set.ins;
+                for (auto& point: set.points)
+                {
+                    const auto fk = ins++;
+                    if (!outs_link{ point.outs }.is_terminal())
+                        continue;
 
-    // Inputs neither bound nor banked are unbound (drained).
-    for (auto& spend: out)
-    {
-        if (!outs_link{ spend.outs }.is_terminal() ||
-            !table::points::link{ spend.row }.is_terminal())
-            continue;
+                    table::points::get_composed row{};
+                    if (!(fk >= base0 && points0.get(rows0,
+                        table::points::link{ fk - base0 }, row)) &&
+                        !(fk >= base1 && points1.get(rows1,
+                        table::points::link{ fk - base1 }, row)))
+                    {
+                        outs_link spent{};
+                        if (!get_spent_or_point(spent, row.key, fk))
+                        {
+                            fault.store(true, std::memory_order_relaxed);
+                            return;
+                        }
 
-        outs_link spent{};
-        if (!get_spent_or_point(spent, spend.key, spend.ins))
+                        if (!spent.is_terminal())
+                        {
+                            point.outs = spent.value;
+                            continue;
+                        }
+                    }
+
+                    const auto tx = store_.tx.first(txs, row.key.hash());
+                    if (tx.is_terminal())
+                        continue;
+
+                    table::transaction::get_output output{ {},
+                        row.key.index() };
+                    if (!store_.tx.get(txs, tx, output))
+                    {
+                        fault.store(true, std::memory_order_relaxed);
+                        return;
+                    }
+
+                    point.outs = output.outs_fk;
+                }
+            });
+
+        if (fault.load(std::memory_order_relaxed))
             return error::integrity;
-
-        spend.outs = spent.value;
-    }
-
-    {
-        const auto ptr = store_.tx.get_memory();
-        for (auto& spend: out)
-        {
-            if (!outs_link{ spend.outs }.is_terminal())
-                continue;
-
-            const auto tx = store_.tx.first(ptr, spend.key.hash());
-            if (tx.is_terminal())
-                continue;
-
-            table::transaction::get_output output{ {}, spend.key.index() };
-            if (!store_.tx.get(ptr, tx, output))
-                return error::integrity;
-
-            spend.outs = output.outs_fk;
-        }
     }
 
     // A bucket top archived after the accessor ends its walk, so retry misses.
-    for (auto& spend: out)
-        if (outs_link{ spend.outs }.is_terminal())
-            spend.outs = to_output(spend.key).value;
+    for (auto& set: sets)
+    {
+        auto ins = set.ins;
+        for (auto& point: set.points)
+        {
+            const auto fk = ins++;
+            if (!outs_link{ point.outs }.is_terminal())
+                continue;
+
+            outs_link spent{};
+            system::chain::point key{};
+            if (!get_spent_or_point(spent, key, fk))
+                return error::integrity;
+
+            point.outs = (spent.is_terminal() ? to_output(key) : spent).value;
+        }
+    }
 
     return error::success;
 }
@@ -193,44 +169,58 @@ code CLASS::get_spent_outs(block_spends& out) const NOEXCEPT
 
 // protected
 TEMPLATE
-bool CLASS::set_spends(block_spends& spends) NOEXCEPT
+bool CLASS::set_spends(point_sets& sets) NOEXCEPT
 {
     {
         const auto ptr = store_.spend.get_memory();
-        for (auto& spend: spends)
-            spend.pending = !outs_link{ spend.outs }.is_terminal() &&
-                !store_.spend.set(ptr, spend.ins,
-                    table::spend::bind{ {}, spend.first, spend.outs });
+        for (auto& set: sets)
+        {
+            auto ins = set.ins;
+            for (auto& point: set.points)
+                point.pending = !outs_link{ point.outs }.is_terminal() &&
+                    !store_.spend.set(ptr, ins++,
+                        table::spend::bind{ {}, point.first, point.outs });
+        }
     }
 
     // Cells beyond the accessor extend the count.
-    for (auto& spend: spends)
-        if (spend.pending && !store_.spend.set(spend.ins,
-            table::spend::bind{ {}, spend.first, spend.outs }))
-            return false;
+    for (auto& set: sets)
+    {
+        auto ins = set.ins;
+        for (auto& point: set.points)
+        {
+            const auto fk = ins++;
+            if (point.pending && !store_.spend.set(fk,
+                table::spend::bind{ {}, point.first, point.outs }))
+                return false;
+        }
+    }
 
     {
         const auto ptr = store_.contested.get_memory();
-        for (auto& spend: spends)
-            spend.pending = spend.first && !store_.contested.set(ptr,
-                table::contested::to_cell(spend.outs),
-                table::contested::spend{ {}, spend.outs });
+        for (auto& set: sets)
+            for (auto& point: set.points)
+                point.pending = point.first && !store_.contested.set(ptr,
+                    table::contested::to_cell(point.outs),
+                    table::contested::spend{ {}, point.outs });
     }
 
     // Cells beyond the accessor extend the count.
-    for (const auto& spend: spends)
-        if (spend.pending && !store_.contested.set(
-            table::contested::to_cell(spend.outs),
-            table::contested::spend{ {}, spend.outs }))
-            return false;
+    for (const auto& set: sets)
+        for (const auto& point: set.points)
+            if (point.pending && !store_.contested.set(
+                table::contested::to_cell(point.outs),
+                table::contested::spend{ {}, point.outs }))
+                return false;
 
-    if (!set_unbanked(spends, true))
+    if (!set_unbanked(sets))
         return false;
 
     // Rows of first bindings are allocated together (one claim per call).
     size_t rows{};
-    for (const auto& spend: spends)
-        rows += to_int<size_t>(spend.first);
+    for (const auto& set: sets)
+        for (const auto& point: set.points)
+            rows += to_int<size_t>(point.first);
 
     if (is_zero(rows))
         return true;
@@ -242,32 +232,14 @@ bool CLASS::set_spends(block_spends& spends) NOEXCEPT
         return false;
 
     const auto ptr = store_.spender.get_memory();
-    for (const auto& spend: spends)
-        if (spend.first && !store_.spender.put(ptr, fk++,
-            table::spender::to_key(spend.outs),
-            table::spender::record{ {}, spend.tx }))
-            return false;
+    for (const auto& set: sets)
+        for (const auto& point: set.points)
+            if (point.first && !store_.spender.put(ptr, fk++,
+                table::spender::to_key(point.outs),
+                table::spender::record{ {}, set.tx }))
+                return false;
 
     return true;
-}
-
-// protected
-// A banked input without a binding keeps its point across the bank drop.
-TEMPLATE
-bool CLASS::set_unbound(const block_spends& spends) NOEXCEPT
-{
-    for (const auto& spend: spends)
-    {
-        if (!outs_link{ spend.outs }.is_terminal())
-            continue;
-
-        const auto key = table::unbound::to_key(spend.ins);
-        if (store_.unbound.first(key).is_terminal() && !store_.unbound.put(key,
-            table::unbound::record{ {}, spend.key }))
-            return false;
-    }
-
-    return set_unbanked(spends, false);
 }
 
 // protected
@@ -292,22 +264,27 @@ bool CLASS::set_banked(ins_link::integer first, size_t count) NOEXCEPT
 }
 
 // protected
-// The bits of the bound (or unbound) inputs are cleared, a bit beyond the
-// count is not banked.
+// The bits of the bound inputs are cleared, a bit beyond the count is not
+// banked.
 TEMPLATE
-bool CLASS::set_unbanked(const block_spends& spends, bool bound) NOEXCEPT
+bool CLASS::set_unbanked(const point_sets& sets) NOEXCEPT
 {
     const auto ptr = store_.banked.get_memory();
     const auto cells = store_.banked.count().value;
-    for (const auto& spend: spends)
+    for (const auto& set: sets)
     {
-        const auto cell = table::banked::to_cell(spend.ins);
-        if ((outs_link{ spend.outs }.is_terminal() == bound) || (cell >= cells))
-            continue;
+        auto ins = set.ins;
+        for (const auto& point: set.points)
+        {
+            const auto fk = ins++;
+            const auto cell = table::banked::to_cell(fk);
+            if (outs_link{ point.outs }.is_terminal() || (cell >= cells))
+                continue;
 
-        if (!store_.banked.set(ptr, cell,
-            table::banked::unbank{ {}, table::banked::to_bit(spend.ins) }))
-            return false;
+            if (!store_.banked.set(ptr, cell,
+                table::banked::unbank{ {}, table::banked::to_bit(fk) }))
+                return false;
+        }
     }
 
     return true;
@@ -340,12 +317,12 @@ bool CLASS::mark(const tx_link& spender, const outs_link& spent) NOEXCEPT
 TEMPLATE
 bool CLASS::spend(const ins_link& link, const outs_link& spent) NOEXCEPT
 {
-    block_spends spends{ { to_input_tx(link).value, link.value } };
-    spends.front().outs = spent.value;
+    point_sets sets{ { to_input_tx(link).value, link.value, { {} } } };
+    sets.front().points.front().outs = spent.value;
 
     // ========================================================================
     const auto scope = get_transactor();
-    return set_spends(spends);
+    return set_spends(sets);
     // ========================================================================
 }
 
@@ -358,25 +335,28 @@ code CLASS::bind(const header_link& link, const block_view& block) NOEXCEPT
         return error::integrity;
 
     auto found = true;
-    block_spends spends{};
+    point_sets sets(sub1(txs.size()));
     for (auto index = one; index < txs.size(); ++index)
     {
         const auto& tx = txs.at(index);
+        auto& set = sets.at(sub1(index));
+        set.tx = links.at(index);
+        set.points.resize(tx.inputs());
+
+        auto point = set.points.begin();
         for (auto in = tx.inputs_begin(); in != tx.inputs_end(); ++in)
         {
-            spends.push_back({ links.at(index), in->metadata.input_link });
-            spends.back().outs = in->metadata.output_link;
-            if (outs_link{ in->metadata.output_link }.is_terminal())
-            {
-                spends.back().key = { in->point_hash(), in->point_index() };
-                found = false;
-            }
+            if (in == tx.inputs_begin())
+                set.ins = in->metadata.input_link;
+
+            point++->outs = in->metadata.output_link;
+            found &= !outs_link{ in->metadata.output_link }.is_terminal();
         }
     }
 
     // ========================================================================
     const auto scope = get_transactor();
-    if (!set_spends(spends) || !set_unbound(spends))
+    if (!set_spends(sets))
         return error::integrity;
     // ========================================================================
 
@@ -394,21 +374,22 @@ code CLASS::bind(const tx_link& link, const transaction& tx) NOEXCEPT
         return error::integrity;
 
     auto found = true;
-    block_spends spends{};
-    spends.reserve(record.ins_count);
-    auto fk = record.points_fk;
+    point_sets sets{ { link.value, record.points_fk, {} } };
+    auto& points = sets.front().points;
+    points.resize(record.ins_count);
+
+    auto point = points.begin();
     for (const auto& in: *tx.inputs_ptr())
     {
         const outs_link spent{ in->metadata.output_link };
-        spends.push_back({ link.value, fk++ });
-        spends.back().outs = (spent.is_terminal() ?
-            to_output(in->point()) : spent).value;
-        found &= !outs_link{ spends.back().outs }.is_terminal();
+        point->outs = (spent.is_terminal() ? to_output(in->point()) :
+            spent).value;
+        found &= !outs_link{ point++->outs }.is_terminal();
     }
 
     // ========================================================================
     const auto scope = get_transactor();
-    if (!set_spends(spends))
+    if (!set_spends(sets))
         return error::integrity;
     // ========================================================================
 
@@ -419,40 +400,20 @@ code CLASS::bind(const tx_link& link, const transaction& tx) NOEXCEPT
 }
 
 TEMPLATE
-code CLASS::bind(std::vector<code>& out, const header_links& links) NOEXCEPT
-{
-    block_spends spends{};
-    if (const auto ec = get_spends(spends, links))
-        return ec;
-
-    out.assign(links.size(), error::success);
-    for (const auto& spend: spends)
-        if (outs_link{ spend.outs }.is_terminal())
-            out.at(spend.block) = system::error::missing_previous_output;
-
-    // ========================================================================
-    const auto scope = get_transactor();
-    if (!set_spends(spends) || !set_unbound(spends))
-        return error::integrity;
-    // ========================================================================
-
-    return error::success;
-}
-
-TEMPLATE
 code CLASS::bind(const header_link& link) NOEXCEPT
 {
-    block_spends spends{};
-    if (const auto ec = get_spends(spends, link))
+    point_sets sets{};
+    if (const auto ec = get_point_sets(sets, link))
         return ec;
 
     auto found = true;
-    for (const auto& spend: spends)
-        found &= !outs_link{ spend.outs }.is_terminal();
+    for (const auto& set: sets)
+        for (const auto& point: set.points)
+            found &= !outs_link{ point.outs }.is_terminal();
 
     // ========================================================================
     const auto scope = get_transactor();
-    if (!set_spends(spends) || !set_unbound(spends))
+    if (!set_spends(sets))
         return error::integrity;
     // ========================================================================
 
@@ -473,25 +434,25 @@ code CLASS::bind(const tx_link& link) NOEXCEPT
         return error::integrity;
 
     auto found = true;
-    block_spends spends{};
-    spends.reserve(record.ins_count);
-    const auto end = record.points_fk + record.ins_count;
-    for (auto fk = record.points_fk; fk < end; ++fk)
+    point_sets sets{ { link.value, record.points_fk, {} } };
+    auto& points = sets.front().points;
+    points.resize(record.ins_count);
+
+    auto fk = record.points_fk;
+    for (auto& point: points)
     {
         outs_link spent{};
-        point key{};
-        if (!get_spent_or_point(spent, key, fk))
+        system::chain::point key{};
+        if (!get_spent_or_point(spent, key, fk++))
             return error::integrity;
 
-        spends.push_back({ link.value, fk });
-        spends.back().outs = (spent.is_terminal() ? to_output(key) :
-            spent).value;
-        found &= !outs_link{ spends.back().outs }.is_terminal();
+        point.outs = (spent.is_terminal() ? to_output(key) : spent).value;
+        found &= !outs_link{ point.outs }.is_terminal();
     }
 
     // ========================================================================
     const auto scope = get_transactor();
-    if (!set_spends(spends))
+    if (!set_spends(sets))
         return error::integrity;
     // ========================================================================
 

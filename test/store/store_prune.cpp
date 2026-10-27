@@ -464,13 +464,13 @@ BOOST_AUTO_TEST_CASE(store__drop_points__unbound__dropped)
     BOOST_REQUIRE(!instance.create(test::events));
     BOOST_REQUIRE(query_.initialize(test::genesis));
 
-    // The binder keeps the point of a missing prevout across the drop.
+    // A missing prevout leaves its input banked, swept to unbound by the drop.
     const auto tx = spend(system::one_hash, 1u);
     BOOST_REQUIRE(archive(query_, tx, 1u));
     BOOST_REQUIRE_EQUAL(query_.points0_body_size(), 3u * schema::points::minrow);
     BOOST_REQUIRE(query_.get_point(2) == system::chain::point(system::one_hash, 0));
     BOOST_REQUIRE_EQUAL(query_.bind(header_link{ 1 }), system::error::missing_previous_output);
-    BOOST_REQUIRE_EQUAL(query_.unbound_records(), one);
+    BOOST_REQUIRE_EQUAL(query_.unbound_records(), zero);
     BOOST_REQUIRE(!instance.drop_points(test::events));
     BOOST_REQUIRE_EQUAL(instance.points0.base(), 3u);
     BOOST_REQUIRE_EQUAL(query_.points0_body_size(), zero);

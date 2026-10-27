@@ -217,18 +217,19 @@ code CLASS::set_code(const tx_link& tx_fk, const transaction& tx, bool block,
     // A free tx is bound before it is committed to search.
     if (!block && !coinbase)
     {
-        block_spends spends{};
-        spends.reserve(inputs);
-        auto fk = ins_fk.value;
+        point_sets sets{ { tx_fk.value, ins_fk.value, {} } };
+        auto& points = sets.front().points;
+        points.resize(inputs);
+
+        auto point = points.begin();
         for (const auto& in: *ins)
         {
             const outs_link spent{ in->metadata.output_link };
-            spends.push_back({ tx_fk.value, fk++ });
-            spends.back().outs = (spent.is_terminal() ?
-                to_output(in->point()) : spent).value;
+            point++->outs = (spent.is_terminal() ? to_output(in->point()) :
+                spent).value;
         }
 
-        if (!set_spends(spends))
+        if (!set_spends(sets))
             return error::integrity;
     }
 

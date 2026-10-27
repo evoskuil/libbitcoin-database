@@ -964,8 +964,7 @@ public:
     code bind(const header_link& link, const block_view& block) NOEXCEPT;
     code bind(const tx_link& link, const transaction& tx) NOEXCEPT;
 
-    /// Bind the spends of the archived blocks/block/tx.
-    code bind(std::vector<code>& out, const header_links& links) NOEXCEPT;
+    /// Bind the spends of the archived block/tx.
     code bind(const header_link& link) NOEXCEPT;
     code bind(const tx_link& link) NOEXCEPT;
 
@@ -1228,16 +1227,14 @@ protected:
     /// Bindings.
     /// -----------------------------------------------------------------------
 
-    code get_spends(block_spends& out, const header_link& link) const NOEXCEPT;
-    code get_spends(block_spends& out,
-        const header_links& links) const NOEXCEPT;
-    code get_spent_outs(block_spends& spends) const NOEXCEPT;
+    code get_point_sets(point_sets& out,
+        const header_link& link) const NOEXCEPT;
+    code get_spent_outs(point_sets& sets) const NOEXCEPT;
 
     /// Caller holds transactor.
-    bool set_spends(block_spends& spends) NOEXCEPT;
-    bool set_unbound(const block_spends& spends) NOEXCEPT;
+    bool set_spends(point_sets& sets) NOEXCEPT;
     bool set_banked(ins_link::integer first, size_t count) NOEXCEPT;
-    bool set_unbanked(const block_spends& spends, bool bound) NOEXCEPT;
+    bool set_unbanked(const point_sets& sets) NOEXCEPT;
     bool mark(const tx_link& spender, const outs_link& spent) NOEXCEPT;
 
     /// Context.

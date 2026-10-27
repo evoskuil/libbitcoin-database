@@ -58,21 +58,25 @@ using outs_links = std::vector<outs_link::integer>;
 using ins_links = std::vector<ins_link::integer>;
 using ins_key = system::chain::point;
 
-/// A spend: its spender, input, points row, spent output and point, with
-/// binding pass state and the ordinal of its block in a multiple block bind.
-struct block_spend
+/// The binding of an input: its spent output, with binding pass state.
+struct in_point
+{
+    outs_link::integer outs{ outs_link::terminal };
+    bool pending{};
+    bool first{};
+};
+
+using in_points = std::vector<in_point>;
+
+/// From tx get the spender, its first input and the bindings of its inputs.
+struct point_set
 {
     tx_link::integer tx{};
     ins_link::integer ins{};
-    table::points::link::integer row{ table::points::link::terminal };
-    outs_link::integer outs{ outs_link::terminal };
-    system::chain::point key{};
-    bool pending{};
-    bool first{};
-    size_t block{};
+    in_points points{};
 };
 
-using block_spends = std::vector<block_spend>;
+using point_sets = std::vector<point_set>;
 
 /// A spend of a block under confirmation: its tx (ordinal), input, spent
 /// output, sequence, and the parent, strong block and contest of the output.
