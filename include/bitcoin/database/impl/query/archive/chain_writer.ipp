@@ -174,7 +174,8 @@ code CLASS::set_code(const tx_link& tx_fk, const transaction& tx, bool block,
 
     const table::points::link row{ ins_fk.value - base };
     if (!bank.expand(row.value + inputs) || !bank.put(bank.get_memory(), row,
-        table::points::put_ref{ {}, tx }))
+        table::points::put_ref{ {}, tx }) ||
+        (!coinbase && !set_banked(ins_fk.value, inputs)))
         return error::tx_points_put;
 
     // Allocate contiguously and store outs.

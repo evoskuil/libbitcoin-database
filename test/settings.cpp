@@ -79,6 +79,9 @@ BOOST_AUTO_TEST_CASE(settings__construct__default__expected)
     BOOST_REQUIRE_EQUAL(configuration.contested.buckets, 128u);
     BOOST_REQUIRE_EQUAL(configuration.contested.size, 1u);
     BOOST_REQUIRE_EQUAL(configuration.contested.rate, 5u);
+    BOOST_REQUIRE_EQUAL(configuration.banked.buckets, 128u);
+    BOOST_REQUIRE_EQUAL(configuration.banked.size, 1u);
+    BOOST_REQUIRE_EQUAL(configuration.banked.rate, 5u);
     BOOST_REQUIRE_EQUAL(configuration.strong.buckets, 128u);
     BOOST_REQUIRE_EQUAL(configuration.strong.size, 1u);
     BOOST_REQUIRE_EQUAL(configuration.strong.rate, 5u);

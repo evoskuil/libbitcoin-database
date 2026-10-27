@@ -224,6 +224,9 @@ bool CLASS::set_spends(block_spends& spends) NOEXCEPT
             table::contested::spend{ {}, spend.outs }))
             return false;
 
+    if (!set_unbanked(spends, true))
+        return false;
+
     // Rows of first bindings are allocated together (one claim per call).
     size_t rows{};
     for (const auto& spend: spends)
@@ -261,6 +264,49 @@ bool CLASS::set_unbound(const block_spends& spends) NOEXCEPT
         const auto key = table::unbound::to_key(spend.ins);
         if (store_.unbound.first(key).is_terminal() && !store_.unbound.put(key,
             table::unbound::record{ {}, spend.key }))
+            return false;
+    }
+
+    return set_unbanked(spends, false);
+}
+
+// protected
+// The bits of an archived range of inputs are set, cell by cell.
+TEMPLATE
+bool CLASS::set_banked(ins_link::integer first, size_t count) NOEXCEPT
+{
+    using namespace system;
+    const auto end = first + possible_narrow_cast<ins_link::integer>(count);
+    for (auto ins = first; ins < end;)
+    {
+        uint8_t mask{};
+        const auto cell = table::banked::to_cell(ins);
+        for (; ins < end && table::banked::to_cell(ins) == cell; ++ins)
+            mask = bit_or<uint8_t>(mask, table::banked::to_bit(ins));
+
+        if (!store_.banked.set(cell, table::banked::bank{ {}, mask }))
+            return false;
+    }
+
+    return true;
+}
+
+// protected
+// The bits of the bound (or unbound) inputs are cleared, a bit beyond the
+// count is not banked.
+TEMPLATE
+bool CLASS::set_unbanked(const block_spends& spends, bool bound) NOEXCEPT
+{
+    const auto ptr = store_.banked.get_memory();
+    const auto cells = store_.banked.count().value;
+    for (const auto& spend: spends)
+    {
+        const auto cell = table::banked::to_cell(spend.ins);
+        if ((outs_link{ spend.outs }.is_terminal() == bound) || (cell >= cells))
+            continue;
+
+        if (!store_.banked.set(ptr, cell,
+            table::banked::unbank{ {}, table::banked::to_bit(spend.ins) }))
             return false;
     }
 

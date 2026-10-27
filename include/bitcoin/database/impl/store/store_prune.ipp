@@ -360,11 +360,51 @@ bool CLASS::copy_pool(table::pool& to, table::pool& from, const Keep& keep,
 }
 
 // protected
-// Every input of the bank is bound, or unbound by its binder. The base is
-// retained, as it advances only with a swap.
+// Each banked input of the bank is moved to the unbound table, so that no
+// point is lost by the drop. The base is retained, as it advances only with a
+// swap.
 TEMPLATE
 code CLASS::drain_points(table::points& bank) NOEXCEPT
 {
+    using namespace system;
+    const auto base = bank.base().value;
+    const auto end = base + bank.count().value;
+    if (end > base)
+    {
+        const auto rows = bank.get_memory();
+        const auto bits = banked.get_memory();
+        const size_t cells = banked.count().value;
+        const auto last = std::min(cells,
+            add1(table::banked::to_cell(sub1(end))));
+        for (auto cell = table::banked::to_cell(base); cell < last; ++cell)
+        {
+            const auto value = banked.at(bits, cell);
+            if (is_zero(value))
+                continue;
+
+            const auto first = cell * byte_bits;
+            for (size_t bit{}; bit < byte_bits; ++bit)
+            {
+                const auto fk = possible_narrow_cast<table::banked::ins::integer>(
+                    first + bit);
+                const auto mask = table::banked::to_bit(fk);
+                if (is_zero(bit_and<uint8_t>(value, mask)) || fk < base ||
+                    fk >= end)
+                    continue;
+
+                table::points::get_composed point{};
+                if (!bank.get(rows, table::points::link{ fk - base }, point))
+                    return error::prune_table;
+
+                const auto key = table::unbound::to_key(fk);
+                if ((unbound.first(key).is_terminal() && !unbound.put(key,
+                    table::unbound::record{ {}, point.key })) ||
+                    !banked.set(bits, cell, table::banked::unbank{ {}, mask }))
+                    return error::prune_table;
+            }
+        }
+    }
+
     return bank.drop(bank.base()) ? error::success : error::prune_table;
 }
 

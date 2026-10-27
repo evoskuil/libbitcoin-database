@@ -154,6 +154,7 @@ public:
     size_t address_head_size() const NOEXCEPT;
     size_t spender_head_size() const NOEXCEPT;
     size_t contested_head_size() const NOEXCEPT;
+    size_t banked_head_size() const NOEXCEPT;
     size_t scan_head_size() const NOEXCEPT;
     size_t scan_prefix_head_size() const NOEXCEPT;
     size_t ecdsa0_head_size() const NOEXCEPT;
@@ -193,6 +194,7 @@ public:
     size_t address_body_size() const NOEXCEPT;
     size_t spender_body_size() const NOEXCEPT;
     size_t contested_body_size() const NOEXCEPT;
+    size_t banked_body_size() const NOEXCEPT;
     size_t scan_body_size() const NOEXCEPT;
     size_t scan_prefix_body_size() const NOEXCEPT;
     size_t ecdsa0_body_size() const NOEXCEPT;
@@ -232,6 +234,7 @@ public:
     size_t address_size() const NOEXCEPT;
     size_t spender_size() const NOEXCEPT;
     size_t contested_size() const NOEXCEPT;
+    size_t banked_size() const NOEXCEPT;
     size_t scan_size() const NOEXCEPT;
     size_t scan_prefix_size() const NOEXCEPT;
     size_t ecdsa0_size() const NOEXCEPT;
@@ -267,6 +270,7 @@ public:
     size_t address_buckets() const NOEXCEPT;
     size_t spender_buckets() const NOEXCEPT;
     size_t contested_buckets() const NOEXCEPT;
+    size_t banked_buckets() const NOEXCEPT;
     size_t scan_buckets() const NOEXCEPT;
     size_t state_buckets() const NOEXCEPT;
     size_t pool_buckets() const NOEXCEPT;
@@ -1232,6 +1236,8 @@ protected:
     /// Caller holds transactor.
     bool set_spends(block_spends& spends) NOEXCEPT;
     bool set_unbound(const block_spends& spends) NOEXCEPT;
+    bool set_banked(ins_link::integer first, size_t count) NOEXCEPT;
+    bool set_unbanked(const block_spends& spends, bool bound) NOEXCEPT;
     bool mark(const tx_link& spender, const outs_link& spent) NOEXCEPT;
 
     /// Context.

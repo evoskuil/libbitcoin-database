@@ -252,6 +252,7 @@ protected:
 
     // headmap
     Storage<one> contested_head_;
+    Storage<one> banked_head_;
     Storage<one> scan_head_;
     table::scan_storage<Storage> scan_body_;
     Storage<one> scan_prefix_head_;
@@ -409,6 +410,7 @@ public:
     table::height confirmed;
     table::spender spender;
     table::contested contested;
+    table::banked banked;
     table::strong strong;
     table::scan<Storage> scan;
     table::scan_prefix scan_prefix;

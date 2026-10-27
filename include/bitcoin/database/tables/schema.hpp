@@ -370,6 +370,23 @@ struct contested
     bool operator==(const contested&) const NOEXCEPT = default;
 };
 
+// headmap (banked bits, eight ins fks to a cell)
+struct banked
+{
+    static constexpr size_t pk = schema::ins::pk;
+    using link = schema::ins::link;
+    using value = uint8_t;
+    static constexpr size_t minsize = one;
+    static constexpr size_t minrow = minsize;
+    static constexpr size_t size = minsize;
+    static constexpr size_t cell = minsize;
+    static_assert(minsize == 1u);
+    static_assert(minrow == 1u);
+    static_assert(link::size == 4u);
+    static_assert(cell == 1u);
+    bool operator==(const banked&) const NOEXCEPT = default;
+};
+
 /// Cache tables.
 /// ---------------------------------------------------------------------------
 

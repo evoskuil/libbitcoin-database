@@ -69,6 +69,7 @@ CLASS::store(const settings& config) NOEXCEPT
     spender_head_(head(config.path / schema::dir::heads, schema::indexes::spender), head_settings(config.spender), random),
     spender_body_(body(config.path, schema::indexes::spender), config.spender, sequential, staged),
     contested_head_(head(config.path / schema::dir::heads, schema::indexes::contested), head_settings<schema::contested::cell>(config.contested, advice::random, zero), random),
+    banked_head_(head(config.path / schema::dir::heads, schema::caches::banked), head_settings<schema::banked::cell>(config.banked, advice::sequential, zero), sequential),
     scan_head_(head(config.path / schema::dir::heads, schema::indexes::scan), head_settings(config.scan), random),
     scan_body_(body(config.path, schema::indexes::scan), config.scan, sequential, staged),
     scan_prefix_head_(head(config.path / schema::dir::heads, schema::indexes::scan_prefix), head_settings(config.scan), sequential),
@@ -154,6 +155,7 @@ CLASS::store(const settings& config) NOEXCEPT
     confirmed(confirmed_head_),
     spender(spender_head_, spender_body_, config.spender.buckets, config.spender.expected),
     contested(contested_head_, config.contested.buckets),
+    banked(banked_head_, config.banked.buckets),
     strong(strong_head_, config.strong.buckets),
     scan(scan_head_, scan_body_, config.scan.buckets),
     scan_prefix(scan_prefix_head_, scan_prefix_body_),
@@ -360,6 +362,7 @@ void CLASS::set_current(bool current) NOEXCEPT
     address_head_.current(current);
     spender_head_.current(current);
     contested_head_.current(current);
+    banked_head_.current(current);
     scan_head_.current(current);
     scan_prefix_head_.current(current);
     ecdsa0_head_.current(current);

@@ -155,6 +155,67 @@ struct points
     };
 };
 
+/// Banked is a head-only array of bits indexed by ins.fk, eight to a cell. A
+/// set bit marks an input with a point in a points bank that is neither bound
+/// nor unbound. Bits are set at archive and cleared at bind or bank drain.
+struct banked
+  : public value_map<schema::banked>
+{
+    using ins = schema::ins::link;
+    using value_map<schema::banked>::headmap;
+
+    static constexpr size_t to_cell(ins::integer ins_fk) NOEXCEPT
+    {
+        return ins_fk / byte_bits;
+    }
+
+    static constexpr uint8_t to_bit(ins::integer ins_fk) NOEXCEPT
+    {
+        return system::bit_right<uint8_t>(ins_fk % byte_bits);
+    }
+
+    /// Set the masked bits of a cell.
+    struct bank
+      : public schema::banked
+    {
+        inline bool from_data(reader& source) NOEXCEPT
+        {
+            current = source.read_byte();
+            return source;
+        }
+
+        inline bool to_data(flipper& sink) const NOEXCEPT
+        {
+            sink.write_byte(system::bit_or<value>(current, mask));
+            return sink;
+        }
+
+        value mask{};
+        value current{};
+    };
+
+    /// Clear the masked bits of a cell.
+    struct unbank
+      : public schema::banked
+    {
+        inline bool from_data(reader& source) NOEXCEPT
+        {
+            current = source.read_byte();
+            return source;
+        }
+
+        inline bool to_data(flipper& sink) const NOEXCEPT
+        {
+            using namespace system;
+            sink.write_byte(bit_and<value>(current, bit_not<value>(mask)));
+            return sink;
+        }
+
+        value mask{};
+        value current{};
+    };
+};
+
 } // namespace table
 } // namespace database
 } // namespace libbitcoin

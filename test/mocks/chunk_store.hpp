@@ -160,6 +160,11 @@ public:
         return contested_head_.buffer();
     }
 
+    system::data_chunk& banked_head() NOEXCEPT
+    {
+        return banked_head_.buffer();
+    }
+
     // Caches.
 
     system::data_chunk& ecdsa0_head() NOEXCEPT

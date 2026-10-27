@@ -107,6 +107,7 @@ namespace caches
     constexpr auto presilent1 = "batch_presilent1";
     constexpr auto points0 = "cache_points0";
     constexpr auto points1 = "cache_points1";
+    constexpr auto banked = "cache_banked";
     constexpr auto pool = "cache_pool";
     constexpr auto pool_id0 = "id0"_t;
     constexpr auto pool_id1 = "id1"_t;

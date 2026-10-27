@@ -58,6 +58,7 @@ code CLASS::backup(const event_handler& handler, bool prune) NOEXCEPT
     backup(ec, address, table_t::address_table);
     backup(ec, spender, table_t::spender_table);
     backup(ec, contested, table_t::contested_table);
+    backup(ec, banked, table_t::banked_table);
     backup(ec, scan, table_t::scan_table);
     backup(ec, scan_prefix, table_t::scan_prefix_table);
 

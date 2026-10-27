@@ -55,6 +55,7 @@ BOOST_AUTO_TEST_CASE(query_extent__body_sizes__genesis__expected)
     BOOST_REQUIRE_EQUAL(query.address_body_size(), schema::address::minrow);
     BOOST_REQUIRE_EQUAL(query.spender_body_size(), zero);
     BOOST_REQUIRE_EQUAL(query.contested_body_size(), zero);
+    BOOST_REQUIRE_EQUAL(query.banked_body_size(), zero);
     BOOST_REQUIRE_EQUAL(query.scan_body_size(), zero);
     BOOST_REQUIRE_EQUAL(query.ecdsa0_body_size(), zero);
     BOOST_REQUIRE_EQUAL(query.schnorr0_body_size(), zero);
@@ -103,6 +104,7 @@ BOOST_AUTO_TEST_CASE(query_extent__buckets__genesis__expected)
     BOOST_REQUIRE_EQUAL(query.address_buckets(), 128u);
     BOOST_REQUIRE_EQUAL(query.spender_buckets(), 128u);
     BOOST_REQUIRE_EQUAL(query.contested_buckets(), 128u);
+    BOOST_REQUIRE_EQUAL(query.banked_buckets(), 128u);
     BOOST_REQUIRE_EQUAL(query.state_buckets(), 128u);
     BOOST_REQUIRE_EQUAL(query.pool_buckets(), 128u);
     BOOST_REQUIRE_EQUAL(query.wtxid_buckets(), 128u);
@@ -266,6 +268,7 @@ BOOST_AUTO_TEST_CASE(query_extent__store_head_size__genesis__archive_plus_indexe
         + query.address_head_size()
         + query.spender_head_size()
         + query.contested_head_size()
+        + query.banked_head_size()
         + query.scan_head_size()
         + query.scan_prefix_head_size()
         + query.ecdsa0_head_size()
@@ -304,6 +307,7 @@ BOOST_AUTO_TEST_CASE(query_extent__store_body_size__genesis__archive_plus_indexe
         + query.address_body_size()
         + query.spender_body_size()
         + query.contested_body_size()
+        + query.banked_body_size()
         + query.scan_body_size()
         + query.scan_prefix_body_size()
         + query.ecdsa0_body_size()

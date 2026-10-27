@@ -287,6 +287,7 @@ code CLASS::set_code(const block_view& block, const header_link& key,
 
     // Write all txs into their preallocated rows (write order preserved).
     code ec{};
+    const auto first = fks.ins_fk.value;
     it = links.begin();
     for (const auto& tx: views)
     {
@@ -314,6 +315,12 @@ code CLASS::set_code(const block_view& block, const header_link& key,
     ptrs.input.reset();
     ptrs.output.reset();
     ptrs.address.reset();
+
+    // The archived inputs are banked, except those of the coinbase.
+    const auto coinbase = views.front().inputs();
+    if (!set_banked(first + possible_narrow_cast<ins_t>(coinbase),
+        points - coinbase))
+        return error::tx_points_put;
 
     return set_txs(key, std::move(links), light, heavy, std::move(interval),
         strong);

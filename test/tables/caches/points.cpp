@@ -95,3 +95,35 @@ BOOST_AUTO_TEST_CASE(points__drop__base__keys_from_base)
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE(banked_tests)
+
+using namespace system;
+
+BOOST_AUTO_TEST_CASE(banked__to_cell__ins__eight_per_cell)
+{
+    static_assert(table::banked::to_cell(0) == 0u);
+    static_assert(table::banked::to_cell(7) == 0u);
+    static_assert(table::banked::to_cell(8) == 1u);
+    static_assert(table::banked::to_bit(0) == 0x01u);
+    static_assert(table::banked::to_bit(9) == 0x02u);
+    static_assert(table::banked::to_bit(15) == 0x80u);
+}
+
+BOOST_AUTO_TEST_CASE(banked__set__bank_and_unbank__masked)
+{
+    data_chunk head_file{};
+    test::chunk_storage head_store{ head_file };
+    table::banked instance{ head_store };
+    BOOST_REQUIRE(instance.create());
+    BOOST_REQUIRE(instance.set(1u, table::banked::bank{ {}, 0x81 }));
+    BOOST_REQUIRE_EQUAL(instance.count(), 2u);
+    BOOST_REQUIRE_EQUAL(head_file, base16_chunk("0081"));
+
+    BOOST_REQUIRE(instance.set(1u, table::banked::unbank{ {}, 0x01 }));
+    BOOST_REQUIRE_EQUAL(head_file, base16_chunk("0080"));
+    BOOST_REQUIRE_EQUAL(instance.at(0), 0x00u);
+    BOOST_REQUIRE_EQUAL(instance.at(1), 0x80u);
+}
+
+BOOST_AUTO_TEST_SUITE_END()

@@ -103,6 +103,7 @@ code CLASS::get_fault() const NOEXCEPT
     if ((ec = spender_head_.get_fault())) return ec;
     if ((ec = spender_body_.get_fault())) return ec;
     if ((ec = contested_head_.get_fault())) return ec;
+    if ((ec = banked_head_.get_fault())) return ec;
     if ((ec = scan_head_.get_fault())) return ec;
     if ((ec = scan_body_.get_fault())) return ec;
     if ((ec = scan_prefix_head_.get_fault())) return ec;
@@ -183,6 +184,7 @@ size_t CLASS::get_space() const NOEXCEPT
     space(spender_head_);
     space(spender_body_);
     space(contested_head_);
+    space(banked_head_);
     space(scan_head_);
     space(scan_body_);
     space(scan_prefix_head_);

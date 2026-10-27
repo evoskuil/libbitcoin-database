@@ -479,6 +479,26 @@ BOOST_AUTO_TEST_CASE(store__drop_points__unbound__dropped)
     BOOST_REQUIRE(!instance.close(test::events));
 }
 
+BOOST_AUTO_TEST_CASE(store__drop_points__banked__swept_to_unbound)
+{
+    settings configuration{};
+    configuration.path = TEST_DIRECTORY;
+    store<database::mmap> instance{ configuration };
+    query<store<database::mmap>> query_{ instance };
+    BOOST_REQUIRE(!instance.create(test::events));
+    BOOST_REQUIRE(query_.initialize(test::genesis));
+
+    // An archived input that is never bound keeps its point across the drop.
+    const auto tx = spend(system::one_hash, 1u);
+    BOOST_REQUIRE(archive(query_, tx, 1u));
+    BOOST_REQUIRE_EQUAL(query_.unbound_records(), zero);
+    BOOST_REQUIRE(!instance.drop_points(test::events));
+    BOOST_REQUIRE_EQUAL(query_.points0_body_size(), zero);
+    BOOST_REQUIRE_EQUAL(query_.unbound_records(), one);
+    BOOST_REQUIRE(query_.get_point(2) == system::chain::point(system::one_hash, 0));
+    BOOST_REQUIRE(!instance.close(test::events));
+}
+
 BOOST_AUTO_TEST_CASE(store__drop_points__pooled__dropped)
 {
     settings configuration{};
