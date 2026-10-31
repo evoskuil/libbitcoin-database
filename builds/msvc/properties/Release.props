@@ -17,8 +17,7 @@
     <ClCompile>
       <!-- performance -->
       <BufferSecurityCheck>false</BufferSecurityCheck>
-      <!-- Breaks boost.test. -->
-      <!--<CallingConvention>FastCall</CallingConvention>-->
+      <CallingConvention>FastCall</CallingConvention>
       <ControlFlowGuard>false</ControlFlowGuard>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
       <EnableParallelCodeGeneration>true</EnableParallelCodeGeneration>
