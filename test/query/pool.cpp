@@ -154,8 +154,8 @@ BC_AUTO_TEST_CASE(query_pool__is_confirmable_spent__pooled_spender__true)
     test::query_accessor query{ store };
     BC_REQUIRE(!store.create(test::events_handler));
     BC_REQUIRE(query.initialize(test::genesis));
-    store.set_pooling();
 
+    store.set_pooling();
     const auto parent = to_spend(genesis_coinbase(), 2u);
     const auto child = to_spend(parent.hash(false), 1u);
     BC_REQUIRE(archive_pool(query, parent));
@@ -174,8 +174,8 @@ BC_AUTO_TEST_CASE(query_pool__is_confirmable_spent__conflicted_spender__false)
     test::query_accessor query{ store };
     BC_REQUIRE(!store.create(test::events_handler));
     BC_REQUIRE(query.initialize(test::genesis));
-    store.set_pooling();
 
+    store.set_pooling();
     const auto parent = to_spend(genesis_coinbase(), 2u);
     const auto child = to_spend(parent.hash(false), 1u);
     BC_REQUIRE(archive_pool(query, parent));
@@ -194,8 +194,8 @@ BC_AUTO_TEST_CASE(query_pool__find_confirmable_spender__pooled_spender__expected
     test::query_accessor query{ store };
     BC_REQUIRE(!store.create(test::events_handler));
     BC_REQUIRE(query.initialize(test::genesis));
-    store.set_pooling();
 
+    store.set_pooling();
     const auto parent = to_spend(genesis_coinbase(), 2u);
     const auto child = to_spend(parent.hash(false), 1u);
     const point prevout{ parent.hash(false), 0 };
@@ -215,8 +215,8 @@ BC_AUTO_TEST_CASE(query_pool__find_confirmable_spender__conflicted_spender__term
     test::query_accessor query{ store };
     BC_REQUIRE(!store.create(test::events_handler));
     BC_REQUIRE(query.initialize(test::genesis));
-    store.set_pooling();
 
+    store.set_pooling();
     const auto parent = to_spend(genesis_coinbase(), 2u);
     const auto child = to_spend(parent.hash(false), 1u);
     const point prevout{ parent.hash(false), 0 };
@@ -354,8 +354,8 @@ BC_AUTO_TEST_CASE(query_pool__is_confirmable_tx__unconflicted_chain__true)
     test::query_accessor query{ store };
     BC_REQUIRE(!store.create(test::events_handler));
     BC_REQUIRE(query.initialize(test::genesis));
-    store.set_pooling();
 
+    store.set_pooling();
     const auto parent = to_spend(genesis_coinbase(), 2u);
     const auto child = to_spend(parent.hash(false), 1u);
     BC_REQUIRE(archive_pool(query, parent));
@@ -372,8 +372,8 @@ BC_AUTO_TEST_CASE(query_pool__is_confirmable_tx__confirmed__false)
     test::query_accessor query{ store };
     BC_REQUIRE(!store.create(test::events_handler));
     BC_REQUIRE(query.initialize(test::genesis));
-    store.set_pooling();
 
+    store.set_pooling();
     const auto tx = to_spend(genesis_coinbase(), 1u);
     BC_REQUIRE(archive_pool(query, tx));
     BC_REQUIRE(!archive_confirm(query, tx).is_terminal());
@@ -389,8 +389,8 @@ BC_AUTO_TEST_CASE(query_pool__is_confirmable_tx__conflicted_and_child__false)
     test::query_accessor query{ store };
     BC_REQUIRE(!store.create(test::events_handler));
     BC_REQUIRE(query.initialize(test::genesis));
-    store.set_pooling();
 
+    store.set_pooling();
     const auto conflicted = to_spend(genesis_coinbase(), 2u);
     const auto child = to_spend(conflicted.hash(false), 1u);
     BC_REQUIRE(archive_pool(query, conflicted));
@@ -586,8 +586,8 @@ BC_AUTO_TEST_CASE(query_pool__get_confirmable_txs__conflicted_and_child__skipped
     test::query_accessor query{ store };
     BC_REQUIRE(!store.create(test::events_handler));
     BC_REQUIRE(query.initialize(test::genesis));
-    store.set_pooling();
 
+    store.set_pooling();
     const auto conflicted = to_spend(genesis_coinbase(), 2u);
     const auto child = to_spend(conflicted.hash(false), 1u);
     BC_REQUIRE(archive_pool(query, conflicted));
@@ -635,9 +635,9 @@ BC_AUTO_TEST_CASE(query_pool__get_confirmable_fees__unconfirmed_and_confirmed__u
     BC_CHECK(!query.is_confirmed_tx(3));
     BC_CHECK(!query.is_confirmed_tx(4));
 
-    BC_CHECK(store.pool.put(tx_link{ 1 }, table::pool::record{ {}, { 0, 1, 0 }, 10, {}, {} }));
-    BC_CHECK(store.pool.put(tx_link{ 3 }, table::pool::record{ {}, { 0, 2, 0 }, 20, {}, {} }));
-    BC_CHECK(store.pool.put(tx_link{ 4 }, table::pool::record{ {}, { 0, 3, 0 }, 30, {}, {} }));
+    BC_CHECK(test::put_pooled(store, tx_link{ 1 }, 10, 1));
+    BC_CHECK(test::put_pooled(store, tx_link{ 3 }, 20, 2));
+    BC_CHECK(test::put_pooled(store, tx_link{ 4 }, 30, 3));
 
     fee_rates rates{};
     BC_CHECK(query.get_confirmable_fees(rates));
@@ -656,8 +656,8 @@ BC_AUTO_TEST_CASE(query_pool__get_confirmable_fees__conflicted_and_child__empty)
     test::query_accessor query{ store };
     BC_CHECK(!store.create(test::events_handler));
     BC_CHECK(query.initialize(test::genesis));
-    store.set_pooling();
 
+    store.set_pooling();
     const auto conflicted = to_spend(genesis_coinbase(), 2u);
     const auto child = to_spend(conflicted.hash(false), 1u);
     BC_REQUIRE(archive_pool(query, conflicted));
@@ -679,8 +679,8 @@ BC_AUTO_TEST_CASE(query_pool__to_confirmable_parents__pooled_parent__parent)
     test::query_accessor query{ store };
     BC_REQUIRE(!store.create(test::events_handler));
     BC_REQUIRE(query.initialize(test::genesis));
-    store.set_pooling();
 
+    store.set_pooling();
     const auto parent = to_spend(genesis_coinbase(), 2u);
     const auto child = to_spend(parent.hash(false), 1u);
     BC_REQUIRE(archive_pool(query, parent));
@@ -702,8 +702,8 @@ BC_AUTO_TEST_CASE(query_pool__to_confirmable_children__pooled_child__child)
     test::query_accessor query{ store };
     BC_REQUIRE(!store.create(test::events_handler));
     BC_REQUIRE(query.initialize(test::genesis));
-    store.set_pooling();
 
+    store.set_pooling();
     const auto parent = to_spend(genesis_coinbase(), 2u);
     const auto child = to_spend(parent.hash(false), 1u);
     BC_REQUIRE(archive_pool(query, parent));
@@ -723,8 +723,8 @@ BC_AUTO_TEST_CASE(query_pool__to_confirmable_children__conflicted_child__empty)
     test::query_accessor query{ store };
     BC_REQUIRE(!store.create(test::events_handler));
     BC_REQUIRE(query.initialize(test::genesis));
-    store.set_pooling();
 
+    store.set_pooling();
     const auto parent = to_spend(genesis_coinbase(), 2u);
     const auto child = to_spend(parent.hash(false), 1u);
     BC_REQUIRE(archive_pool(query, parent));
@@ -745,8 +745,8 @@ BC_AUTO_TEST_CASE(query_pool__to_confirmable_ancestors__pooled_chain__ancestors)
     test::query_accessor query{ store };
     BC_REQUIRE(!store.create(test::events_handler));
     BC_REQUIRE(query.initialize(test::genesis));
-    store.set_pooling();
 
+    store.set_pooling();
     const auto parent = to_spend(genesis_coinbase(), 2u);
     const auto child = to_spend(parent.hash(false), 1u);
     const auto grandchild = to_spend(child.hash(false), 1u);
@@ -775,8 +775,8 @@ BC_AUTO_TEST_CASE(query_pool__to_confirmable_descendants__pooled_chain__descenda
     test::query_accessor query{ store };
     BC_REQUIRE(!store.create(test::events_handler));
     BC_REQUIRE(query.initialize(test::genesis));
-    store.set_pooling();
 
+    store.set_pooling();
     const auto parent = to_spend(genesis_coinbase(), 2u);
     const auto child = to_spend(parent.hash(false), 1u);
     const auto grandchild = to_spend(child.hash(false), 1u);
@@ -805,8 +805,8 @@ BC_AUTO_TEST_CASE(query_pool__get_ancestor_totals__pooled_parent__both)
     test::query_accessor query{ store };
     BC_REQUIRE(!store.create(test::events_handler));
     BC_REQUIRE(query.initialize(test::genesis));
-    store.set_pooling();
 
+    store.set_pooling();
     const auto parent = to_spend(genesis_coinbase(), 2u);
     const auto child = to_spend(parent.hash(false), 1u);
     BC_REQUIRE(archive_pool(query, parent));
@@ -834,8 +834,8 @@ BC_AUTO_TEST_CASE(query_pool__get_descendant_totals__pooled_child__both)
     test::query_accessor query{ store };
     BC_REQUIRE(!store.create(test::events_handler));
     BC_REQUIRE(query.initialize(test::genesis));
-    store.set_pooling();
 
+    store.set_pooling();
     const auto parent = to_spend(genesis_coinbase(), 2u);
     const auto child = to_spend(parent.hash(false), 1u);
     BC_REQUIRE(archive_pool(query, parent));
@@ -851,6 +851,129 @@ BC_AUTO_TEST_CASE(query_pool__get_descendant_totals__pooled_child__both)
     BC_REQUIRE(query.get_descendant_totals(out, child_link));
     BC_REQUIRE_EQUAL(out.count, one);
     BC_REQUIRE_EQUAL(out.bytes, child.virtual_size());
+}
+
+// pool index
+// ----------------------------------------------------------------------------
+
+static bool pool_populated(test::query_accessor& query,
+    const transaction& tx) NOEXCEPT
+{
+    return query.populate_without_metadata(tx) && archive_pool(query, tx);
+}
+
+static uint32_t pool_cell(test::query_accessor& query,
+    test::chunk_store& store, const transaction& tx) NOEXCEPT
+{
+    const auto row = store.pool.first(query.to_tx(tx.hash(false)));
+    return store.pool_cells.at(row.value);
+}
+
+BC_AUTO_TEST_CASE(query_pool__set_pooled__conflict_and_child__one_component)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
+
+    store.set_pooling();
+
+    // Inputs: 0 parent, 1 child, 2 rival.
+    const auto parent = to_spend(genesis_coinbase(), 4'999'999'000);
+    const auto child = to_spend(parent.hash(false), 4'999'998'000);
+    const auto rival = to_spend(genesis_coinbase(), 4'999'998'500);
+    const auto pooled = pool_populated(query, parent) && pool_populated(query, child);
+    const auto parent_before = pool_cell(query, store, parent);
+    const auto child_before = pool_cell(query, store, child);
+    const auto rivaled = pool_populated(query, rival);
+    const auto parent_row = store.pool.first(query.to_tx(parent.hash(false)));
+    const auto head = store.pool_children.at(parent_row.value);
+    const auto ring0 = store.spends_rivals.at(0u);
+    const auto ring1 = store.spends_rivals.at(1u);
+    const auto ring2 = store.spends_rivals.at(2u);
+
+    BC_REQUIRE(pooled);
+    BC_REQUIRE_EQUAL(parent_before, system::pool::algorithm::unlabeled);
+    BC_REQUIRE_EQUAL(child_before, system::pool::algorithm::unlabeled);
+    BC_REQUIRE(rivaled);
+    BC_REQUIRE_EQUAL(pool_cell(query, store, parent), 0u);
+    BC_REQUIRE_EQUAL(pool_cell(query, store, child), 0u);
+    BC_REQUIRE_EQUAL(pool_cell(query, store, rival), 0u);
+    BC_REQUIRE_EQUAL(head, 1u);
+    BC_REQUIRE_EQUAL(ring0, 2u);
+    BC_REQUIRE_EQUAL(ring1, system::pool::algorithm::none);
+    BC_REQUIRE_EQUAL(ring2, 0u);
+}
+
+BC_AUTO_TEST_CASE(query_pool__push_pop_confirmed__rival__excluded_and_revived)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
+
+    store.set_pooling();
+    const auto parent = to_spend(genesis_coinbase(), 4'999'999'000);
+    const auto child = to_spend(parent.hash(false), 4'999'998'000);
+    const auto rival = to_spend(genesis_coinbase(), 4'999'998'500);
+    const auto pooled_parent = pool_populated(query, parent);
+    const auto pooled_child = pool_populated(query, child);
+    const auto pooled_rival = pool_populated(query, rival);
+    const auto confirmed = !archive_confirm(query, rival).is_terminal();
+    const auto rival_confirmed = pool_cell(query, store, rival);
+    const auto parent_confirmed = pool_cell(query, store, parent);
+    const auto child_confirmed = pool_cell(query, store, child);
+    const auto popped = query.pop_confirmed();
+
+    BC_REQUIRE(pooled_parent);
+    BC_REQUIRE(pooled_child);
+    BC_REQUIRE(pooled_rival);
+    BC_REQUIRE(confirmed);
+    BC_REQUIRE_EQUAL(rival_confirmed, system::pool::algorithm::boundary);
+    BC_REQUIRE_EQUAL(parent_confirmed, system::pool::algorithm::absent);
+    BC_REQUIRE_EQUAL(child_confirmed, system::pool::algorithm::absent);
+    BC_REQUIRE(popped);
+    BC_REQUIRE_EQUAL(pool_cell(query, store, rival), 0u);
+    BC_REQUIRE_EQUAL(pool_cell(query, store, parent), 0u);
+    BC_REQUIRE_EQUAL(pool_cell(query, store, child), 0u);
+}
+
+BC_AUTO_TEST_CASE(query_pool__set_pooled__reorganized_parent__children_adopted)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
+
+    store.set_pooling();
+    const auto parent = to_spend(genesis_coinbase(), 4'999'999'000);
+    const auto child = to_spend(parent.hash(false), 4'999'998'000);
+    const auto confirmed = !archive_confirm(query, parent).is_terminal();
+    const auto pooled = pool_populated(query, child);
+    const auto before = store.spends_rows.at(0u);
+    const auto popped = query.pop_confirmed();
+    const auto link = query.to_tx(parent.hash(false));
+    const auto repooled = query.set_pooled(link, parent, context{ bip113, 8, 9 }, 0);
+    const auto after = store.spends_rows.at(0u);
+    const auto head = store.pool_children.at(1u);
+    const auto rivaled = pool_populated(query, to_spend(genesis_coinbase(), 4'999'998'500));
+
+    BC_REQUIRE(confirmed);
+    BC_REQUIRE(pooled);
+    BC_REQUIRE_EQUAL(before, system::pool::algorithm::none);
+    BC_REQUIRE(popped);
+    BC_REQUIRE(repooled);
+    BC_REQUIRE_EQUAL(after, 1u);
+    BC_REQUIRE_EQUAL(head, 0u);
+    BC_REQUIRE(rivaled);
+    BC_REQUIRE_EQUAL(pool_cell(query, store, parent), 0u);
+    BC_REQUIRE_EQUAL(pool_cell(query, store, child), 0u);
 }
 
 BC_AUTO_TEST_SUITE_END()

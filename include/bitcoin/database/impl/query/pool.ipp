@@ -19,6 +19,8 @@
 #ifndef LIBBITCOIN_DATABASE_QUERY_POOL_IPP
 #define LIBBITCOIN_DATABASE_QUERY_POOL_IPP
 
+#include <bit>
+#include <unordered_map>
 #include <bitcoin/database/define.hpp>
 
 namespace libbitcoin {
@@ -103,13 +105,18 @@ code CLASS::get_pooled(pooled_tx& out, const tx_link& link,
     if (!is_sufficient(ctx, valid.ctx))
         return error::unvalidated;
 
-    table::spends::get_refs::parents parents(out.prevouts.size());
-    table::spends::get_refs run{ {}, parents };
-    if (!store_.spends.get(valid.spends_fk, run))
+    table::pool_edge edge{};
+    table::pool_total total{};
+    if (!store_.pool.totals.get(fk, total) || !store_.pool.edges.get(fk, edge))
         return error::integrity;
 
-    out.fee = valid.fee;
-    out.sigops = valid.sigops;
+    table::spends::get_refs::parents parents(out.prevouts.size());
+    table::spends::get_refs run{ {}, parents };
+    if (!store_.spends.get(edge.spends_fk, run))
+        return error::integrity;
+
+    out.fee = total.fee;
+    out.sigops = total.sigops;
     std::ranges::transform(parents, out.prevouts.begin(),
         [](auto merged) NOEXCEPT
         {
@@ -262,6 +269,14 @@ TEMPLATE
 bool CLASS::get_pooled_fee(uint64_t& fee, size_t& height,
     const tx_link& link) const NOEXCEPT
 {
+    size_t size{};
+    return get_pooled_fee(fee, size, height, link);
+}
+
+TEMPLATE
+bool CLASS::get_pooled_fee(uint64_t& fee, size_t& size, size_t& height,
+    const tx_link& link) const NOEXCEPT
+{
     if (!store_.pool.enabled())
         return false;
 
@@ -269,11 +284,13 @@ bool CLASS::get_pooled_fee(uint64_t& fee, size_t& height,
     if (fk.is_terminal())
         return false;
 
-    table::pool::get_fee pooled{};
-    if (!store_.pool.get(fk, pooled))
+    table::pool_total total{};
+    table::pool::get_height pooled{};
+    if (!store_.pool.get(fk, pooled) || !store_.pool.totals.get(fk, total))
         return false;
 
-    fee = pooled.fee;
+    fee = total.fee;
+    size = total.bytes;
     height = pooled.height;
     return true;
 }
@@ -365,8 +382,15 @@ bool CLASS::get_confirmable_totals(fee_totals& out, const tx_link& link,
         if (!get_tx_fees(rate, fk))
             return false;
 
+        // A confirmed relative is not pooled (and has no sigops total).
+        table::pool_total total{};
+        const auto row = store_.pool.first(tx_link{ fk });
+        if (!row.is_terminal() && !store_.pool.totals.get(row, total))
+            return false;
+
         ++out.count;
         out.bytes = ceilinged_add(out.bytes, rate.bytes);
+        out.sigops = ceilinged_add(out.sigops, total.sigops);
         out.fee = ceilinged_add(out.fee, rate.fee);
     }
 
@@ -419,26 +443,43 @@ bool CLASS::set_pooled(const tx_link& link, const transaction& tx,
         return true;
 
     using namespace system;
-    using sigs = linkage<schema::sigops>;
+    using algorithm = system::pool::algorithm;
+    using link_t = algorithm::link_t;
+    constexpr auto none = algorithm::none;
     const auto& ins = *tx.inputs_ptr();
-    tx_links prevouts(ins.size());
+    const auto inputs = ins.size();
+    auto conflicted = false;
+    tx_links prevouts(inputs);
+    pool_links mates(inputs, none);
+    pool_links parents(inputs, none);
 
-    auto it = prevouts.begin();
-    for (const auto& in: ins)
+    for (size_t at{}; at < inputs; ++at)
     {
-        tx_link parent{ in->metadata.parent_tx };
-        auto coinbase = in->metadata.coinbase;
+        const auto& in = *ins.at(at);
+        const auto& point = in.point();
+        tx_link parent{ in.metadata.parent_tx };
+        auto coinbase = in.metadata.coinbase;
 
         // Prevouts populated from the tx's own package are not yet linked.
-        if (in->metadata.parent_tx == max_uint32)
+        if (in.metadata.parent_tx == max_uint32)
         {
-            if ((parent = to_tx(in->point().hash())).is_terminal())
+            if ((parent = to_tx(point.hash())).is_terminal())
                 return false;
 
             coinbase = is_coinbase(parent);
         }
 
-        *it++ = table::prevout::merge(coinbase, parent);
+        prevouts.at(at) = table::prevout::merge(coinbase, parent);
+        const auto row = store_.pool.first(parent);
+        if (!row.is_terminal())
+            parents.at(at) = possible_narrow_cast<link_t>(row.value);
+
+        bool conflict{};
+        auto& mate = mates.at(at);
+        if (!get_pooled_spender(mate, conflict, point, link, true))
+            return false;
+
+        conflicted |= conflict;
     }
 
     const auto bip16 = ctx.is_enabled(chain::flags::bip16_rule);
@@ -453,7 +494,8 @@ bool CLASS::set_pooled(const tx_link& link, const transaction& tx,
 
     // Clean single allocation failure (e.g. disk full).
     table::spends::link first{};
-    if (!store_.spends.put_link(first, table::spends::put_refs{ {}, prevouts }))
+    const table::spends::put_refs spent{ {}, prevouts };
+    if (!store_.spends.put_link(first, spent))
         return false;
 
     auto& vtx = store_.pool;
@@ -466,27 +508,411 @@ bool CLASS::set_pooled(const tx_link& link, const transaction& tx,
 
     // Column puts are unguarded, the accessor guards their rows against remap.
     using word = table::pool_word;
+    const table::pool_total total
+    {
+        {},
+        tx.fee(),
+        possible_narrow_cast<uint32_t>(tx.virtual_size()),
+        possible_narrow_cast<uint32_t>(sigops)
+    };
+    const table::pool_edge edge
+    {
+        {},
+        first,
+        possible_narrow_cast<uint32_t>(inputs)
+    };
+
     auto guard = vtx.get_memory();
     if (!guard ||
         !vtx.id0.put(fk, word{ {}, std::get<0>(words) }) ||
         !vtx.id1.put(fk, word{ {}, std::get<1>(words) }) ||
         !vtx.id2.put(fk, word{ {}, std::get<2>(words) }) ||
-        !vtx.id3.put(fk, word{ {}, std::get<3>(words) }))
+        !vtx.id3.put(fk, word{ {}, std::get<3>(words) }) ||
+        !vtx.totals.put(fk, total) ||
+        !vtx.edges.put(fk, edge))
         return false;
 
     guard.reset();
 
     // Commit is deferred until the columns are set.
-    return vtx.put(fk, link, table::pool::record
-    {
-        {},
-        ctx,
-        tx.fee(),
-        possible_narrow_cast<sigs::integer>(sigops),
-        first,
-        time
-    });
+    if (!vtx.put(fk, link, table::pool::record{ {}, ctx, time }))
+        return false;
+
+    const auto row = possible_narrow_cast<link_t>(fk.value);
+    const auto start = possible_narrow_cast<link_t>(first.value);
+    if (!set_pool_links(row, start, parents, mates) ||
+        !set_pool_adoption(row, tx))
+        return false;
+
+    // A conflict with a confirmed spender remains absent.
+    if (conflicted)
+        return true;
+
+    pool_guards guards{};
+    algorithm::columns_t columns{};
+    if (!get_pool_columns(columns, guards))
+        return false;
+
+    algorithm::admit(columns, row);
+    return true;
     // ========================================================================
+}
+
+// The pool index is rebuilt from the compacted pool. Retained rows are
+// confirmable, so all are present.
+TEMPLATE
+bool CLASS::set_pool_index() NOEXCEPT
+{
+    if (!store_.pool.enabled())
+        return true;
+
+    using namespace system;
+    using algorithm = system::pool::algorithm;
+    using link_t = algorithm::link_t;
+    constexpr auto none = algorithm::none;
+
+    if (!store_.pool_cells.truncate(0) ||
+        !store_.pool_children.truncate(0) ||
+        !store_.spends_rows.truncate(0) ||
+        !store_.spends_siblings.truncate(0) ||
+        !store_.spends_rivals.truncate(0))
+        return false;
+
+    const auto count = store_.pool.count().value;
+    for (pool_link::integer row{}; row < count; ++row)
+    {
+        const tx_link tx{ store_.pool.get_key(row) };
+        table::pool_edge edge{};
+        if (!store_.pool.edges.get(row, edge))
+            return false;
+
+        const auto inputs = edge.inputs;
+        table::spends::get_refs::parents prevouts(inputs);
+        table::spends::get_refs spent{ {}, prevouts };
+        if (!store_.spends.get(edge.spends_fk, spent))
+            return false;
+
+        pool_links mates(inputs, none);
+        pool_links parents(inputs, none);
+        for (uint32_t at{}; at < inputs; ++at)
+        {
+            using prevout = table::prevout::slab_get;
+            const tx_link parent{ prevout::output_tx_fk(prevouts.at(at)) };
+            const auto parent_row = store_.pool.first(parent);
+            if (!parent_row.is_terminal())
+                parents.at(at) = possible_narrow_cast<link_t>(parent_row.value);
+
+            bool conflict{};
+            auto& mate = mates.at(at);
+            const auto point = get_point_key(to_point(tx, at));
+            if (!get_pooled_spender(mate, conflict, point, tx, true))
+                return false;
+        }
+
+        if (!set_pool_links(row, edge.spends_fk, parents, mates))
+            return false;
+    }
+
+    pool_guards guards{};
+    algorithm::columns_t columns{};
+    if (!get_pool_columns(columns, guards))
+        return false;
+
+    pool_links scratch(columns.rows.size());
+    algorithm::initialize(columns);
+    while (algorithm::propagate(columns, scratch));
+    return true;
+}
+
+// protected
+// The row's cell and children head, and each input's parent row, sibling
+// (joining the list of inputs spending its parent) and rival (joining the
+// ring of inputs spending its point at a pooled spender of it).
+TEMPLATE
+bool CLASS::set_pool_links(system::pool::algorithm::link_t row,
+    system::pool::algorithm::link_t start,
+    const pool_links& parents, const pool_links& mates) NOEXCEPT
+{
+    using namespace system;
+    using link_t = system::pool::algorithm::link_t;
+    constexpr auto none = system::pool::algorithm::none;
+    constexpr auto absent = system::pool::algorithm::absent;
+    const auto put = [](auto& head, link_t index, link_t value) NOEXCEPT
+    {
+        using replace = typename std::decay_t<decltype(head)>::replace;
+        return head.set(index, replace{ {}, value });
+    };
+
+    if (!put(store_.pool_cells, row, absent) ||
+        !put(store_.pool_children, row, none))
+        return false;
+
+    const auto inputs = parents.size();
+    for (size_t at{}; at < inputs; ++at)
+    {
+        const auto input = start + possible_narrow_cast<link_t>(at);
+        const auto parent = parents.at(at);
+        const auto mate = mates.at(at);
+        auto sibling = none;
+        auto rival = none;
+
+        if (parent != none)
+        {
+            sibling = store_.pool_children.at(parent);
+            if (!put(store_.pool_children, parent, input))
+                return false;
+        }
+
+        if (mate != none)
+        {
+            const auto next = store_.spends_rivals.at(mate);
+            rival = (next == none) ? mate : next;
+            if (!put(store_.spends_rivals, mate, input))
+                return false;
+        }
+
+        if (!put(store_.spends_rows, input, parent) ||
+            !put(store_.spends_siblings, input, sibling) ||
+            !put(store_.spends_rivals, input, rival))
+            return false;
+    }
+
+    return true;
+}
+
+// protected
+// Pooled spenders of the tx (the children of a reorganized parent) take it
+// as their parent row and join its children list.
+TEMPLATE
+bool CLASS::set_pool_adoption(system::pool::algorithm::link_t row,
+    const transaction& tx) NOEXCEPT
+{
+    using namespace system;
+    using link_t = system::pool::algorithm::link_t;
+    constexpr auto none = system::pool::algorithm::none;
+    const auto put = [](auto& head, link_t index, link_t value) NOEXCEPT
+    {
+        using replace = typename std::decay_t<decltype(head)>::replace;
+        return head.set(index, replace{ {}, value });
+    };
+
+    const auto outputs = tx.outputs_ptr()->size();
+    const auto txid = tx.get_hash(false);
+    for (uint32_t index{}; index < outputs; ++index)
+    {
+        for (const auto& in: to_spenders(point{ txid, index }))
+        {
+            const auto child = to_input_tx(in);
+            const auto child_row = store_.pool.first(child);
+            if (child_row.is_terminal())
+                continue;
+
+            table::pool_edge edge{};
+            if (!store_.pool.edges.get(child_row, edge))
+                return false;
+
+            const auto position = in - to_point(child, zero).value;
+            const auto offset = possible_narrow_cast<link_t>(position);
+            const auto input = edge.spends_fk + offset;
+
+            if (store_.spends_rows.at(input) != none)
+                continue;
+
+            const auto sibling = store_.pool_children.at(row);
+            if (!put(store_.spends_rows, input, row) ||
+                !put(store_.spends_siblings, input, sibling) ||
+                !put(store_.pool_children, row, input))
+                return false;
+        }
+    }
+
+    return true;
+}
+
+// index
+// ----------------------------------------------------------------------------
+
+// protected
+// The index heads hold no count cell, so each is a plain array of cells.
+TEMPLATE
+bool CLASS::get_pool_columns(system::pool::algorithm::columns_t& out,
+    pool_guards& guards) const NOEXCEPT
+{
+    using namespace system;
+    using algorithm = system::pool::algorithm;
+    using link_t = algorithm::link_t;
+    using edges_t = algorithm::edges_t;
+    using totals_t = algorithm::totals_t;
+    static_assert(std::endian::native == std::endian::little);
+
+    const auto rows = std::min
+    ({
+        possible_narrow_cast<size_t>(store_.pool.count().value),
+        possible_narrow_cast<size_t>(store_.pool_cells.count().value),
+        possible_narrow_cast<size_t>(store_.pool_children.count().value)
+    });
+
+    const auto inputs = std::min
+    ({
+        possible_narrow_cast<size_t>(store_.spends.count().value),
+        possible_narrow_cast<size_t>(store_.spends_rows.count().value),
+        possible_narrow_cast<size_t>(store_.spends_siblings.count().value),
+        possible_narrow_cast<size_t>(store_.spends_rivals.count().value)
+    });
+
+    if (!guards.pool && is_nonzero(rows))
+        guards.pool = store_.pool.get_memory();
+
+    if (!guards.cells && is_nonzero(rows))
+        guards.cells = store_.pool_cells.get_memory();
+
+    if (!guards.children && is_nonzero(rows))
+        guards.children = store_.pool_children.get_memory();
+
+    if (!guards.rows && is_nonzero(inputs))
+        guards.rows = store_.spends_rows.get_memory();
+
+    if (!guards.siblings && is_nonzero(inputs))
+        guards.siblings = store_.spends_siblings.get_memory();
+
+    if (!guards.rivals && is_nonzero(inputs))
+        guards.rivals = store_.spends_rivals.get_memory();
+
+    if (is_nonzero(rows) &&
+        (!guards.pool || !guards.cells || !guards.children))
+        return false;
+
+    if (is_nonzero(inputs) &&
+        (!guards.rows || !guards.siblings || !guards.rivals))
+        return false;
+
+    // A null accessor (empty table) has no data.
+    const auto data = [](const memory& guard) NOEXCEPT
+    {
+        link_t* cells{};
+        if (guard)
+            cells = pointer_cast<link_t>(guard.data());
+
+        return cells;
+    };
+
+    const auto raw_edges = store_.pool.edges.get_raw();
+    const auto raw_totals = store_.pool.totals.get_raw();
+    const auto edges = pointer_cast<const edges_t>(raw_edges);
+    const auto totals = pointer_cast<const totals_t>(raw_totals);
+    out =
+    {
+        { data(guards.cells), rows },
+        { data(guards.children), rows },
+        { edges, rows },
+        { totals, rows },
+        { data(guards.rows), inputs },
+        { data(guards.siblings), inputs },
+        { data(guards.rivals), inputs }
+    };
+
+    return true;
+}
+
+// protected
+// A point archived with one spender is not in the duplicate table.
+TEMPLATE
+bool CLASS::get_pooled_spender(system::pool::algorithm::link_t& out,
+    bool& conflicted, const point& point, const tx_link& self,
+    bool archived) const NOEXCEPT
+{
+    using namespace system;
+    using link_t = system::pool::algorithm::link_t;
+    constexpr auto none = system::pool::algorithm::none;
+    out = none;
+    conflicted = false;
+
+    if (archived && !store_.duplicate.exists(point))
+        return true;
+
+    for (const auto& in: to_spenders(point))
+    {
+        const auto tx = to_input_tx(in);
+        if (tx == self)
+            continue;
+
+        if (is_confirmed_tx(tx))
+        {
+            conflicted = true;
+            continue;
+        }
+
+        if (out != none)
+            continue;
+
+        const auto row = store_.pool.first(tx);
+        if (row.is_terminal())
+            continue;
+
+        table::pool_edge edge{};
+        if (!store_.pool.edges.get(row, edge))
+            return false;
+
+        const auto position = in - to_point(tx, zero).value;
+        out = edge.spends_fk + possible_narrow_cast<link_t>(position);
+    }
+
+    return true;
+}
+
+// protected
+// The conflicts of the block's txs that are not pooled are in its prevout
+// cache, which is absent when the block was confirmed by bypass.
+TEMPLATE
+bool CLASS::set_pool_block(const header_link& link, const tx_links& txs,
+    bool confirmed) NOEXCEPT
+{
+    using namespace system;
+    using algorithm = system::pool::algorithm;
+    using link_t = algorithm::link_t;
+    if (!store_.pool.enabled())
+        return true;
+
+    pool_guards guards{};
+    algorithm::columns_t columns{};
+    if (!get_pool_columns(columns, guards))
+        return false;
+
+    const auto rows = columns.cells.size();
+    if (is_zero(rows))
+        return true;
+
+    for (const auto fk: txs)
+    {
+        const auto row = store_.pool.first(tx_link{ fk });
+        if (row.is_terminal() || row.value >= rows)
+            continue;
+
+        const auto at = possible_narrow_cast<link_t>(row.value);
+        if (confirmed)
+            algorithm::confirm(columns, at);
+        else
+            algorithm::unconfirm(columns, at);
+    }
+
+    table::prevout::slab_get cache{};
+    if (!store_.prevout.at(to_prevout(link), cache))
+        return true;
+
+    for (const auto conflict: cache.conflicts)
+    {
+        const auto row = store_.pool.first(tx_link{ conflict });
+        if (row.is_terminal() || row.value >= rows)
+            continue;
+
+        const auto at = possible_narrow_cast<link_t>(row.value);
+        if (confirmed)
+            algorithm::exclude(columns, at);
+        else
+            algorithm::revive(columns, at);
+    }
+
+    return true;
 }
 
 } // namespace database
