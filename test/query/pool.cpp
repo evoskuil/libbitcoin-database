@@ -1230,4 +1230,106 @@ BC_AUTO_TEST_CASE(query_pool__get_pool_coverage__uncontested_child__not_limited)
     BC_REQUIRE(!above_rate);
 }
 
+// get_pool_template
+// ----------------------------------------------------------------------------
+
+BC_AUTO_TEST_CASE(query_pool__get_pool_template__empty__empty)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
+
+    store.set_pooling();
+    tx_links out{ 42 };
+    const auto ec = query.get_pool_template(out, block_limit, 25, 20, 1'024);
+
+    BC_REQUIRE_EQUAL(ec, error::success);
+    BC_REQUIRE(out.empty());
+}
+
+BC_AUTO_TEST_CASE(query_pool__get_pool_template__chain_outbids_rival__chain_ascending)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
+
+    store.set_pooling();
+
+    // The parent and child pay 2,000 together, and the rival of the parent 1,500.
+    const auto parent = to_spend(genesis_coinbase(), 4'999'999'000);
+    const auto child = to_spend(parent.hash(false), 4'999'998'000);
+    const auto rival = to_spend(genesis_coinbase(), 4'999'998'500);
+    const auto pooled_parent = pool_populated(query, parent);
+    const auto pooled_child = pool_populated(query, child);
+    const auto pooled_rival = pool_populated(query, rival);
+    tx_links out{};
+    const auto ec = query.get_pool_template(out, block_limit, 25, 20, 1'024);
+
+    BC_REQUIRE(pooled_parent);
+    BC_REQUIRE(pooled_child);
+    BC_REQUIRE(pooled_rival);
+    BC_REQUIRE_EQUAL(ec, error::success);
+    BC_REQUIRE_EQUAL(out.size(), 2u);
+    BC_REQUIRE_EQUAL(out[0], query.to_tx(parent.hash(false)));
+    BC_REQUIRE_EQUAL(out[1], query.to_tx(child.hash(false)));
+}
+
+BC_AUTO_TEST_CASE(query_pool__get_pool_template__rival_outbids_chain__rival_only)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
+
+    store.set_pooling();
+
+    // The parent and child pay 2,000 together, and the rival of the parent 2,500.
+    const auto parent = to_spend(genesis_coinbase(), 4'999'999'000);
+    const auto child = to_spend(parent.hash(false), 4'999'998'000);
+    const auto rival = to_spend(genesis_coinbase(), 4'999'997'500);
+    const auto pooled_parent = pool_populated(query, parent);
+    const auto pooled_child = pool_populated(query, child);
+    const auto pooled_rival = pool_populated(query, rival);
+    tx_links out{};
+    const auto ec = query.get_pool_template(out, block_limit, 25, 20, 1'024);
+
+    BC_REQUIRE(pooled_parent);
+    BC_REQUIRE(pooled_child);
+    BC_REQUIRE(pooled_rival);
+    BC_REQUIRE_EQUAL(ec, error::success);
+    BC_REQUIRE_EQUAL(out.size(), 1u);
+    BC_REQUIRE_EQUAL(out[0], query.to_tx(rival.hash(false)));
+}
+
+BC_AUTO_TEST_CASE(query_pool__get_pool_template__chain_over_budget__leading_tx)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
+
+    store.set_pooling();
+    const auto parent = to_spend(genesis_coinbase(), 4'999'999'000);
+    const auto child = to_spend(parent.hash(false), 4'999'990'000);
+    const auto size = system::possible_narrow_cast<uint32_t>(parent.virtual_size());
+    const auto pooled = pool_populated(query, parent) && pool_populated(query, child);
+    tx_links out{};
+    const auto ec = query.get_pool_template(out, { 0, size, 80'000 }, 25, 20, 1'024);
+
+    BC_REQUIRE(pooled);
+    BC_REQUIRE_EQUAL(ec, error::success);
+    BC_REQUIRE_EQUAL(out.size(), 1u);
+    BC_REQUIRE_EQUAL(out[0], query.to_tx(parent.hash(false)));
+}
+
 BC_AUTO_TEST_SUITE_END()

@@ -786,6 +786,14 @@ public:
         uint32_t bytes_per_sigop, const pool_totals& limit,
         size_t maximum_outcomes) const NOEXCEPT;
 
+    /// Template.
+    /// -----------------------------------------------------------------------
+
+    /// The pooled txs of a block template within the budget, parents first.
+    code get_pool_template(tx_links& out, const pool_totals& budget,
+        size_t depth, uint32_t bytes_per_sigop,
+        size_t maximum_outcomes) const NOEXCEPT;
+
     /// Batching.
     /// -----------------------------------------------------------------------
 

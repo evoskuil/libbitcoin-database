@@ -1146,6 +1146,46 @@ code CLASS::get_pool_coverage_(bool& out, const pool_graph& graph,
     return error::success;
 }
 
+// template
+// ----------------------------------------------------------------------------
+
+// A tx pooled more than once is taken at its first row, which precedes the
+// children of each of its rows.
+TEMPLATE
+code CLASS::get_pool_template(tx_links& out, const pool_totals& budget,
+    size_t depth, uint32_t bytes_per_sigop,
+    size_t maximum_outcomes) const NOEXCEPT
+{
+    using algorithm = system::pool::algorithm;
+    out.clear();
+    if (!store_.pool.enabled())
+        return error::success;
+
+    pool_guards guards{};
+    algorithm::columns_t columns{};
+    if (!get_pool_columns(columns, guards))
+        return error::integrity;
+
+    std::vector<algorithm::mark> marks(columns.cells.size());
+    pool_links rows{};
+    algorithm::resolve(marks, columns, maximum_outcomes);
+    algorithm::pack(rows, marks, columns, budget, depth, bytes_per_sigop);
+
+    std::unordered_set<tx_link::integer> taken{};
+    out.reserve(rows.size());
+    for (const auto row: rows)
+    {
+        const tx_link tx{ store_.pool.get_key(pool_link{ row }) };
+        if (tx.is_terminal())
+            return error::integrity;
+
+        if (taken.insert(tx.value).second)
+            out.push_back(tx);
+    }
+
+    return error::success;
+}
+
 } // namespace database
 } // namespace libbitcoin
 
