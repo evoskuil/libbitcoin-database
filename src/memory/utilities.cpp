@@ -383,6 +383,12 @@ static uint8_t* page_start(const uint8_t* byte, size_t page) NOEXCEPT
     return std::bit_cast<uint8_t*>(address - (address % page));
 }
 
+#if defined(HAVE_OPENBSD)
+bool resident(const data_slab&) NOEXCEPT
+{
+    return true;
+}
+#else
 bool resident(const data_slab& region) NOEXCEPT
 {
     const auto page = page_size();
@@ -402,6 +408,7 @@ bool resident(const data_slab& region) NOEXCEPT
 
     return in_core(region.begin()) && in_core(std::prev(region.end()));
 }
+#endif
 
 void prefetch(const std::span<const data_slab>& regions) NOEXCEPT
 {
