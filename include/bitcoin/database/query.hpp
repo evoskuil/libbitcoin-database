@@ -1565,6 +1565,14 @@ BC_PUSH_WARNING(NO_THROW_IN_NOEXCEPT)
 #include <bitcoin/database/impl/query/navigate/navigate_natural.ipp>
 #include <bitcoin/database/impl/query/navigate/navigate_reverse.ipp>
 
+#include <bitcoin/database/impl/query/pool/pool_confirmable.ipp>
+#include <bitcoin/database/impl/query/pool/pool_coverage.ipp>
+#include <bitcoin/database/impl/query/pool/pool_estimate.ipp>
+#include <bitcoin/database/impl/query/pool/pool_index.ipp>
+#include <bitcoin/database/impl/query/pool/pool_reader.ipp>
+#include <bitcoin/database/impl/query/pool/pool_template.ipp>
+#include <bitcoin/database/impl/query/pool/pool_writer.ipp>
+
 #include <bitcoin/database/impl/query/amounts.ipp>
 #include <bitcoin/database/impl/query/confirmed.ipp>
 #include <bitcoin/database/impl/query/envelope_state.ipp>
@@ -1575,7 +1583,6 @@ BC_PUSH_WARNING(NO_THROW_IN_NOEXCEPT)
 #include <bitcoin/database/impl/query/initialize.ipp>
 #include <bitcoin/database/impl/query/locator.ipp>
 #include <bitcoin/database/impl/query/merkle.ipp>
-#include <bitcoin/database/impl/query/pool.ipp>
 #include <bitcoin/database/impl/query/properties_block.ipp>
 #include <bitcoin/database/impl/query/properties_tx.ipp>
 #include <bitcoin/database/impl/query/query.ipp>

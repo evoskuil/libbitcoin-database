@@ -156,7 +156,6 @@ include_bitcoin_database_impl_query_HEADERS = \
     ${srcdir}/../../include/bitcoin/database/impl/query/initialize.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/query/locator.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/query/merkle.ipp \
-    ${srcdir}/../../include/bitcoin/database/impl/query/pool.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/query/properties_block.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/query/properties_tx.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/query/query.ipp \
@@ -215,6 +214,18 @@ include_bitcoin_database_impl_query_navigate_HEADERS = \
     ${srcdir}/../../include/bitcoin/database/impl/query/navigate/navigate_hashmap.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/query/navigate/navigate_natural.ipp \
     ${srcdir}/../../include/bitcoin/database/impl/query/navigate/navigate_reverse.ipp
+
+include_bitcoin_database_impl_query_pooldir = \
+    ${includedir}/bitcoin/database/impl/query/pool
+
+include_bitcoin_database_impl_query_pool_HEADERS = \
+    ${srcdir}/../../include/bitcoin/database/impl/query/pool/pool_confirmable.ipp \
+    ${srcdir}/../../include/bitcoin/database/impl/query/pool/pool_coverage.ipp \
+    ${srcdir}/../../include/bitcoin/database/impl/query/pool/pool_estimate.ipp \
+    ${srcdir}/../../include/bitcoin/database/impl/query/pool/pool_index.ipp \
+    ${srcdir}/../../include/bitcoin/database/impl/query/pool/pool_reader.ipp \
+    ${srcdir}/../../include/bitcoin/database/impl/query/pool/pool_template.ipp \
+    ${srcdir}/../../include/bitcoin/database/impl/query/pool/pool_writer.ipp
 
 include_bitcoin_database_impl_storedir = \
     ${includedir}/bitcoin/database/impl/store
