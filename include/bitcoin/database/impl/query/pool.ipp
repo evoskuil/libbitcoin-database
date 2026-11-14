@@ -1152,12 +1152,13 @@ code CLASS::get_pool_coverage_(bool& out, const pool_graph& graph,
 // A tx pooled more than once is taken at its first row, which precedes the
 // children of each of its rows.
 TEMPLATE
-code CLASS::get_pool_template(tx_links& out, const pool_totals& budget,
-    size_t depth, uint32_t bytes_per_sigop,
+code CLASS::get_pool_template(tx_links& out, pool_projection& projection,
+    const pool_totals& budget, size_t depth, uint32_t bytes_per_sigop,
     size_t maximum_outcomes) const NOEXCEPT
 {
     using algorithm = system::pool::algorithm;
     out.clear();
+    projection = {};
     if (!store_.pool.enabled())
         return error::success;
 
@@ -1166,10 +1167,11 @@ code CLASS::get_pool_template(tx_links& out, const pool_totals& budget,
     if (!get_pool_columns(columns, guards))
         return error::integrity;
 
-    std::vector<algorithm::mark> marks(columns.cells.size());
     pool_links rows{};
-    algorithm::resolve(marks, columns, maximum_outcomes);
-    algorithm::pack(rows, marks, columns, budget, depth, bytes_per_sigop);
+    projection.marks.resize(columns.cells.size());
+    algorithm::resolve(projection.marks, columns, maximum_outcomes);
+    algorithm::project(rows, projection, columns, budget, depth,
+        bytes_per_sigop);
 
     std::unordered_set<tx_link::integer> taken{};
     out.reserve(rows.size());
@@ -1181,6 +1183,81 @@ code CLASS::get_pool_template(tx_links& out, const pool_totals& budget,
 
         if (taken.insert(tx.value).second)
             out.push_back(tx);
+    }
+
+    return error::success;
+}
+
+// estimate
+// ----------------------------------------------------------------------------
+
+// Marks of the rows continue the projection, and any others restart it.
+TEMPLATE
+code CLASS::get_pool_projection(pool_projection& projection, size_t count,
+    const pool_totals& budget, size_t depth, uint32_t bytes_per_sigop,
+    size_t maximum_outcomes) const NOEXCEPT
+{
+    using algorithm = system::pool::algorithm;
+    if (!store_.pool.enabled())
+        return error::success;
+
+    pool_guards guards{};
+    algorithm::columns_t columns{};
+    if (!get_pool_columns(columns, guards))
+        return error::integrity;
+
+    if (projection.marks.size() != columns.cells.size())
+    {
+        projection = {};
+        projection.marks.resize(columns.cells.size());
+        algorithm::resolve(projection.marks, columns, maximum_outcomes);
+    }
+
+    pool_links rows{};
+    while (!projection.exhausted && projection.blocks.size() < count)
+        algorithm::project(rows, projection, columns, budget, depth,
+            bytes_per_sigop);
+
+    return error::success;
+}
+
+// A row arrives at the height of its context, and counts while it can confirm
+// or has confirmed. Rows of the top height are of the open interval.
+TEMPLATE
+code CLASS::get_pool_arrivals(pool_arrivals& out, size_t top, size_t count,
+    uint32_t bytes_per_sigop) const NOEXCEPT
+{
+    using namespace system;
+    using algorithm = system::pool::algorithm;
+    out.clear();
+    out.resize(count);
+    if (!store_.pool.enabled() || is_zero(count))
+        return error::success;
+
+    pool_guards guards{};
+    algorithm::columns_t columns{};
+    if (!get_pool_columns(columns, guards))
+        return error::integrity;
+
+    for (size_t at{}; at < columns.cells.size(); ++at)
+    {
+        const auto cell = columns.cells[at];
+        if (!algorithm::is_present(cell) && !algorithm::is_boundary(cell))
+            continue;
+
+        table::pool::get_height pooled{};
+        const auto row = possible_narrow_cast<algorithm::link_t>(at);
+        if (!store_.pool.get(pool_link{ row }, pooled))
+            return error::integrity;
+
+        const size_t height = pooled.height;
+        if (height >= top || (top - height) > count)
+            continue;
+
+        const auto& totals = columns.totals[at];
+        const auto rate = algorithm::fee_rate(totals, bytes_per_sigop);
+        const auto size = algorithm::chargeable(totals, bytes_per_sigop);
+        out.at(sub1(top - height)).push_back({ rate, size });
     }
 
     return error::success;

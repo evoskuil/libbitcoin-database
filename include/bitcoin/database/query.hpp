@@ -60,7 +60,9 @@ public:
     using prevout_spends = table::prevout::spends;
     using short_id = system::chain::short_id::integer;
     using pool_totals = system::pool::algorithm::totals_t;
+    using pool_projection = system::pool::algorithm::projection_t;
     using pool_links = std::vector<system::pool::algorithm::link_t>;
+    using pool_arrivals = std::vector<system::pool::algorithm::takes_t>;
     using ec_compresseds = system::ec_compresseds;
     using ec_compressed = system::ec_compressed;
     using ec_signatures = system::ec_signatures;
@@ -790,9 +792,21 @@ public:
     /// -----------------------------------------------------------------------
 
     /// The pooled txs of a block template within the budget, parents first.
-    code get_pool_template(tx_links& out, const pool_totals& budget,
-        size_t depth, uint32_t bytes_per_sigop,
+    code get_pool_template(tx_links& out, pool_projection& projection,
+        const pool_totals& budget, size_t depth, uint32_t bytes_per_sigop,
         size_t maximum_outcomes) const NOEXCEPT;
+
+    /// Estimate.
+    /// -----------------------------------------------------------------------
+
+    /// The projection extended to the count of blocks, or to exhaustion.
+    code get_pool_projection(pool_projection& projection, size_t count,
+        const pool_totals& budget, size_t depth, uint32_t bytes_per_sigop,
+        size_t maximum_outcomes) const NOEXCEPT;
+
+    /// Rate and size of the rows pooled at each height below top, top first.
+    code get_pool_arrivals(pool_arrivals& out, size_t top, size_t count,
+        uint32_t bytes_per_sigop) const NOEXCEPT;
 
     /// Batching.
     /// -----------------------------------------------------------------------
