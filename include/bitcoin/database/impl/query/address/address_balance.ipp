@@ -27,19 +27,27 @@ namespace database {
 
 // Address balance
 // ----------------------------------------------------------------------------
-// Balance queries (universal, unconfirmed conflict resolution arbitrary).
+// Balance queries (unconfirmed is confirmable outputs not spent).
 
-// unused
 TEMPLATE
-code CLASS::get_unconfirmed_balance(const stopper& , uint64_t& out,
-    const hash_digest& , size_t , bool ) const NOEXCEPT
+code CLASS::get_unconfirmed_balance(const stopper& cancel, uint64_t& out,
+    const hash_digest& key, size_t limit, bool turbo) const NOEXCEPT
 {
-    // While duplicates are easily filtered out, conflict resolution is murky.
-    // Output may have multiple directly or indirectly conflicting
-    // spends, and other spends and receives may not be visible.
-    // Unconfirmed balance is therefore inherently ambiguous.
-    // Given lack of tx pooling, returns zero unconfirmed.
-    out = zero;
+    outpoints outs{};
+    if (const auto ec = get_unconfirmed_unspent_outpoints(cancel, outs, key,
+        limit, turbo))
+    {
+        out = zero;
+        return ec;
+    }
+
+    // Conflicting confirmable outputs are each included.
+    out = std::accumulate(outs.cbegin(), outs.cend(), 0_u64,
+        [](uint64_t total, const outpoint& out) NOEXCEPT
+        {
+            return system::ceilinged_add(total, out.value());
+        });
+
     return error::success;
 }
 
@@ -72,11 +80,60 @@ code CLASS::get_balance(const stopper& cancel, uint64_t& confirmed,
     uint64_t& unconfirmed, const hash_digest& key, size_t limit,
     bool turbo) const NOEXCEPT
 {
-    // See notes on get_unconfirmed_balance().
-    const auto ec = get_confirmed_balance(cancel, confirmed, key, limit,
-        turbo);
-    unconfirmed = zero;
-    return ec;
+    if (const auto ec = get_confirmed_balance(cancel, confirmed, key, limit,
+        turbo))
+    {
+        unconfirmed = zero;
+        return ec;
+    }
+
+    return get_unconfirmed_balance(cancel, unconfirmed, key, limit, turbo);
+}
+
+// Output spent by a confirmed tx is not a receipt.
+TEMPLATE
+code CLASS::get_unconfirmed_receipts(const stopper& cancel,
+    pool_receipts& out, const hash_digest& key, size_t limit) const NOEXCEPT
+{
+    out.clear();
+    output_links outs{};
+    tx_links parents{};
+    outs_link cursor{};
+    if (const auto ec = to_address_outputs(cancel, cursor, outs, parents, key,
+        limit))
+        return ec;
+
+    for (size_t index{}; index < outs.size(); ++index)
+    {
+        if (cancel)
+            return error::query_canceled;
+
+        const auto& link = outs.at(index);
+        const auto& parent = parents.at(index);
+        if (!is_confirmable_tx(parent))
+            continue;
+
+        auto spent = false;
+        pool_receipt receipt{ to_pool_row(parent).value };
+        for (const auto& in: to_spenders(link))
+        {
+            const auto spender = to_input_tx(in);
+            const auto state = get_tx_state(spender);
+            spent |= (state == tx_state::confirmed);
+            if (state == tx_state::confirmable)
+                receipt.spenders.push_back(to_pool_row(spender).value);
+        }
+
+        if (spent)
+            continue;
+
+        if (!get_value(receipt.value, link))
+            return error::integrity;
+
+        out.push_back(std::move(receipt));
+    }
+
+    return error::success;
 }
 
 // server/esplora
@@ -133,7 +190,7 @@ code CLASS::get_address_totals(const stopper& cancel,
             else if (is_spent(out))
                 spend(unconfirmed, value);
         }
-        else
+        else if (is_confirmable_tx(parent))
         {
             fund(unconfirmed, value);
             if (is_spent(out))

@@ -19,6 +19,7 @@
 #include "../../test.hpp"
 #include "../../mocks/blocks.hpp"
 #include "../../mocks/chunk_store.hpp"
+#include "../../mocks/pooling.hpp"
 
 BC_FIXTURE_TEST_SUITE(query_address_tests, test::directory_setup_fixture)
 
@@ -39,7 +40,7 @@ BC_AUTO_TEST_CASE(query_address__get_unconfirmed_unspent_outpoints__turbo_genesi
     BC_REQUIRE(out.empty());
 }
 
-BC_AUTO_TEST_CASE(query_address__get_unconfirmed_unspent_outpoints__turbo_block1a_address0__expected)
+BC_AUTO_TEST_CASE(query_address__get_unconfirmed_unspent_outpoints__unknown__empty)
 {
     settings settings{ test::database_settings() };
     settings.path = TEST_DIRECTORY;
@@ -48,19 +49,91 @@ BC_AUTO_TEST_CASE(query_address__get_unconfirmed_unspent_outpoints__turbo_block1
     BC_REQUIRE(!store.create(test::events_handler));
     BC_REQUIRE(test::setup_three_block_confirmed_address_store(query));
 
-    // tx4/5 contain one address output each.
-    // block1b (unconfirmed) contains 2 address outputs, both spent by block2b (0 unspent).
-    // block2b (unconfirmed) contains 1 address output, so 3 total address outputs.
     outpoints out{};
     const std::atomic_bool cancel{};
     BC_REQUIRE(!query.get_unconfirmed_unspent_outpoints(cancel, out, test::block1a_address0, max_size_t, true));
-    BC_REQUIRE_EQUAL(out.size(), 3u);
-    BC_REQUIRE_EQUAL(out.at(0).value(), 0x08u);
-    BC_REQUIRE_EQUAL(out.at(0).point().hash(), test::tx4.hash(false));
-    BC_REQUIRE_EQUAL(out.at(1).value(), 0x85u);
-    BC_REQUIRE_EQUAL(out.at(1).point().hash(), test::tx5.hash(false));
-    BC_REQUIRE_EQUAL(out.at(2).value(), 0xb2u);
-    BC_REQUIRE_EQUAL(out.at(2).point().hash(), test::block2b.transactions_ptr()->at(0)->hash(false));
+    BC_REQUIRE(out.empty());
+}
+
+BC_AUTO_TEST_CASE(query_address__get_unconfirmed_unspent_outpoints__confirmable__unspent_only)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
+
+    store.set_pooling();
+    const auto parent = test::to_pay(test::genesis_coinbase(), 2u);
+    const auto child = test::to_pay(parent.hash(false), 1u);
+    BC_REQUIRE(test::archive_pool(query, parent));
+    BC_REQUIRE(test::archive_pool(query, child));
+
+    outpoints out{};
+    const std::atomic_bool cancel{};
+    BC_REQUIRE(!query.get_unconfirmed_unspent_outpoints(cancel, out, test::pay_address(), max_size_t, true));
+    BC_REQUIRE_EQUAL(out.size(), 1u);
+    BC_REQUIRE_EQUAL(out.front().value(), 1u);
+    BC_REQUIRE_EQUAL(out.front().point().hash(), child.hash(false));
+}
+
+BC_AUTO_TEST_CASE(query_address__get_unconfirmed_unspent_outpoints__unconfirmable__empty)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
+
+    store.set_pooling();
+    const auto parent = test::to_pay(test::genesis_coinbase(), 2u);
+    const auto child = test::to_pay(parent.hash(false), 1u);
+    BC_REQUIRE(test::archive_pool(query, parent));
+    BC_REQUIRE(test::archive_pool(query, child));
+    BC_REQUIRE(!test::archive_confirm(query, test::to_pay(test::genesis_coinbase(), 3u)).is_terminal());
+
+    outpoints out{};
+    const std::atomic_bool cancel{};
+    BC_REQUIRE(!query.get_unconfirmed_unspent_outpoints(cancel, out, test::pay_address(), max_size_t, true));
+    BC_REQUIRE(out.empty());
+}
+
+BC_AUTO_TEST_CASE(query_address__get_address_outpoints__unknown__excluded)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(test::setup_three_block_confirmed_address_store(query));
+
+    outpoints out{};
+    const std::atomic_bool cancel{};
+    BC_REQUIRE(!query.get_address_outpoints(cancel, out, test::block1a_address0, max_size_t, true));
+    BC_REQUIRE_EQUAL(out.size(), 4u);
+}
+
+BC_AUTO_TEST_CASE(query_address__get_address_outpoints__confirmable__included)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
+
+    store.set_pooling();
+    const auto parent = test::to_pay(test::genesis_coinbase(), 2u);
+    const auto child = test::to_pay(parent.hash(false), 1u);
+    BC_REQUIRE(test::archive_pool(query, parent));
+    BC_REQUIRE(test::archive_pool(query, child));
+
+    outpoints out{};
+    const std::atomic_bool cancel{};
+    BC_REQUIRE(!query.get_address_outpoints(cancel, out, test::pay_address(), max_size_t, true));
+    BC_REQUIRE_EQUAL(out.size(), 2u);
 }
 
 BC_AUTO_TEST_CASE(query_address__get_confirmed_unspent_outpoints__turbo_genesis__expected)

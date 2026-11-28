@@ -19,6 +19,7 @@
 #include "../../test.hpp"
 #include "../../mocks/blocks.hpp"
 #include "../../mocks/chunk_store.hpp"
+#include "../../mocks/pooling.hpp"
 
 BC_FIXTURE_TEST_SUITE(query_address_tests, test::directory_setup_fixture)
 
@@ -71,55 +72,31 @@ BC_AUTO_TEST_CASE(query_address__get_history__turbo_block1a_address0__expected)
     height_link cursor{};
     const std::atomic_bool cancel{};
     BC_CHECK(!query.get_history(cancel, cursor, out, test::block1a_address0, max_size_t, true));
-    BC_REQUIRE_EQUAL(out.size(), 8u);
+    BC_REQUIRE_EQUAL(out.size(), 4u);
 
     // Identities (not part of sort).
     BC_CHECK_EQUAL(out.at(0).tx.hash(), test::block1a.transactions_ptr()->at(0)->hash(false)); // tx1/tx1 (same)
     BC_CHECK_EQUAL(out.at(1).tx.hash(), test::block2a.transactions_ptr()->at(0)->hash(false)); // tx2/tx2 (same)
     BC_CHECK_EQUAL(out.at(2).tx.hash(), test::block2a.transactions_ptr()->at(1)->hash(false)); // tx3/tx3 (same)
     BC_CHECK_EQUAL(out.at(3).tx.hash(), test::block3a.transactions_ptr()->at(0)->hash(false)); // tx6/tx6 (same)
-    BC_CHECK_EQUAL(out.at(4).tx.hash(), test::tx5.hash(false));                                // tx5/tx4
-    BC_CHECK_EQUAL(out.at(5).tx.hash(), test::tx4.hash(false));                                // tx4/tx8
-    BC_CHECK_EQUAL(out.at(6).tx.hash(), test::block2b.transactions_ptr()->at(0)->hash(false)); // tx8/tx5
-    BC_CHECK_EQUAL(out.at(7).tx.hash(), test::block1b.transactions_ptr()->at(0)->hash(false)); // tx7/tx7 (same)
 
-    // Confirmed by height ascending.
-    // Unconfirmed rooted before unrooted.
-    // NOTE: at(5) is spend exceeds value, which is returned as unrooted_height in get_unconfirmed_history()
-    // NOTE: but as rooted_height in get_history(). This is a consequence of the optimized processing order
-    // NOTE: and does not affect valid confirmed/unconfirmed txs.
+    // Confirmed by height ascending, unknown excluded.
     BC_CHECK_EQUAL(out.at(0).tx.height(), 1u);                             // tx1
     BC_CHECK_EQUAL(out.at(1).tx.height(), 2u);                             // tx2
     BC_CHECK_EQUAL(out.at(2).tx.height(), 2u);                             // tx3
     BC_CHECK_EQUAL(out.at(3).tx.height(), 3u);                             // tx6
-    BC_CHECK_EQUAL(out.at(4).tx.height(), history::rooted_height);         // tx5/tx4
-    BC_CHECK_EQUAL(out.at(5).tx.height(), history::rooted_height);         // tx4/tx8
-    BC_CHECK_EQUAL(out.at(6).tx.height(), history::unrooted_height);       // tx8/tx5
-    BC_CHECK_EQUAL(out.at(7).tx.height(), history::unrooted_height);       // tx7
 
     // Confirmed height by block position.
     BC_CHECK_EQUAL(out.at(0).position, 0u);                                // tx1
     BC_CHECK_EQUAL(out.at(1).position, 0u);                                // tx2
     BC_CHECK_EQUAL(out.at(2).position, 1u);                                // tx3
     BC_CHECK_EQUAL(out.at(3).position, 0u);                                // tx6
-    BC_CHECK_EQUAL(out.at(4).position, history::unconfirmed_position);     // tx5/tx4
-    BC_CHECK_EQUAL(out.at(5).position, history::unconfirmed_position);     // tx4/tx8
-    BC_CHECK_EQUAL(out.at(6).position, history::unconfirmed_position);     // tx8/tx5
-    BC_CHECK_EQUAL(out.at(7).position, history::unconfirmed_position);     // tx7
-
-    // Unconfirmed system::encode_hash(hash) lexically sorted.
-    using namespace system;
-    BC_CHECK(encode_hash(out.at(6).tx.hash()) < encode_hash(out.at(7).tx.hash()));
 
     // Fee (not part of sort).
     BC_CHECK_EQUAL(out.at(0).fee, history::missing_prevout);               // tx1
     BC_CHECK_EQUAL(out.at(1).fee, history::missing_prevout);               // tx2
     BC_CHECK_EQUAL(out.at(2).fee, history::missing_prevout);               // tx3
     BC_CHECK_EQUAL(out.at(3).fee, history::missing_prevout);               // tx6
-    BC_CHECK_EQUAL(out.at(4).fee, history::missing_prevout);               // tx5/tx4
-    BC_CHECK_EQUAL(out.at(5).fee, floored_subtract(0x18u + 0x2au, 0x08u)); // tx4/tx8
-    BC_CHECK_EQUAL(out.at(6).fee, floored_subtract(0xb1u + 0xb1u, 0xb2u)); // tx8/tx5
-    BC_CHECK_EQUAL(out.at(7).fee, history::missing_prevout);               // tx7
 }
 
 BC_AUTO_TEST_CASE(query_address__get_history__limited__depth_limited_empty)
@@ -146,11 +123,11 @@ BC_AUTO_TEST_CASE(query_address__get_history__limited__depth_limited_empty)
 
     cursor = {};
     BC_CHECK_EQUAL(query.get_history(cancel, cursor, out, hash, 9, true), error::success);
-    BC_CHECK_EQUAL(out.size(), 8u);
+    BC_CHECK_EQUAL(out.size(), 4u);
 
     cursor = {};
     BC_CHECK_EQUAL(query.get_history(cancel, cursor, out, hash, 100, true), error::success);
-    BC_CHECK_EQUAL(out.size(), 8u);
+    BC_CHECK_EQUAL(out.size(), 4u);
 }
 
 BC_AUTO_TEST_CASE(query_address__get_history__start__excludes_prior)
@@ -175,20 +152,20 @@ BC_AUTO_TEST_CASE(query_address__get_history__start__excludes_prior)
     BC_CHECK_EQUAL(query.get_history(cancel, cursor, out, hash, 8, true), error::depth_limited);
     BC_CHECK(out.empty());
 
-    // Only unconfirmed.
+    // None at or above start.
     cursor = 42;
     BC_CHECK_EQUAL(query.get_history(cancel, cursor, out, hash, 9, true), error::success);
-    BC_CHECK_EQUAL(out.size(), 4u);
+    BC_CHECK(out.empty());
         
     // Only excludes genesis.
     cursor = 1;
     BC_CHECK_EQUAL(query.get_history(cancel, cursor, out, hash, 100, true), error::success);
-    BC_CHECK_EQUAL(out.size(), 8u);
+    BC_CHECK_EQUAL(out.size(), 4u);
 
     // Excludes block1a which has one confirmed touching tx.
     cursor = 2;
     BC_CHECK_EQUAL(query.get_history(cancel, cursor, out, hash, 100, true), error::success);
-    BC_CHECK_EQUAL(out.size(), 7u);
+    BC_CHECK_EQUAL(out.size(), 3u);
 }
 
 // ----------------------------------------------------------------------------
@@ -220,7 +197,7 @@ BC_AUTO_TEST_CASE(query_address__get_history__start__excludes_prior)
 
 // get_unconfirmed_history
 
-BC_AUTO_TEST_CASE(query_address__get_unconfirmed_history__turbo_block1a_address0__expected)
+BC_AUTO_TEST_CASE(query_address__get_unconfirmed_history__unknown__empty)
 {
     settings settings{ test::database_settings() };
     settings.path = TEST_DIRECTORY;
@@ -232,38 +209,81 @@ BC_AUTO_TEST_CASE(query_address__get_unconfirmed_history__turbo_block1a_address0
     histories out{};
     const std::atomic_bool cancel{};
     BC_CHECK(!query.get_unconfirmed_history(cancel, out, test::block1a_address0, max_size_t, true));
-    BC_REQUIRE_EQUAL(out.size(), 4u);
+    BC_CHECK(out.empty());
+}
 
-    // Identities (not part of sort).
-    BC_CHECK_EQUAL(out.at(0).tx.hash(), test::tx5.hash(false));                                // tx5
-    BC_CHECK_EQUAL(out.at(1).tx.hash(), test::tx4.hash(false));                                // tx4
-    BC_CHECK_EQUAL(out.at(2).tx.hash(), test::block2b.transactions_ptr()->at(0)->hash(false)); // tx8
-    BC_CHECK_EQUAL(out.at(3).tx.hash(), test::block1b.transactions_ptr()->at(0)->hash(false)); // tx7
+BC_AUTO_TEST_CASE(query_address__get_unconfirmed_history__confirmable__rooted_before_unrooted)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
 
-    // Confirmed by height ascending (not part of sort).
+    store.set_pooling();
+    const auto parent = test::to_pay(test::genesis_coinbase(), 2u);
+    const auto child = test::to_pay(parent.hash(false), 1u);
+    BC_REQUIRE(test::archive_pool(query, parent));
+    BC_REQUIRE(test::archive_pool(query, child));
 
-    // Unconfirmed rooted before unrooted.
-    BC_CHECK_EQUAL(out.at(0).tx.height(), history::rooted_height);   // tx5 spends block1a
-    BC_CHECK_EQUAL(out.at(1).tx.height(), history::rooted_height);   // tx4 spends block1a
-    BC_CHECK_EQUAL(out.at(2).tx.height(), history::unrooted_height); // block2b spends block1b
-    BC_CHECK_EQUAL(out.at(3).tx.height(), history::unrooted_height); // block1b missing prevouts
+    histories out{};
+    const std::atomic_bool cancel{};
+    BC_REQUIRE(!query.get_unconfirmed_history(cancel, out, test::pay_address(), max_size_t, true));
+    BC_REQUIRE_EQUAL(out.size(), 2u);
+    BC_REQUIRE_EQUAL(out.at(0).tx.hash(), parent.hash(false));
+    BC_REQUIRE_EQUAL(out.at(0).tx.height(), history::rooted_height);
+    BC_REQUIRE_EQUAL(out.at(0).position, history::unconfirmed_position);
+    BC_REQUIRE_EQUAL(out.at(1).tx.hash(), child.hash(false));
+    BC_REQUIRE_EQUAL(out.at(1).tx.height(), history::unrooted_height);
+    BC_REQUIRE_EQUAL(out.at(1).position, history::unconfirmed_position);
+}
 
-    // Confirmed height by block position (not part of sort).
-    BC_CHECK_EQUAL(out.at(0).position, history::unconfirmed_position);
-    BC_CHECK_EQUAL(out.at(1).position, history::unconfirmed_position);
-    BC_CHECK_EQUAL(out.at(2).position, history::unconfirmed_position);
-    BC_CHECK_EQUAL(out.at(3).position, history::unconfirmed_position);
+BC_AUTO_TEST_CASE(query_address__get_unconfirmed_history__unconfirmable__empty)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
 
-    // Unconfirmed system::encode_hash(hash) lexically sorted.
-    using namespace system;
-    BC_CHECK(encode_hash(out.at(0).tx.hash()) < encode_hash(out.at(1).tx.hash()));
-    BC_CHECK(encode_hash(out.at(2).tx.hash()) < encode_hash(out.at(3).tx.hash()));
+    store.set_pooling();
+    const auto parent = test::to_pay(test::genesis_coinbase(), 2u);
+    const auto child = test::to_pay(parent.hash(false), 1u);
+    BC_REQUIRE(test::archive_pool(query, parent));
+    BC_REQUIRE(test::archive_pool(query, child));
+    BC_REQUIRE(!test::archive_confirm(query, test::to_pay(test::genesis_coinbase(), 3u)).is_terminal());
 
-    // Fee (not part of sort).
-    BC_CHECK_EQUAL(out.at(0).fee, history::missing_prevout);         // spend exceeds value (treated as missing prevout).
-    BC_CHECK_EQUAL(out.at(1).fee, floored_subtract(0x18u + 0x2au, 0x08u));
-    BC_CHECK_EQUAL(out.at(2).fee, floored_subtract(0xb1u + 0xb1u, 0xb2u));
-    BC_CHECK_EQUAL(out.at(3).fee, 0u);                               // coinbase (archived with null single point).
+    histories out{};
+    const std::atomic_bool cancel{};
+    BC_REQUIRE(!query.get_unconfirmed_history(cancel, out, test::pay_address(), max_size_t, true));
+    BC_REQUIRE(out.empty());
+}
+
+BC_AUTO_TEST_CASE(query_address__get_history__unconfirmable__confirmed_only)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
+
+    store.set_pooling();
+    const auto parent = test::to_pay(test::genesis_coinbase(), 2u);
+    const auto child = test::to_pay(parent.hash(false), 1u);
+    BC_REQUIRE(test::archive_pool(query, parent));
+    BC_REQUIRE(test::archive_pool(query, child));
+    BC_REQUIRE(!test::archive_confirm(query, test::to_pay(test::genesis_coinbase(), 3u)).is_terminal());
+
+    histories out{};
+    height_link cursor{};
+    const std::atomic_bool cancel{};
+    BC_REQUIRE(!query.get_history(cancel, cursor, out, test::pay_address(), max_size_t, true));
+    BC_REQUIRE_EQUAL(out.size(), 1u);
+    BC_REQUIRE_EQUAL(out.front().tx.height(), 1u);
+    BC_REQUIRE_EQUAL(out.front().position, 1u);
 }
 
 BC_AUTO_TEST_CASE(query_address__get_unconfirmed_history__limited__depth_limited_empty)
@@ -287,10 +307,10 @@ BC_AUTO_TEST_CASE(query_address__get_unconfirmed_history__limited__depth_limited
     BC_CHECK(out.empty());
 
     BC_CHECK_EQUAL(query.get_unconfirmed_history(cancel, out, hash, 9, true), error::success);
-    BC_CHECK_EQUAL(out.size(), 4u);
+    BC_CHECK(out.empty());
 
     BC_CHECK_EQUAL(query.get_unconfirmed_history(cancel, out, hash, 100, true), error::success);
-    BC_CHECK_EQUAL(out.size(), 4u);
+    BC_CHECK(out.empty());
 }
 
 // get_confirmed_history
@@ -456,7 +476,7 @@ BC_AUTO_TEST_CASE(query_address__get_tx_history__confirmed_missing_prevout__expe
     BC_CHECK_EQUAL(history.tx.hash(), hash);
 }
 
-BC_AUTO_TEST_CASE(query_address__get_tx_history__rooted__expected)
+BC_AUTO_TEST_CASE(query_address__get_tx_history__unknown__invalid)
 {
     settings settings{ test::database_settings() };
     settings.path = TEST_DIRECTORY;
@@ -465,14 +485,31 @@ BC_AUTO_TEST_CASE(query_address__get_tx_history__rooted__expected)
     BC_CHECK(!store.create(test::events_handler));
     BC_CHECK(test::setup_three_block_confirmed_address_store(query));
 
-    using namespace system;
-    const auto hash = test::tx4.hash(false);
-    const auto history = query.get_tx_history(query.to_tx(hash));
-    BC_CHECK(history.valid());
-    BC_CHECK_EQUAL(history.fee, floored_subtract(0x18u + 0x2au, 0x08u));
+    const auto history = query.get_tx_history(query.to_tx(test::tx4.hash(false)));
+    BC_CHECK(!history.valid());
     BC_CHECK_EQUAL(history.position, history::unconfirmed_position);
-    BC_CHECK_EQUAL(history.tx.height(), history::rooted_height);
-    BC_CHECK_EQUAL(history.tx.hash(), hash);
+}
+
+BC_AUTO_TEST_CASE(query_address__get_tx_history__rooted__expected)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
+
+    store.set_pooling();
+    const auto parent = test::to_pay(test::genesis_coinbase(), 2u);
+    const auto child = test::to_pay(parent.hash(false), 1u);
+    BC_REQUIRE(test::archive_pool(query, parent));
+    BC_REQUIRE(test::archive_pool(query, child));
+
+    const auto history = query.get_tx_history(query.to_tx(parent.hash(false)));
+    BC_REQUIRE(history.valid());
+    BC_REQUIRE_EQUAL(history.position, history::unconfirmed_position);
+    BC_REQUIRE_EQUAL(history.tx.height(), history::rooted_height);
+    BC_REQUIRE_EQUAL(history.tx.hash(), parent.hash(false));
 }
 
 BC_AUTO_TEST_CASE(query_address__get_tx_history__unrooted__expected)
@@ -481,17 +518,40 @@ BC_AUTO_TEST_CASE(query_address__get_tx_history__unrooted__expected)
     settings.path = TEST_DIRECTORY;
     test::chunk_store store{ settings };
     test::query_accessor query{ store };
-    BC_CHECK(!store.create(test::events_handler));
-    BC_CHECK(test::setup_three_block_confirmed_address_store(query));
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
 
-    using namespace system;
-    const auto hash = test::block2b.transactions_ptr()->at(0)->hash(false);
-    const auto history = query.get_tx_history(query.to_tx(hash));
-    BC_CHECK(history.valid());
-    BC_CHECK_EQUAL(history.fee, floored_subtract(0xb1u + 0xb1u, 0xb2u));
-    BC_CHECK_EQUAL(history.position, history::unconfirmed_position);
-    BC_CHECK_EQUAL(history.tx.height(), history::unrooted_height);
-    BC_CHECK_EQUAL(history.tx.hash(), hash);
+    store.set_pooling();
+    const auto parent = test::to_pay(test::genesis_coinbase(), 2u);
+    const auto child = test::to_pay(parent.hash(false), 1u);
+    BC_REQUIRE(test::archive_pool(query, parent));
+    BC_REQUIRE(test::archive_pool(query, child));
+
+    const auto history = query.get_tx_history(query.to_tx(child.hash(false)));
+    BC_REQUIRE(history.valid());
+    BC_REQUIRE_EQUAL(history.position, history::unconfirmed_position);
+    BC_REQUIRE_EQUAL(history.tx.height(), history::unrooted_height);
+    BC_REQUIRE_EQUAL(history.tx.hash(), child.hash(false));
+}
+
+BC_AUTO_TEST_CASE(query_address__get_tx_history__unconfirmable__invalid)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
+
+    store.set_pooling();
+    const auto parent = test::to_pay(test::genesis_coinbase(), 2u);
+    const auto child = test::to_pay(parent.hash(false), 1u);
+    BC_REQUIRE(test::archive_pool(query, parent));
+    BC_REQUIRE(test::archive_pool(query, child));
+    BC_REQUIRE(!test::archive_confirm(query, test::to_pay(test::genesis_coinbase(), 3u)).is_terminal());
+
+    BC_REQUIRE(!query.get_tx_history(query.to_tx(parent.hash(false))).valid());
+    BC_REQUIRE(!query.get_tx_history(query.to_tx(child.hash(false))).valid());
 }
 
 // get_spenders_history1
@@ -542,7 +602,7 @@ BC_AUTO_TEST_CASE(query_address__get_spenders_history__confirmed__expected)
     using namespace system;
     const auto hash = test::block1a.transactions_ptr()->at(0)->hash(false);
     const auto histories = query.get_spenders_history(hash, 0);
-    BC_CHECK_EQUAL(histories.size(), 4u);
+    BC_CHECK_EQUAL(histories.size(), 2u);
 
     BC_CHECK(histories.at(0).valid());
     BC_CHECK_EQUAL(histories.at(0).fee, history::missing_prevout); // spend > value
@@ -555,18 +615,46 @@ BC_AUTO_TEST_CASE(query_address__get_spenders_history__confirmed__expected)
     BC_CHECK_EQUAL(histories.at(1).position, 0u);
     BC_CHECK_EQUAL(histories.at(1).tx.height(), 3u);
     BC_CHECK_EQUAL(histories.at(1).tx.hash(), test::block3a.transactions_ptr()->at(0)->hash(false));
+}
 
-    BC_CHECK(histories.at(2).valid());
-    BC_CHECK_EQUAL(histories.at(2).fee, history::missing_prevout); // spend > value
-    BC_CHECK_EQUAL(histories.at(2).position, history::unconfirmed_position);
-    BC_CHECK_EQUAL(histories.at(2).tx.height(), history::rooted_height);
-    BC_CHECK_EQUAL(histories.at(2).tx.hash(), test::tx5.hash(false));
+BC_AUTO_TEST_CASE(query_address__get_spenders_history__confirmable__expected)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
 
-    BC_CHECK(histories.at(3).valid());
-    BC_CHECK_EQUAL(histories.at(3).fee, floored_subtract(0x18u + 0x2au, 0x08u));
-    BC_CHECK_EQUAL(histories.at(3).position, history::unconfirmed_position);
-    BC_CHECK_EQUAL(histories.at(3).tx.height(), history::rooted_height);
-    BC_CHECK_EQUAL(histories.at(3).tx.hash(), test::tx4.hash(false));
+    store.set_pooling();
+    const auto parent = test::to_pay(test::genesis_coinbase(), 2u);
+    const auto child = test::to_pay(parent.hash(false), 1u);
+    BC_REQUIRE(test::archive_pool(query, parent));
+    BC_REQUIRE(test::archive_pool(query, child));
+
+    const auto histories = query.get_spenders_history(parent.hash(false), 0);
+    BC_REQUIRE_EQUAL(histories.size(), 1u);
+    BC_REQUIRE_EQUAL(histories.front().tx.hash(), child.hash(false));
+    BC_REQUIRE_EQUAL(histories.front().position, history::unconfirmed_position);
+}
+
+BC_AUTO_TEST_CASE(query_address__get_spenders_history__unconfirmable__empty)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
+
+    store.set_pooling();
+    const auto parent = test::to_pay(test::genesis_coinbase(), 2u);
+    const auto child = test::to_pay(parent.hash(false), 1u);
+    BC_REQUIRE(test::archive_pool(query, parent));
+    BC_REQUIRE(test::archive_pool(query, child));
+    BC_REQUIRE(!test::archive_confirm(query, test::to_pay(test::genesis_coinbase(), 3u)).is_terminal());
+
+    BC_REQUIRE(query.get_spenders_history(parent.hash(false), 0).empty());
 }
 
 // duplicate instances (one tx archived twice, only one instance associated)

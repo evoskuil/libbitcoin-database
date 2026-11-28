@@ -312,19 +312,14 @@ bool CLASS::get_pooled_spender(system::pool::algorithm::link_t& out,
 }
 
 // protected
-// First tx is coinbase, which spends nothing.
 TEMPLATE
 bool CLASS::get_pool_conflicts(tx_links& out,
     const tx_links& txs) const NOEXCEPT
 {
-    out.clear();
-    if (is_zero(store_.duplicate.body_size()))
-        return true;
-
-    for (auto tx = std::next(txs.cbegin()); tx != txs.cend(); ++tx)
+    for (const auto tx: txs)
     {
         table::transaction::get_puts record{};
-        if (!store_.tx.get(*tx, record))
+        if (!store_.tx.get(tx, record))
             return false;
 
         // Point links are contiguous (computed).
@@ -357,11 +352,11 @@ bool CLASS::is_pool_conflicted(bool& out, const tx_link& link,
     return true;
 }
 
-// Conflicts of block's txs are archived spenders of its points
-// as of transition, as a tx may be pooled after block's prevouts
-// are cached. They include block's own txs, as each spends a
-// conflicted point. Conflict is cleared at reorganization only
-// if no other confirmed tx spends a point of row.
+// Conflicts of block's txs are pooled spenders of its points as of
+// transition, as a tx may be pooled after block's prevouts are cached:
+// rivals of its pooled txs by ring, and archived spenders of points of
+// its other txs. Conflict is cleared at reorganization only if no other
+// confirmed tx spends a point of row.
 TEMPLATE
 bool CLASS::set_pool_block(const header_link& link, bool confirmed) NOEXCEPT
 {
@@ -382,17 +377,40 @@ bool CLASS::set_pool_block(const header_link& link, bool confirmed) NOEXCEPT
     if (!store_.txs.at(to_txs(link), txs) || txs.tx_fks.empty())
         return false;
 
-    pool_links block{};
-    for (const auto fk: txs.tx_fks)
+    pool_guards guards{};
+    algorithm::columns_t columns{};
+    if (!get_pool_columns(columns, guards))
+        return false;
+
+    const auto beyond = [&](link_t row) NOEXCEPT
     {
-        const auto row = store_.pool.first(tx_link{ fk });
-        if (!row.is_terminal() && row.value < count)
+        return row >= columns.cells.size();
+    };
+
+    // First tx is coinbase, which is not pooled and spends nothing.
+    pool_links block{};
+    tx_links unpooled{};
+    for (auto fk = std::next(txs.tx_fks.cbegin()); fk != txs.tx_fks.cend();
+        ++fk)
+    {
+        const auto row = store_.pool.first(tx_link{ *fk });
+        if (row.is_terminal() || row.value >= count || beyond(row.value))
+            unpooled.push_back(*fk);
+        else
             block.push_back(possible_narrow_cast<link_t>(row.value));
     }
 
     tx_links spenders{};
-    if (!get_pool_conflicts(spenders, txs.tx_fks))
-        return false;
+    if (!is_zero(store_.duplicate.body_size()))
+    {
+        pool_links rivals{};
+        algorithm::rivals(rivals, columns, block);
+        for (const auto row: rivals)
+            spenders.push_back(tx_link{ store_.pool.get_key(row) }.value);
+
+        if (!get_pool_conflicts(spenders, unpooled))
+            return false;
+    }
 
     auto own = txs.tx_fks;
     std::ranges::sort(own);
@@ -416,17 +434,6 @@ bool CLASS::set_pool_block(const header_link& link, bool confirmed) NOEXCEPT
             conflicts.push_back(possible_narrow_cast<link_t>(row.value));
     }
 
-    pool_guards guards{};
-    algorithm::columns_t columns{};
-    if (!get_pool_columns(columns, guards))
-        return false;
-
-    const auto beyond = [&](link_t row) NOEXCEPT
-    {
-        return row >= columns.cells.size();
-    };
-
-    std::erase_if(block, beyond);
     std::erase_if(conflicts, beyond);
     const auto complete = confirmed ?
         algorithm::confirm(columns, block, conflicts) :

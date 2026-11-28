@@ -155,18 +155,6 @@ bool CLASS::is_confirmed_spent(const output_link& link) const NOEXCEPT
 }
 
 TEMPLATE
-bool CLASS::is_unconfirmed_spent(const output_link& link) const NOEXCEPT
-{
-    // At least one spender and no spender is in a confirmed block (by height).
-    const auto ins = to_spenders(link);
-    return !ins.empty() && std::none_of(ins.cbegin(), ins.cend(),
-        [&](const auto& in) NOEXCEPT
-        {
-            return is_confirmed_input(in);
-        });
-}
-
-TEMPLATE
 bool CLASS::is_spent(const output_link& link) const NOEXCEPT
 {
     return is_spent(get_outpoint(link).point());
@@ -175,9 +163,13 @@ bool CLASS::is_spent(const output_link& link) const NOEXCEPT
 TEMPLATE
 bool CLASS::is_spent(const point& prevout) const NOEXCEPT
 {
-    // *Any* tx spends the point. Could even be a tx in conflict with another
-    // long-confirmed tx, or valid tx in invalid block.
-    return store_.ins.exists(prevout);
+    const auto ins = to_spenders(prevout);
+    return std::any_of(ins.cbegin(), ins.cend(), [&](const auto& in) NOEXCEPT
+    {
+        const auto state = get_tx_state(to_input_tx(in));
+        return state == tx_state::confirmed ||
+            state == tx_state::confirmable;
+    });
 }
 
 } // namespace database

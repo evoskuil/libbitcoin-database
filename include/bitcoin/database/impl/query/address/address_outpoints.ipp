@@ -30,7 +30,7 @@ namespace database {
 // Address table is populated during transaction archival.
 
 // server/native
-// Only unconfirmed outputs that are not spent (by an unconfirmed tx).
+// Only confirmable outputs that are not spent.
 TEMPLATE
 code CLASS::get_unconfirmed_unspent_outpoints(const stopper& cancel,
     outpoints& out, const hash_digest& key, size_t limit,
@@ -45,7 +45,8 @@ code CLASS::get_unconfirmed_unspent_outpoints(const stopper& cancel,
     return parallel_outpoint_transform(cancel, turbo, out, links,
         [this](const output_link& link, auto& cancel, auto& fail) NOEXCEPT
         {
-            if (cancel || fail || is_confirmed_output(link) || is_spent(link))
+            if (cancel || fail || !is_confirmable_tx(to_output_tx(link)) ||
+                is_spent(link))
                 return outpoint{};
 
             const auto point = get_outpoint(link);
@@ -122,6 +123,7 @@ code CLASS::get_minimum_unspent_outpoints(const stopper& cancel,
 }
 
 // server/native
+// Confirmed and confirmable outputs.
 TEMPLATE
 code CLASS::get_address_outpoints(const stopper& cancel, outpoints& out,
     const hash_digest& key, size_t limit, bool turbo) const NOEXCEPT
@@ -136,6 +138,11 @@ code CLASS::get_address_outpoints(const stopper& cancel, outpoints& out,
         [this](const output_link& link, auto& cancel, auto& fail) NOEXCEPT
         {
             if (cancel || fail)
+                return outpoint{};
+
+            const auto state = get_tx_state(to_output_tx(link));
+            if (state != tx_state::confirmed &&
+                state != tx_state::confirmable)
                 return outpoint{};
 
             const auto point = get_outpoint(link);

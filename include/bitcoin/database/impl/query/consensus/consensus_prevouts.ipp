@@ -189,28 +189,25 @@ bool CLASS::get_block_prevouts(data_chunk& prevouts, prevout_spends& spends,
 // ----------------------------------------------------------------------------
 // protected
 
+// Each instance of a tx archives its own points, so spenders of the point
+// include every tx with the hash of any of them.
 TEMPLATE
 bool CLASS::get_doubles(tx_links& out, const point& point) const NOEXCEPT
 {
     if (!store_.duplicate.exists(point))
         return true;
 
-    // Get the [tx.hash:index] of each spender of the point (index unused).
-    const auto spenders = get_spenders(point);
-    bool found{};
-
-    // Inpoints are deduped by the std::set.
-    for (const auto& spender: spenders)
+    const auto spenders = to_spenders(point);
+    for (const auto& in: spenders)
     {
-        // Exhaustive enumeration of all txs with spender hash.
-        for (auto it = store_.tx.it(spender.hash()); it != it.end(); ++it)
-        {
-            found = true;
-            out.push_back(*it);
-        }
+        const auto tx = to_input_tx(in);
+        if (tx.is_terminal())
+            return false;
+
+        out.push_back(tx.value);
     }
 
-    return found;
+    return !spenders.empty();
 }
 
 TEMPLATE

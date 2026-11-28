@@ -34,7 +34,8 @@ BC_AUTO_TEST_CASE(query_consensus__get_candidate_chain_state__genesis__expected)
         0u,
         0u,
         0u,
-        test::genesis.header().timestamp()
+        test::genesis.header().timestamp(),
+        test::genesis.header().version()
     };
 
     database::settings database_settings{ test::database_settings() };
@@ -68,7 +69,8 @@ BC_AUTO_TEST_CASE(query_consensus__get_candidate_chain_state__block1__expected)
         0u,                                 // minimum_block_version
         486604799u,                         // work_required
         test::genesis.header().timestamp(), // previous timestamp
-        test::genesis.header().timestamp()  // retarget timestamp
+        test::genesis.header().timestamp(), // retarget timestamp
+        test::block1.header().version()     // version
     };
 
     // Not actually contributory.

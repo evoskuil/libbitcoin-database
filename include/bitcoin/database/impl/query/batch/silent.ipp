@@ -206,9 +206,7 @@ bool CLASS::scan_silent(const stopper& cancel,
     return !cancel;
 }
 
-// Confirmation is strong association, otherwise height is zero (unconfirmed).
-// Tx archived only on stale branch reports as unconfirmed, and one also
-// archived there before store began pooling may report twice (benign).
+// Confirmation is strong association, otherwise confirmable at height zero.
 TEMPLATE
 bool CLASS::get_silent_matches(silent_matches& out, const stopper& cancel,
     const system::scan::batch::receiver& keys, size_t first, size_t last,
@@ -242,10 +240,15 @@ bool CLASS::get_silent_matches(silent_matches& out, const stopper& cancel,
     for (const auto& [link, tweak]: found)
     {
         size_t height{};
-        if (!get_tx_height(height, link))
+        if (get_tx_height(height, link))
+        {
+            if (!is_silent_cut(link, height, start, stop, time))
+                out.emplace_back(height, get_tx_key(link), tweak);
+        }
+        else if (is_confirmable_tx(link))
+        {
             out.emplace_back(zero, get_tx_key(link), tweak);
-        else if (!is_silent_cut(link, height, start, stop, time))
-            out.emplace_back(height, get_tx_key(link), tweak);
+        }
     }
 
     std::sort(out.begin(), out.end(),

@@ -237,7 +237,8 @@ bool CLASS::retain_pool(retentions& out) NOEXCEPT
 }
 
 // protected
-// Tx retained if confirmable and every unconfirmed ancestor is pooled.
+// Tx retained if not confirmed, every unconfirmed ancestor is pooled, and no
+// confirmed tx spends a point of it or of its unconfirmed ancestry.
 TEMPLATE
 bool CLASS::is_retained(bool& out, const tx_link& link,
     const retentions& kept) NOEXCEPT
@@ -249,7 +250,7 @@ bool CLASS::is_retained(bool& out, const tx_link& link,
     std::unordered_set<tx_link::integer> visited{ link };
 
     out = false;
-    if (!reader.is_confirmable_tx(link))
+    if (reader.is_confirmed_tx(link))
         return true;
 
     while (!pending.empty())
@@ -260,6 +261,13 @@ bool CLASS::is_retained(bool& out, const tx_link& link,
         const auto fk = pool.first(next);
         if (fk.is_terminal())
             return true;
+
+        for (const auto& point: reader.to_points(next))
+        {
+            const auto prevout = reader.get_point_key(point);
+            if (!reader.find_confirmed_spender(prevout).is_terminal())
+                return true;
+        }
 
         table::pool_edge edge{};
         if (!pool.edges.get(fk, edge))

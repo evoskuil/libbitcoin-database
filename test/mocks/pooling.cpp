@@ -36,6 +36,19 @@ const hash_digest& genesis_coinbase() NOEXCEPT
     return hash;
 }
 
+transaction to_pay(const hash_digest& hash, uint64_t value) NOEXCEPT
+{
+    const input input{ point{ hash, 0 }, script{}, max_uint32 };
+    const script pay{ { { opcode::nop } } };
+    return { 1u, inputs{ input }, outputs{ output{ value, pay } }, 0u };
+}
+
+const hash_digest& pay_address() NOEXCEPT
+{
+    static const auto hash = script{ { { opcode::nop } } }.hash();
+    return hash;
+}
+
 bool archive_pool(query_t& query, const transaction& tx,
     uint32_t height) NOEXCEPT
 {

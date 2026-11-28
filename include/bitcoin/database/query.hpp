@@ -734,8 +734,9 @@ public:
     bool set_block_confirmable(const header_link& link) NOEXCEPT;
     bool set_block_unknown(const header_link& link) NOEXCEPT;
 
-    /// Pool.
+    /// Pool (thread safe).
     /// -----------------------------------------------------------------------
+    /// Each reads a pool record or one cell of pool index, as of the read.
 
     inline bool is_sufficient(const context& current,
         const context& evaluated) const NOEXCEPT;
@@ -747,25 +748,21 @@ public:
     code get_pooled(pooled_tx& out, const tx_link& link,
         const context& ctx) const NOEXCEPT;
 
-    /// Unconfirmed, and not conflicted by a confirmed tx (or via ancestry).
+    /// Confirmed (block), confirmable or unconfirmable (pool), else unknown.
+    tx_state get_tx_state(const tx_link& link) const NOEXCEPT;
+
+    /// Pooled, not confirmed, and able to confirm.
     bool is_confirmable_tx(const tx_link& link) const NOEXCEPT;
 
-    /// Spent by a pooled and confirmable tx.
+    /// Spent by a confirmable tx.
     bool is_confirmable_spent(const output_link& link) const NOEXCEPT;
 
-    /// Spender of prevout in a pooled and confirmable tx, terminal if none.
+    /// Spender of prevout in a confirmable tx, terminal if none.
     ins_link find_confirmable_spender(const point& prevout) const NOEXCEPT;
-
-    /// Confirmable tx links, in pool order (requires pool).
-    code get_confirmable_txs(tx_links& out) const NOEXCEPT;
 
     /// Confirmable txs spent by, and spending, tx (direct only).
     tx_links to_confirmable_parents(const tx_link& link) const NOEXCEPT;
     tx_links to_confirmable_children(const tx_link& link) const NOEXCEPT;
-
-    /// Rows of pooled txs and of their unconfirmed pooled ancestors, by row.
-    code get_pooled_ancestry(pooled_rows& out,
-        const tx_links& links) const NOEXCEPT;
 
     /// Confirmable ancestors, or descendants, of tx (excluding tx).
     tx_links to_confirmable_ancestors(const tx_link& link) const NOEXCEPT;
@@ -777,8 +774,28 @@ public:
     bool get_descendant_totals(fee_totals& out,
         const tx_link& link) const NOEXCEPT;
 
+    /// Ids, totals and parent positions of each pooled tx of template.
+    code get_template_txs(template_txs& out,
+        const tx_links& links) const NOEXCEPT;
+
+    /// Pool (not thread safe).
+    /// -----------------------------------------------------------------------
+    /// Each walks or writes pool index, so caller serializes them, with those
+    /// of coverage, template and estimate.
+
+    /// Confirmable tx links, in pool order (requires pool).
+    code get_confirmable_txs(tx_links& out) const NOEXCEPT;
+
+    /// Rows of pooled txs and of their unconfirmed pooled ancestors, by row.
+    code get_pooled_ancestry(pooled_rows& out,
+        const tx_links& links) const NOEXCEPT;
+
     /// Confirmable fee rate tuples, in pool order (requires pool).
     code get_confirmable_fees(fee_rates& out) const NOEXCEPT;
+
+    /// Least and greatest value of receipts not spent, over conflict outcomes.
+    code get_unconfirmed_range(uint64_t& worst, uint64_t& best,
+        const pool_receipts& receipts, size_t maximum_outcomes) const NOEXCEPT;
 
     /// Get txs not validated under context, in pool order (requires pool).
     code get_pool_revalidation(tx_links& out,
@@ -881,10 +898,6 @@ public:
         const pool_totals& budget, size_t depth, uint64_t cutoff,
         uint32_t bytes_per_sigop, size_t maximum_outcomes) const NOEXCEPT;
 
-    /// Ids, totals and parent positions of each pooled tx of template.
-    code get_template_txs(template_txs& out,
-        const tx_links& links) const NOEXCEPT;
-
     /// Estimate.
     /// -----------------------------------------------------------------------
 
@@ -959,7 +972,7 @@ public:
 
     /// Matches (height, tx hash, tweak) of rows [first, last) confirmed at
     /// heights (or mtps if time) [start, stop], ordered by height, then
-    /// unconfirmed (zero height), false implies cancel. Short height cut
+    /// confirmable (zero height), false implies cancel. Short height cut
     /// scanned from its floor scans only rows of its confirmed blocks.
     bool get_silent_matches(silent_matches& out, const stopper& cancel,
         const system::scan::batch::receiver& keys, size_t first,
@@ -1031,8 +1044,9 @@ public:
     bool is_confirmed_input(const ins_link& link) const NOEXCEPT;
     bool is_confirmed_output(const output_link& link) const NOEXCEPT;
     bool is_confirmed_all_prevouts(const tx_link& link) const NOEXCEPT;
-    bool is_unconfirmed_spent(const output_link& link) const NOEXCEPT;
     bool is_confirmed_spent(const output_link& link) const NOEXCEPT;
+
+    /// Spent by a confirmed or confirmable tx.
     bool is_spent(const output_link& link) const NOEXCEPT;
     bool is_spent(const point& prevout) const NOEXCEPT;
 
@@ -1144,7 +1158,7 @@ public:
     code get_unspent(const stopper& cancel, unspent_outputs& out,
         const hash_digest& key, size_t limit, bool turbo=false) const NOEXCEPT;
 
-    /// Balance queries (universal, unconfirmed conflict resolution arbitrary).
+    /// Balance queries (unconfirmed is confirmable outputs not spent).
     code get_unconfirmed_balance(const stopper& cancel, uint64_t& out,
         const hash_digest& key, size_t limit, bool turbo=false) const NOEXCEPT;
     code get_confirmed_balance(const stopper& cancel, uint64_t& out,
@@ -1153,7 +1167,11 @@ public:
         uint64_t& unconfirmed, const hash_digest& key, size_t limit,
         bool turbo=false) const NOEXCEPT;
 
-    /// Confirmed and unconfirmed totals (an unconfirmed spend is unconfirmed).
+    /// Address outputs of confirmable txs, each with its confirmable spenders.
+    code get_unconfirmed_receipts(const stopper& cancel, pool_receipts& out,
+        const hash_digest& key, size_t limit) const NOEXCEPT;
+
+    /// Confirmed and confirmable totals (a confirmable spend is unconfirmed).
     code get_address_totals(const stopper& cancel, address_totals& confirmed,
         address_totals& unconfirmed, const hash_digest& key,
         size_t limit) const NOEXCEPT;
@@ -1320,16 +1338,12 @@ protected:
         system::pool::algorithm::link_t bound=system::pool::algorithm::none)
         const NOEXCEPT;
 
-    /// Pooled spenders of points spent by txs (their conflicts).
+    /// Archived spenders of points spent by txs (txs among them).
     bool get_pool_conflicts(tx_links& out, const tx_links& txs) const NOEXCEPT;
 
     /// A point of pooled tx is spent by a confirmed tx.
     bool is_pool_conflicted(bool& out, const tx_link& link,
         const pool_link& row) const NOEXCEPT;
-
-    /// Confirmability memoized across txs of a scan.
-    bool is_confirmable_tx(confirmables& memo,
-        const tx_link& link) const NOEXCEPT;
 
     /// Confirmable ancestors or descendants of tx (excluding tx).
     tx_links to_confirmable_relatives(const tx_link& link,

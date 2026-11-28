@@ -39,6 +39,13 @@ system::chain::transaction to_spend(const system::hash_digest& hash,
 /// The hash of the genesis coinbase.
 const system::hash_digest& genesis_coinbase() NOEXCEPT;
 
+/// As to_spend, paying the value to the pay address.
+system::chain::transaction to_pay(const system::hash_digest& hash,
+    uint64_t value) NOEXCEPT;
+
+/// Address of the to_pay output.
+const system::hash_digest& pay_address() NOEXCEPT;
+
 /// Archive the tx and pool it under a context of the height.
 bool archive_pool(query_t& query, const system::chain::transaction& tx,
     uint32_t height=8) NOEXCEPT;
