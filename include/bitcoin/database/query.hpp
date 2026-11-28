@@ -793,8 +793,8 @@ public:
     /// Confirmable fee rate tuples, in pool order (requires pool).
     code get_confirmable_fees(fee_rates& out) const NOEXCEPT;
 
-    /// Least and greatest value of receipts not spent, over conflict outcomes.
-    code get_unconfirmed_range(uint64_t& worst, uint64_t& best,
+    /// Totals of receipts, in conflict outcomes of least and greatest value.
+    code get_unconfirmed_totals(address_totals& worst, address_totals& best,
         const pool_receipts& receipts, size_t maximum_outcomes) const NOEXCEPT;
 
     /// Get txs not validated under context, in pool order (requires pool).
@@ -1158,22 +1158,17 @@ public:
     code get_unspent(const stopper& cancel, unspent_outputs& out,
         const hash_digest& key, size_t limit, bool turbo=false) const NOEXCEPT;
 
-    /// Balance queries (unconfirmed is confirmable outputs not spent).
-    code get_unconfirmed_balance(const stopper& cancel, uint64_t& out,
-        const hash_digest& key, size_t limit, bool turbo=false) const NOEXCEPT;
+    /// Value of confirmed outputs not spent by a confirmed tx.
     code get_confirmed_balance(const stopper& cancel, uint64_t& out,
         const hash_digest& key, size_t limit, bool turbo=false) const NOEXCEPT;
-    code get_balance(const stopper& cancel, uint64_t& confirmed,
-        uint64_t& unconfirmed, const hash_digest& key, size_t limit,
-        bool turbo=false) const NOEXCEPT;
 
     /// Address outputs of confirmable txs, each with its confirmable spenders.
     code get_unconfirmed_receipts(const stopper& cancel, pool_receipts& out,
         const hash_digest& key, size_t limit) const NOEXCEPT;
 
-    /// Confirmed and confirmable totals (a confirmable spend is unconfirmed).
+    /// Confirmed totals, and receipts with a confirmable tx or spender.
     code get_address_totals(const stopper& cancel, address_totals& confirmed,
-        address_totals& unconfirmed, const hash_digest& key,
+        pool_receipts& unconfirmed, const hash_digest& key,
         size_t limit) const NOEXCEPT;
 
     /// History queries.

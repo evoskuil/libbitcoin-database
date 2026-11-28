@@ -27,30 +27,6 @@ namespace database {
 
 // Address balance
 // ----------------------------------------------------------------------------
-// Balance queries (unconfirmed is confirmable outputs not spent).
-
-TEMPLATE
-code CLASS::get_unconfirmed_balance(const stopper& cancel, uint64_t& out,
-    const hash_digest& key, size_t limit, bool turbo) const NOEXCEPT
-{
-    outpoints outs{};
-    if (const auto ec = get_unconfirmed_unspent_outpoints(cancel, outs, key,
-        limit, turbo))
-    {
-        out = zero;
-        return ec;
-    }
-
-    // Conflicting confirmable outputs are each included.
-    out = std::accumulate(outs.cbegin(), outs.cend(), 0_u64,
-        [](uint64_t total, const outpoint& out) NOEXCEPT
-        {
-            return system::ceilinged_add(total, out.value());
-        });
-
-    return error::success;
-}
-
 // server/native
 TEMPLATE
 code CLASS::get_confirmed_balance(const stopper& cancel, uint64_t& out,
@@ -72,22 +48,6 @@ code CLASS::get_confirmed_balance(const stopper& cancel, uint64_t& out,
         });
 
     return error::success;
-}
-
-// server/electrum
-TEMPLATE
-code CLASS::get_balance(const stopper& cancel, uint64_t& confirmed,
-    uint64_t& unconfirmed, const hash_digest& key, size_t limit,
-    bool turbo) const NOEXCEPT
-{
-    if (const auto ec = get_confirmed_balance(cancel, confirmed, key, limit,
-        turbo))
-    {
-        unconfirmed = zero;
-        return ec;
-    }
-
-    return get_unconfirmed_balance(cancel, unconfirmed, key, limit, turbo);
 }
 
 // Output spent by a confirmed tx is not a receipt.
@@ -137,32 +97,21 @@ code CLASS::get_unconfirmed_receipts(const stopper& cancel,
 }
 
 // server/esplora
+// Confirmed output spent by a confirmed tx is not a receipt.
 TEMPLATE
 code CLASS::get_address_totals(const stopper& cancel,
-    address_totals& confirmed, address_totals& unconfirmed,
+    address_totals& confirmed, pool_receipts& unconfirmed,
     const hash_digest& key, size_t limit) const NOEXCEPT
 {
     using namespace system;
     confirmed = {};
-    unconfirmed = {};
+    unconfirmed.clear();
     output_links outs{};
     tx_links parents{};
     outs_link cursor{};
     if (const auto ec = to_address_outputs(cancel, cursor, outs, parents, key,
         limit))
         return ec;
-
-    const auto fund = [](address_totals& totals, uint64_t value) NOEXCEPT
-    {
-        ++totals.funded_count;
-        totals.funded_value = ceilinged_add(totals.funded_value, value);
-    };
-
-    const auto spend = [](address_totals& totals, uint64_t value) NOEXCEPT
-    {
-        ++totals.spent_count;
-        totals.spent_value = ceilinged_add(totals.spent_value, value);
-    };
 
     for (size_t index{}; index < outs.size(); ++index)
     {
@@ -178,24 +127,45 @@ code CLASS::get_address_totals(const stopper& cancel,
         if (is_strong && strong != parent)
             continue;
 
-        uint64_t value{};
-        if (!get_value(value, out))
+        const auto chain = is_strong && is_confirmed_block(block);
+        if (!chain && !is_confirmable_tx(parent))
+            continue;
+
+        auto spent = false;
+        pool_receipt receipt{ pool_link::terminal };
+        if (!chain)
+            receipt.row = to_pool_row(parent).value;
+
+        if (!get_value(receipt.value, out))
             return error::integrity;
 
-        if (is_strong && is_confirmed_block(block))
+        for (const auto& in: to_spenders(out))
         {
-            fund(confirmed, value);
-            if (is_confirmed_spent(out))
-                spend(confirmed, value);
-            else if (is_spent(out))
-                spend(unconfirmed, value);
+            const auto spender = to_input_tx(in);
+            const auto state = get_tx_state(spender);
+            spent |= (state == tx_state::confirmed);
+            if (state == tx_state::confirmable)
+                receipt.spenders.push_back(to_pool_row(spender).value);
         }
-        else if (is_confirmable_tx(parent))
+
+        if (chain)
         {
-            fund(unconfirmed, value);
-            if (is_spent(out))
-                spend(unconfirmed, value);
+            ++confirmed.funded_count;
+            confirmed.funded_value = ceilinged_add(confirmed.funded_value,
+                receipt.value);
         }
+
+        if (chain && spent)
+        {
+            ++confirmed.spent_count;
+            confirmed.spent_value = ceilinged_add(confirmed.spent_value,
+                receipt.value);
+        }
+
+        if (spent || (chain && receipt.spenders.empty()))
+            continue;
+
+        unconfirmed.push_back(std::move(receipt));
     }
 
     return error::success;

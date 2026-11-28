@@ -221,22 +221,24 @@ code CLASS::get_confirmable_fees(fee_rates& out) const NOEXCEPT
     return error::success;
 }
 
-// A receipt is counted in an outcome that includes its tx and no spender of it.
-// Its spenders are rivals, so at most one is included, and the sum of an
-// outcome is that of a weight of each member: what it receives less what it
-// spends. Rival spenders are of one component, as is a row with its
-// descendants, so a receipt is of at most one. Component over the limit counts
-// none, or each.
+// A receipt is funded in an outcome that includes its tx, and spent in one
+// that also includes a spender of it. That of a confirmed tx is funded by the
+// chain, so only its spend is counted. Its spenders are rivals, so at most one
+// is included, and value of an outcome is the sum of a weight of each member:
+// what it receives less what it spends. Rival spenders are of one component,
+// as is a row with its descendants, so a receipt is of at most one. Component
+// over the limit funds none, or each.
 TEMPLATE
-code CLASS::get_unconfirmed_range(uint64_t& worst, uint64_t& best,
+code CLASS::get_unconfirmed_totals(address_totals& worst, address_totals& best,
     const pool_receipts& receipts, size_t maximum_outcomes) const NOEXCEPT
 {
     using namespace system;
     using algorithm = system::pool::algorithm;
     using link_t = algorithm::link_t;
+    using mask_t = algorithm::mask_t;
     constexpr auto none = algorithm::none;
-    worst = zero;
-    best = zero;
+    worst = {};
+    best = {};
     if (!store_.pool.enabled())
         return error::success;
 
@@ -258,13 +260,26 @@ code CLASS::get_unconfirmed_range(uint64_t& worst, uint64_t& best,
         return algorithm::is_present(label);
     };
 
-    struct item { link_t row; uint64_t value; pool_links spenders; };
+    const auto fund = [](address_totals& totals, uint64_t value) NOEXCEPT
+    {
+        ++totals.funded_count;
+        totals.funded_value = ceilinged_add(totals.funded_value, value);
+    };
+
+    const auto spend = [](address_totals& totals, uint64_t value) NOEXCEPT
+    {
+        ++totals.spent_count;
+        totals.spent_value = ceilinged_add(totals.spent_value, value);
+    };
+
+    struct item { link_t row; bool pooled; uint64_t value; pool_links spenders; };
     std::map<link_t, std::vector<item>> components{};
     for (const auto& receipt: receipts)
     {
         link_t label{};
         bool labeled{};
-        if (!present(label, labeled, receipt.row))
+        const auto pooled = receipt.row != pool_link::terminal;
+        if (pooled && !present(label, labeled, receipt.row))
             continue;
 
         auto spent = false;
@@ -272,6 +287,7 @@ code CLASS::get_unconfirmed_range(uint64_t& worst, uint64_t& best,
         item next
         {
             labeled ? possible_narrow_cast<link_t>(receipt.row) : none,
+            pooled,
             receipt.value,
             {}
         };
@@ -292,15 +308,23 @@ code CLASS::get_unconfirmed_range(uint64_t& worst, uint64_t& best,
         if (component != none)
         {
             components[component].push_back(std::move(next));
+            continue;
         }
-        else if (!spent)
+
+        if (pooled)
         {
-            worst = ceilinged_add(worst, receipt.value);
-            best = ceilinged_add(best, receipt.value);
+            fund(worst, receipt.value);
+            fund(best, receipt.value);
+        }
+
+        if (spent)
+        {
+            spend(worst, receipt.value);
+            spend(best, receipt.value);
         }
     }
 
-    std::vector<algorithm::mask_t> outcomes{};
+    std::vector<mask_t> outcomes{};
     const algorithm::graph_t graph{ columns };
     for (const auto& [label, items]: components)
     {
@@ -312,37 +336,56 @@ code CLASS::get_unconfirmed_range(uint64_t& worst, uint64_t& best,
         if (!exact)
         {
             for (const auto& next: items)
-                best = ceilinged_add(best, next.value);
+                if (next.pooled)
+                    fund(best, next.value);
 
             continue;
         }
 
-        // Receipt of a row not in component is counted unless spent.
-        uint64_t base{};
-        algorithm::weights_t weights{};
         const auto member = [&](link_t row) NOEXCEPT
         {
             const std::array one_row{ row };
-            return right_zeros(algorithm::members(component, one_row));
+            return algorithm::members(component, one_row);
         };
 
+        algorithm::weights_t weights{};
         for (const auto& next: items)
         {
-            if (next.row == none)
-                base += next.value;
-            else
-                weights[member(next.row)] += next.value;
+            if (next.row != none)
+                weights[right_zeros(member(next.row))] += next.value;
 
             for (const auto spender: next.spenders)
-                weights[member(spender)] -= next.value;
+                weights[right_zeros(member(spender))] -= next.value;
         }
 
-        int64_t least{};
-        int64_t greatest{};
+        // Receipt of a row not in component is funded in each outcome.
+        const auto total = [&](address_totals& totals, mask_t outcome) NOEXCEPT
+        {
+            const auto within = [&](link_t row) NOEXCEPT
+            {
+                return to_bool(bit_and(outcome, member(row)));
+            };
+
+            for (const auto& next: items)
+            {
+                if (next.row != none && !within(next.row))
+                    continue;
+
+                if (next.pooled)
+                    fund(totals, next.value);
+
+                const auto& spenders = next.spenders;
+                if (std::any_of(spenders.cbegin(), spenders.cend(), within))
+                    spend(totals, next.value);
+            }
+        };
+
+        size_t least{};
+        size_t greatest{};
         algorithm::leaves(outcomes, component, graph, maximum_outcomes, {}, {});
         algorithm::range(least, greatest, outcomes, component, weights);
-        worst = ceilinged_add(worst, base + to_unsigned(least));
-        best = ceilinged_add(best, base + to_unsigned(greatest));
+        total(worst, outcomes.at(least));
+        total(best, outcomes.at(greatest));
     }
 
     return error::success;

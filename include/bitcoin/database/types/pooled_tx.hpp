@@ -62,8 +62,8 @@ struct pooled_row
 
 using pooled_rows = std::vector<pooled_row>;
 
-/// Value of an output of a confirmable tx, with pool rows of the tx and of
-/// its confirmable spenders.
+/// Value of an output, with pool rows of its tx (terminal if confirmed) and
+/// of its confirmable spenders.
 struct pool_receipt
 {
     table::pool::link::integer row{};

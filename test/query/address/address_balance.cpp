@@ -21,15 +21,11 @@
 #include "../../mocks/chunk_store.hpp"
 #include "../../mocks/pooling.hpp"
 
-// Unconfirmed balance is always zero in the current implementation.
-
 BC_FIXTURE_TEST_SUITE(query_address_tests, test::directory_setup_fixture)
 
-// get_unconfirmed_balance
 // get_confirmed_balance
-// get_balance
 
-BC_AUTO_TEST_CASE(query_address__get_balance__turbo_block1a_address0_confirmed_blocks__expected)
+BC_AUTO_TEST_CASE(query_address__get_confirmed_balance__turbo_block1a_address0_confirmed_blocks__expected)
 {
     settings settings{ test::database_settings() };
     settings.path = TEST_DIRECTORY;
@@ -45,22 +41,13 @@ BC_AUTO_TEST_CASE(query_address__get_balance__turbo_block1a_address0_confirmed_b
     // block3a (value: 0x83) is confirmed unspent.
     BC_REQUIRE(test::setup_three_block_confirmed_address_store(query));
 
-    uint64_t unconfirmed{};
     const std::atomic_bool cancel{};
-    BC_REQUIRE(!query.get_unconfirmed_balance(cancel, unconfirmed, test::block1a_address0, max_size_t, true));
-    BC_REQUIRE_EQUAL(unconfirmed, 0u);
-
     uint64_t confirmed{};
     BC_REQUIRE(!query.get_confirmed_balance(cancel, confirmed, test::block1a_address0, max_size_t, true));
     BC_REQUIRE_EQUAL(confirmed, 389u);
-
-    confirmed = unconfirmed = 42;
-    BC_REQUIRE(!query.get_balance(cancel, confirmed, unconfirmed, test::block1a_address0, max_size_t, true));
-    BC_REQUIRE_EQUAL(confirmed, 389u);
-    BC_REQUIRE_EQUAL(unconfirmed, 0u);
 }
 
-BC_AUTO_TEST_CASE(query_address__get_balance__turbo_block1a_address0_unconfirmed_blocks__expected)
+BC_AUTO_TEST_CASE(query_address__get_confirmed_balance__turbo_block1a_address0_unconfirmed_blocks__expected)
 {
     settings settings{ test::database_settings() };
     settings.path = TEST_DIRECTORY;
@@ -71,22 +58,13 @@ BC_AUTO_TEST_CASE(query_address__get_balance__turbo_block1a_address0_unconfirmed
     // block1a_address0 has 6 instances `script{ { { opcode::pick } } }`.
     BC_REQUIRE(test::setup_three_block_unconfirmed_address_store(query));
 
-    uint64_t unconfirmed{};
     const std::atomic_bool cancel{};
-    BC_REQUIRE(!query.get_unconfirmed_balance(cancel, unconfirmed, test::block1a_address0, max_size_t, true));
-    BC_REQUIRE_EQUAL(unconfirmed, 0u);
-
     uint64_t confirmed{};
     BC_REQUIRE(!query.get_confirmed_balance(cancel, confirmed, test::block1a_address0, max_size_t, true));
     BC_REQUIRE_EQUAL(confirmed, 0u);
-
-    confirmed = unconfirmed = 42;
-    BC_REQUIRE(!query.get_balance(cancel, confirmed, unconfirmed, test::block1a_address0, max_size_t, true));
-    BC_REQUIRE_EQUAL(confirmed, 0u);
-    BC_REQUIRE_EQUAL(unconfirmed, 0u);
 }
 
-BC_AUTO_TEST_CASE(query_address__get_balance__block1a_address1_confirmed_blocks__expected)
+BC_AUTO_TEST_CASE(query_address__get_confirmed_balance__block1a_address1_confirmed_blocks__expected)
 {
     settings settings{ test::database_settings() };
     settings.path = TEST_DIRECTORY;
@@ -98,24 +76,15 @@ BC_AUTO_TEST_CASE(query_address__get_balance__block1a_address1_confirmed_blocks_
     // block1a_address1 is spent by block2a1, tx4-1, and (confirmed double spent by) block3a1.
     BC_REQUIRE(test::setup_three_block_confirmed_address_store(query));
 
-    uint64_t unconfirmed{};
     const std::atomic_bool cancel{};
-    BC_REQUIRE(!query.get_unconfirmed_balance(cancel, unconfirmed, test::block1a_address1, max_size_t));
-    BC_REQUIRE_EQUAL(unconfirmed, 0u);
-
     uint64_t confirmed{};
     BC_REQUIRE(!query.get_confirmed_balance(cancel, confirmed, test::block1a_address1, max_size_t));
     BC_REQUIRE_EQUAL(confirmed, 0u);
-
-    confirmed = unconfirmed = 42;
-    BC_REQUIRE(!query.get_balance(cancel, confirmed, unconfirmed, test::block1a_address1, max_size_t));
-    BC_REQUIRE_EQUAL(confirmed, 0u);
-    BC_REQUIRE_EQUAL(unconfirmed, 0u);
 }
 
 // duplicate instances (one tx archived twice, only one instance associated)
 
-BC_AUTO_TEST_CASE(query_address__get_balance__duplicate_instances__counted_once)
+BC_AUTO_TEST_CASE(query_address__get_confirmed_balance__duplicate_instances__counted_once)
 {
     settings settings{ test::database_settings() };
     settings.path = TEST_DIRECTORY;
@@ -134,13 +103,7 @@ BC_AUTO_TEST_CASE(query_address__get_balance__duplicate_instances__counted_once)
     BC_REQUIRE_EQUAL(query.to_duplicates(test::tx4.hash(false)).size(), 2u);
 
     // block1a output 0 is spent by tx4, whose 0x08 output to the address is unspent.
-    uint64_t confirmed{};
-    uint64_t unconfirmed{};
     const std::atomic_bool cancel{};
-    BC_REQUIRE_EQUAL(query.get_balance(cancel, confirmed, unconfirmed, test::block1a_address0, max_size_t, true), error::success);
-    BC_REQUIRE_EQUAL(confirmed, 0x08u);
-    BC_REQUIRE_EQUAL(unconfirmed, 0u);
-
     uint64_t balance{};
     BC_REQUIRE_EQUAL(query.get_confirmed_balance(cancel, balance, test::block1a_address0, max_size_t, true), error::success);
     BC_REQUIRE_EQUAL(balance, 0x08u);
@@ -158,15 +121,14 @@ BC_AUTO_TEST_CASE(query_address__get_address_totals__confirmed_blocks__expected)
     BC_REQUIRE(test::setup_three_block_confirmed_address_store(query));
 
     address_totals confirmed{};
-    address_totals unconfirmed{};
+    pool_receipts receipts{};
     const std::atomic_bool cancel{};
-    BC_REQUIRE(!query.get_address_totals(cancel, confirmed, unconfirmed, test::block1a_address0, max_size_t));
+    BC_REQUIRE(!query.get_address_totals(cancel, confirmed, receipts, test::block1a_address0, max_size_t));
     BC_REQUIRE_EQUAL(confirmed.funded_count, 4u);
     BC_REQUIRE_EQUAL(confirmed.funded_value, 0x18u + 0x81u + 0x81u + 0x83u);
     BC_REQUIRE_EQUAL(confirmed.spent_count, 1u);
     BC_REQUIRE_EQUAL(confirmed.spent_value, 0x18u);
-    BC_REQUIRE_EQUAL(unconfirmed.funded_count, 0u);
-    BC_REQUIRE_EQUAL(unconfirmed.spent_count, 0u);
+    BC_REQUIRE(receipts.empty());
 }
 
 BC_AUTO_TEST_CASE(query_address__get_address_totals__unconfirmed_blocks__expected)
@@ -179,13 +141,12 @@ BC_AUTO_TEST_CASE(query_address__get_address_totals__unconfirmed_blocks__expecte
     BC_REQUIRE(test::setup_three_block_unconfirmed_address_store(query));
 
     address_totals confirmed{};
-    address_totals unconfirmed{};
+    pool_receipts receipts{};
     const std::atomic_bool cancel{};
-    BC_REQUIRE(!query.get_address_totals(cancel, confirmed, unconfirmed, test::block1a_address0, max_size_t));
+    BC_REQUIRE(!query.get_address_totals(cancel, confirmed, receipts, test::block1a_address0, max_size_t));
     BC_REQUIRE_EQUAL(confirmed.funded_count, 0u);
     BC_REQUIRE_EQUAL(confirmed.spent_count, 0u);
-    BC_REQUIRE_EQUAL(unconfirmed.funded_count, 0u);
-    BC_REQUIRE_EQUAL(unconfirmed.spent_count, 0u);
+    BC_REQUIRE(receipts.empty());
 }
 
 BC_AUTO_TEST_CASE(query_address__get_address_totals__confirmable__unconfirmed)
@@ -204,14 +165,47 @@ BC_AUTO_TEST_CASE(query_address__get_address_totals__confirmable__unconfirmed)
     BC_REQUIRE(test::archive_pool(query, child));
 
     address_totals confirmed{};
-    address_totals unconfirmed{};
+    pool_receipts receipts{};
     const std::atomic_bool cancel{};
-    BC_REQUIRE(!query.get_address_totals(cancel, confirmed, unconfirmed, test::pay_address(), max_size_t));
+    address_totals worst{};
+    address_totals best{};
+    BC_REQUIRE(!query.get_address_totals(cancel, confirmed, receipts, test::pay_address(), max_size_t));
+    BC_REQUIRE(!query.get_unconfirmed_totals(worst, best, receipts, 8u));
     BC_REQUIRE_EQUAL(confirmed.funded_count, 0u);
-    BC_REQUIRE_EQUAL(unconfirmed.funded_count, 2u);
-    BC_REQUIRE_EQUAL(unconfirmed.funded_value, 3u);
-    BC_REQUIRE_EQUAL(unconfirmed.spent_count, 1u);
-    BC_REQUIRE_EQUAL(unconfirmed.spent_value, 2u);
+    BC_REQUIRE_EQUAL(worst.funded_count, 2u);
+    BC_REQUIRE_EQUAL(worst.funded_value, 3u);
+    BC_REQUIRE_EQUAL(worst.spent_count, 1u);
+    BC_REQUIRE_EQUAL(worst.spent_value, 2u);
+}
+
+BC_AUTO_TEST_CASE(query_address__get_address_totals__confirmed_spent_by_confirmable__unconfirmed_spend)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
+
+    store.set_pooling();
+    const auto parent = test::to_pay(test::genesis_coinbase(), 3u);
+    const auto child = test::to_pay(parent.hash(false), 1u);
+    BC_REQUIRE(!test::archive_confirm(query, parent).is_terminal());
+    BC_REQUIRE(test::archive_pool(query, child));
+
+    address_totals confirmed{};
+    address_totals worst{};
+    address_totals best{};
+    pool_receipts receipts{};
+    const std::atomic_bool cancel{};
+    BC_REQUIRE(!query.get_address_totals(cancel, confirmed, receipts, test::pay_address(), max_size_t));
+    BC_REQUIRE(!query.get_unconfirmed_totals(worst, best, receipts, 8u));
+    BC_REQUIRE_EQUAL(confirmed.funded_value, 3u);
+    BC_REQUIRE_EQUAL(confirmed.spent_count, 0u);
+    BC_REQUIRE_EQUAL(worst.funded_count, 1u);
+    BC_REQUIRE_EQUAL(worst.funded_value, 1u);
+    BC_REQUIRE_EQUAL(worst.spent_count, 1u);
+    BC_REQUIRE_EQUAL(worst.spent_value, 3u);
 }
 
 BC_AUTO_TEST_CASE(query_address__get_address_totals__unconfirmable__confirmed_only)
@@ -231,64 +225,13 @@ BC_AUTO_TEST_CASE(query_address__get_address_totals__unconfirmable__confirmed_on
     BC_REQUIRE(!test::archive_confirm(query, test::to_pay(test::genesis_coinbase(), 3u)).is_terminal());
 
     address_totals confirmed{};
-    address_totals unconfirmed{};
+    pool_receipts receipts{};
     const std::atomic_bool cancel{};
-    BC_REQUIRE(!query.get_address_totals(cancel, confirmed, unconfirmed, test::pay_address(), max_size_t));
+    BC_REQUIRE(!query.get_address_totals(cancel, confirmed, receipts, test::pay_address(), max_size_t));
     BC_REQUIRE_EQUAL(confirmed.funded_count, 1u);
     BC_REQUIRE_EQUAL(confirmed.funded_value, 3u);
     BC_REQUIRE_EQUAL(confirmed.spent_count, 0u);
-    BC_REQUIRE_EQUAL(unconfirmed.funded_count, 0u);
-    BC_REQUIRE_EQUAL(unconfirmed.spent_count, 0u);
-}
-
-BC_AUTO_TEST_CASE(query_address__get_balance__confirmable__unconfirmed)
-{
-    settings settings{ test::database_settings() };
-    settings.path = TEST_DIRECTORY;
-    test::chunk_store store{ settings };
-    test::query_accessor query{ store };
-    BC_REQUIRE(!store.create(test::events_handler));
-    BC_REQUIRE(query.initialize(test::genesis));
-
-    store.set_pooling();
-    const auto parent = test::to_pay(test::genesis_coinbase(), 2u);
-    const auto child = test::to_pay(parent.hash(false), 1u);
-    BC_REQUIRE(test::archive_pool(query, parent));
-    BC_REQUIRE(test::archive_pool(query, child));
-
-    uint64_t confirmed{};
-    uint64_t unconfirmed{};
-    const std::atomic_bool cancel{};
-    BC_REQUIRE(!query.get_balance(cancel, confirmed, unconfirmed, test::pay_address(), max_size_t, true));
-    BC_REQUIRE_EQUAL(confirmed, 0u);
-    BC_REQUIRE_EQUAL(unconfirmed, 1u);
-
-    BC_REQUIRE(!query.get_unconfirmed_balance(cancel, unconfirmed, test::pay_address(), max_size_t, true));
-    BC_REQUIRE_EQUAL(unconfirmed, 1u);
-}
-
-BC_AUTO_TEST_CASE(query_address__get_balance__unconfirmable__confirmed_only)
-{
-    settings settings{ test::database_settings() };
-    settings.path = TEST_DIRECTORY;
-    test::chunk_store store{ settings };
-    test::query_accessor query{ store };
-    BC_REQUIRE(!store.create(test::events_handler));
-    BC_REQUIRE(query.initialize(test::genesis));
-
-    store.set_pooling();
-    const auto parent = test::to_pay(test::genesis_coinbase(), 2u);
-    const auto child = test::to_pay(parent.hash(false), 1u);
-    BC_REQUIRE(test::archive_pool(query, parent));
-    BC_REQUIRE(test::archive_pool(query, child));
-    BC_REQUIRE(!test::archive_confirm(query, test::to_pay(test::genesis_coinbase(), 3u)).is_terminal());
-
-    uint64_t confirmed{};
-    uint64_t unconfirmed{};
-    const std::atomic_bool cancel{};
-    BC_REQUIRE(!query.get_balance(cancel, confirmed, unconfirmed, test::pay_address(), max_size_t, true));
-    BC_REQUIRE_EQUAL(confirmed, 3u);
-    BC_REQUIRE_EQUAL(unconfirmed, 0u);
+    BC_REQUIRE(receipts.empty());
 }
 
 BC_AUTO_TEST_CASE(query_address__get_address_totals__duplicate_instances__counted_once)
@@ -310,15 +253,14 @@ BC_AUTO_TEST_CASE(query_address__get_address_totals__duplicate_instances__counte
 
     // block1a output 0 (0x18) is spent by tx4, whose 0x08 output is counted once.
     address_totals confirmed{};
-    address_totals unconfirmed{};
+    pool_receipts receipts{};
     const std::atomic_bool cancel{};
-    BC_REQUIRE(!query.get_address_totals(cancel, confirmed, unconfirmed, test::block1a_address0, max_size_t));
+    BC_REQUIRE(!query.get_address_totals(cancel, confirmed, receipts, test::block1a_address0, max_size_t));
     BC_REQUIRE_EQUAL(confirmed.funded_count, 2u);
     BC_REQUIRE_EQUAL(confirmed.funded_value, 0x18u + 0x08u);
     BC_REQUIRE_EQUAL(confirmed.spent_count, 1u);
     BC_REQUIRE_EQUAL(confirmed.spent_value, 0x18u);
-    BC_REQUIRE_EQUAL(unconfirmed.funded_count, 0u);
-    BC_REQUIRE_EQUAL(unconfirmed.spent_count, 0u);
+    BC_REQUIRE(receipts.empty());
 }
 
 BC_AUTO_TEST_CASE(query_address__get_address_totals__canceled__query_canceled)
@@ -331,12 +273,12 @@ BC_AUTO_TEST_CASE(query_address__get_address_totals__canceled__query_canceled)
     BC_REQUIRE(test::setup_three_block_confirmed_address_store(query));
 
     address_totals confirmed{};
-    address_totals unconfirmed{};
+    pool_receipts receipts{};
     const std::atomic_bool cancel{ true };
-    BC_REQUIRE_EQUAL(query.get_address_totals(cancel, confirmed, unconfirmed, test::block1a_address0, max_size_t), error::query_canceled);
+    BC_REQUIRE_EQUAL(query.get_address_totals(cancel, confirmed, receipts, test::block1a_address0, max_size_t), error::query_canceled);
 }
 
-BC_AUTO_TEST_CASE(query_address__get_unconfirmed_range__spent_parent__child)
+BC_AUTO_TEST_CASE(query_address__get_unconfirmed_totals__spent_parent__funded_and_spent)
 {
     settings settings{ test::database_settings() };
     settings.path = TEST_DIRECTORY;
@@ -351,18 +293,20 @@ BC_AUTO_TEST_CASE(query_address__get_unconfirmed_range__spent_parent__child)
     BC_REQUIRE(test::archive_pool(query, parent));
     BC_REQUIRE(test::archive_pool(query, child));
 
-    uint64_t worst{};
-    uint64_t best{};
-    database::pool_receipts receipts{};
+    address_totals worst{};
+    address_totals best{};
+    pool_receipts receipts{};
     const std::atomic_bool cancel{};
     BC_REQUIRE(!query.get_unconfirmed_receipts(cancel, receipts, test::pay_address(), max_size_t));
-    BC_REQUIRE(!query.get_unconfirmed_range(worst, best, receipts, 8u));
+    BC_REQUIRE(!query.get_unconfirmed_totals(worst, best, receipts, 8u));
     BC_REQUIRE_EQUAL(receipts.size(), 2u);
-    BC_REQUIRE_EQUAL(worst, 1u);
-    BC_REQUIRE_EQUAL(best, 1u);
+    BC_REQUIRE_EQUAL(worst.funded_value, 3u);
+    BC_REQUIRE_EQUAL(worst.spent_value, 2u);
+    BC_REQUIRE_EQUAL(best.funded_value, 3u);
+    BC_REQUIRE_EQUAL(best.spent_value, 2u);
 }
 
-BC_AUTO_TEST_CASE(query_address__get_unconfirmed_range__rivals__least_and_greatest)
+BC_AUTO_TEST_CASE(query_address__get_unconfirmed_totals__rivals__least_and_greatest)
 {
     settings settings{ test::database_settings() };
     settings.path = TEST_DIRECTORY;
@@ -377,18 +321,20 @@ BC_AUTO_TEST_CASE(query_address__get_unconfirmed_range__rivals__least_and_greate
     BC_REQUIRE(test::archive_pool(query, low));
     BC_REQUIRE(test::archive_pool(query, high));
 
-    uint64_t worst{};
-    uint64_t best{};
-    database::pool_receipts receipts{};
+    address_totals worst{};
+    address_totals best{};
+    pool_receipts receipts{};
     const std::atomic_bool cancel{};
     BC_REQUIRE(!query.get_unconfirmed_receipts(cancel, receipts, test::pay_address(), max_size_t));
-    BC_REQUIRE(!query.get_unconfirmed_range(worst, best, receipts, 8u));
+    BC_REQUIRE(!query.get_unconfirmed_totals(worst, best, receipts, 8u));
     BC_REQUIRE_EQUAL(receipts.size(), 2u);
-    BC_REQUIRE_EQUAL(worst, 3u);
-    BC_REQUIRE_EQUAL(best, 5u);
+    BC_REQUIRE_EQUAL(worst.funded_value, 3u);
+    BC_REQUIRE_EQUAL(worst.spent_value, 0u);
+    BC_REQUIRE_EQUAL(best.funded_value, 5u);
+    BC_REQUIRE_EQUAL(best.spent_value, 0u);
 }
 
-BC_AUTO_TEST_CASE(query_address__get_unconfirmed_range__rivals_over_limit__none_and_each)
+BC_AUTO_TEST_CASE(query_address__get_unconfirmed_totals__rivals_over_limit__none_and_each)
 {
     settings settings{ test::database_settings() };
     settings.path = TEST_DIRECTORY;
@@ -403,17 +349,19 @@ BC_AUTO_TEST_CASE(query_address__get_unconfirmed_range__rivals_over_limit__none_
     BC_REQUIRE(test::archive_pool(query, low));
     BC_REQUIRE(test::archive_pool(query, high));
 
-    uint64_t worst{};
-    uint64_t best{};
-    database::pool_receipts receipts{};
+    address_totals worst{};
+    address_totals best{};
+    pool_receipts receipts{};
     const std::atomic_bool cancel{};
     BC_REQUIRE(!query.get_unconfirmed_receipts(cancel, receipts, test::pay_address(), max_size_t));
-    BC_REQUIRE(!query.get_unconfirmed_range(worst, best, receipts, 1u));
-    BC_REQUIRE_EQUAL(worst, 0u);
-    BC_REQUIRE_EQUAL(best, 8u);
+    BC_REQUIRE(!query.get_unconfirmed_totals(worst, best, receipts, 1u));
+    BC_REQUIRE_EQUAL(worst.funded_value, 0u);
+    BC_REQUIRE_EQUAL(worst.spent_value, 0u);
+    BC_REQUIRE_EQUAL(best.funded_value, 8u);
+    BC_REQUIRE_EQUAL(best.spent_value, 0u);
 }
 
-BC_AUTO_TEST_CASE(query_address__get_unconfirmed_range__rival_with_child__child_or_rival)
+BC_AUTO_TEST_CASE(query_address__get_unconfirmed_totals__rival_with_child__least_and_greatest)
 {
     settings settings{ test::database_settings() };
     settings.path = TEST_DIRECTORY;
@@ -430,18 +378,20 @@ BC_AUTO_TEST_CASE(query_address__get_unconfirmed_range__rival_with_child__child_
     BC_REQUIRE(test::archive_pool(query, high));
     BC_REQUIRE(test::archive_pool(query, child));
 
-    uint64_t worst{};
-    uint64_t best{};
-    database::pool_receipts receipts{};
+    address_totals worst{};
+    address_totals best{};
+    pool_receipts receipts{};
     const std::atomic_bool cancel{};
     BC_REQUIRE(!query.get_unconfirmed_receipts(cancel, receipts, test::pay_address(), max_size_t));
-    BC_REQUIRE(!query.get_unconfirmed_range(worst, best, receipts, 8u));
+    BC_REQUIRE(!query.get_unconfirmed_totals(worst, best, receipts, 8u));
     BC_REQUIRE_EQUAL(receipts.size(), 3u);
-    BC_REQUIRE_EQUAL(worst, 1u);
-    BC_REQUIRE_EQUAL(best, 3u);
+    BC_REQUIRE_EQUAL(worst.funded_value, 6u);
+    BC_REQUIRE_EQUAL(worst.spent_value, 5u);
+    BC_REQUIRE_EQUAL(best.funded_value, 3u);
+    BC_REQUIRE_EQUAL(best.spent_value, 0u);
 }
 
-BC_AUTO_TEST_CASE(query_address__get_unconfirmed_range__rival_spenders__spent_or_change)
+BC_AUTO_TEST_CASE(query_address__get_unconfirmed_totals__rival_spenders__least_and_greatest)
 {
     settings settings{ test::database_settings() };
     settings.path = TEST_DIRECTORY;
@@ -458,15 +408,17 @@ BC_AUTO_TEST_CASE(query_address__get_unconfirmed_range__rival_spenders__spent_or
     BC_REQUIRE(test::archive_pool(query, away));
     BC_REQUIRE(test::archive_pool(query, change));
 
-    uint64_t worst{};
-    uint64_t best{};
-    database::pool_receipts receipts{};
+    address_totals worst{};
+    address_totals best{};
+    pool_receipts receipts{};
     const std::atomic_bool cancel{};
     BC_REQUIRE(!query.get_unconfirmed_receipts(cancel, receipts, test::pay_address(), max_size_t));
-    BC_REQUIRE(!query.get_unconfirmed_range(worst, best, receipts, 8u));
+    BC_REQUIRE(!query.get_unconfirmed_totals(worst, best, receipts, 8u));
     BC_REQUIRE_EQUAL(receipts.size(), 2u);
-    BC_REQUIRE_EQUAL(worst, 0u);
-    BC_REQUIRE_EQUAL(best, 2u);
+    BC_REQUIRE_EQUAL(worst.funded_value, 4u);
+    BC_REQUIRE_EQUAL(worst.spent_value, 4u);
+    BC_REQUIRE_EQUAL(best.funded_value, 6u);
+    BC_REQUIRE_EQUAL(best.spent_value, 4u);
 }
 
 BC_AUTO_TEST_SUITE_END()
