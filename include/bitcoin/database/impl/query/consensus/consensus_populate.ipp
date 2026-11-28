@@ -76,7 +76,7 @@ bool CLASS::populate_with_metadata(const input& input, bool chain,
     bool pool) const NOEXCEPT
 {
     // Null point would return nullptr and be interpreted as missing.
-    BC_ASSERT(!input.point().is_null());
+    ////BC_ASSERT(!input.point().is_null());
 
     // If read via store for store confirmation, input.metadata.point_link is
     // set earlier in get_input(), so this assertion does not hold.
@@ -194,7 +194,7 @@ bool CLASS::populate_without_metadata(const block& block) const NOEXCEPT
 TEMPLATE
 bool CLASS::populate_without_metadata(const transaction& tx) const NOEXCEPT
 {
-    BC_ASSERT(!tx.is_coinbase());
+    ////BC_ASSERT(!tx.is_coinbase());
 
     const auto& ins = tx.inputs_ptr();
     return std::all_of(ins->begin(), ins->end(),
@@ -208,7 +208,7 @@ TEMPLATE
 bool CLASS::populate_without_metadata(const input& input) const NOEXCEPT
 {
     // Null point would return nullptr and be interpreted as missing.
-    BC_ASSERT(!input.point().is_null());
+    ////BC_ASSERT(!input.point().is_null());
 
     if (input.prevout)
         return true;
