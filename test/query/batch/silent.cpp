@@ -20,6 +20,7 @@
 #include "../../mocks/blocks.hpp"
 #include "../../mocks/chunk_store.hpp"
 #include "../../mocks/map_store.hpp"
+#include "../../mocks/pooling.hpp"
 
 BC_FIXTURE_TEST_SUITE(query_batch_silent_tests, test::directory_setup_fixture)
 
@@ -802,7 +803,7 @@ BC_AUTO_TEST_CASE(query_batch_silent__get_silent_matches__short_cut_from_floor__
     BC_REQUIRE_EQUAL(std::get<1>(out.front()), genesis);
 }
 
-BC_AUTO_TEST_CASE(query_batch_silent__get_silent_matches__short_cut_from_floor__unconfirmed_selected)
+BC_AUTO_TEST_CASE(query_batch_silent__get_silent_matches__short_cut_from_floor__confirmable_selected)
 {
     database::settings settings{ test::database_settings() };
     settings.path = TEST_DIRECTORY;
@@ -810,16 +811,21 @@ BC_AUTO_TEST_CASE(query_batch_silent__get_silent_matches__short_cut_from_floor__
     test::query_accessor query{ store };
     BC_REQUIRE(!store.create(test::events_handler));
     BC_REQUIRE(query.initialize(test::genesis));
-    BC_REQUIRE(query.set_silent(42, simple_send()));
+
+    store.set_pooling();
+    const auto tx = test::to_spend(test::genesis_coinbase(), 2u);
+    BC_REQUIRE(test::archive_pool(query, tx));
+    BC_REQUIRE(query.set_silent(query.to_tx(tx.hash(false)), simple_send()));
 
     silent_matches out{};
     const stopper cancel{};
     BC_REQUIRE(query.get_silent_matches(out, cancel, get_keys(), 0, 1, 0, 0, false));
     BC_REQUIRE_EQUAL(out.size(), 1u);
     BC_REQUIRE_EQUAL(std::get<0>(out.front()), 0u);
+    BC_REQUIRE_EQUAL(std::get<1>(out.front()), tx.hash(false));
 }
 
-BC_AUTO_TEST_CASE(query_batch_silent__get_silent_matches__above_floor__unconfirmed)
+BC_AUTO_TEST_CASE(query_batch_silent__get_silent_matches__unknown__excluded)
 {
     database::settings settings{ test::database_settings() };
     settings.path = TEST_DIRECTORY;
@@ -827,8 +833,29 @@ BC_AUTO_TEST_CASE(query_batch_silent__get_silent_matches__above_floor__unconfirm
     test::query_accessor query{ store };
     BC_REQUIRE(!store.create(test::events_handler));
     BC_REQUIRE(query.initialize(test::genesis));
+    BC_REQUIRE(query.set(test::to_spend(test::genesis_coinbase(), 2u)));
+    BC_REQUIRE(query.set_silent(1, simple_send()));
+
+    silent_matches out{};
+    const stopper cancel{};
+    BC_REQUIRE(query.get_silent_matches(out, cancel, get_keys(), 0, 1, 0, 0, false));
+    BC_REQUIRE(out.empty());
+}
+
+BC_AUTO_TEST_CASE(query_batch_silent__get_silent_matches__above_floor__confirmable)
+{
+    database::settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
+
+    store.set_pooling();
+    const auto tx = test::to_spend(test::genesis_coinbase(), 2u);
+    BC_REQUIRE(test::archive_pool(query, tx));
     BC_REQUIRE(query.set_silent(0, simple_send()));
-    BC_REQUIRE(query.set_silent(42, simple_send()));
+    BC_REQUIRE(query.set_silent(query.to_tx(tx.hash(false)), simple_send()));
 
     silent_matches out{};
     const stopper cancel{};

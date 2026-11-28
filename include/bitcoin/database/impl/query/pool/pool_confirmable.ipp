@@ -25,21 +25,11 @@ namespace libbitcoin {
 namespace database {
 
 TEMPLATE
-bool CLASS::is_confirmable_tx(const tx_link& link) const NOEXCEPT
-{
-    confirmables memo{};
-    return is_confirmable_tx(memo, link);
-}
-
-TEMPLATE
 bool CLASS::is_confirmable_spent(const output_link& link) const NOEXCEPT
 {
     for (const auto& in: to_spenders(link))
-    {
-        const auto tx = to_input_tx(in);
-        if (is_pooled(tx) && is_confirmable_tx(tx))
+        if (is_confirmable_tx(to_input_tx(in)))
             return true;
-    }
 
     return false;
 }
@@ -48,11 +38,8 @@ TEMPLATE
 ins_link CLASS::find_confirmable_spender(const point& prevout) const NOEXCEPT
 {
     for (const auto& in: to_spenders(prevout))
-    {
-        const auto tx = to_input_tx(in);
-        if (is_pooled(tx) && is_confirmable_tx(tx))
+        if (is_confirmable_tx(to_input_tx(in)))
             return in;
-    }
 
     return {};
 }
@@ -65,8 +52,8 @@ tx_links CLASS::to_confirmable_parents(const tx_link& link) const NOEXCEPT
     for (const auto& point: to_points(link))
     {
         const auto parent = to_tx(get_point_key(point).hash());
-        if (!parent.is_terminal() && !is_confirmed_tx(parent) &&
-            is_pooled(parent) && !system::contains(out, parent.value))
+        if (!parent.is_terminal() && is_confirmable_tx(parent) &&
+            !system::contains(out, parent.value))
             out.push_back(parent.value);
     }
 
@@ -82,8 +69,7 @@ tx_links CLASS::to_confirmable_children(const tx_link& link) const NOEXCEPT
         for (const auto& in: to_spenders(output))
         {
             const auto child = to_input_tx(in);
-            if (!child.is_terminal() && is_pooled(child) &&
-                is_confirmable_tx(child) &&
+            if (!child.is_terminal() && is_confirmable_tx(child) &&
                 !system::contains(out, child.value))
                 out.push_back(child.value);
         }
@@ -235,55 +221,131 @@ code CLASS::get_confirmable_fees(fee_rates& out) const NOEXCEPT
     return error::success;
 }
 
-// A walk that finds no confirmed spend proves each tx visited confirmable.
+// A receipt is counted in an outcome that includes its tx and no spender of it.
+// Its spenders are rivals, so at most one is included, and the sum of an
+// outcome is that of a weight of each member: what it receives less what it
+// spends. Rival spenders are of one component, as is a row with its
+// descendants, so a receipt is of at most one. Component over the limit counts
+// none, or each.
 TEMPLATE
-bool CLASS::is_confirmable_tx(confirmables& memo,
-    const tx_link& link) const NOEXCEPT
+code CLASS::get_unconfirmed_range(uint64_t& worst, uint64_t& best,
+    const pool_receipts& receipts, size_t maximum_outcomes) const NOEXCEPT
 {
-    if (const auto it = memo.find(link.value); it != memo.cend())
-        return it->second;
+    using namespace system;
+    using algorithm = system::pool::algorithm;
+    using link_t = algorithm::link_t;
+    constexpr auto none = algorithm::none;
+    worst = zero;
+    best = zero;
+    if (!store_.pool.enabled())
+        return error::success;
 
-    const auto unconfirmable = [&]() NOEXCEPT
+    pool_guards guards{};
+    algorithm::columns_t columns{};
+    if (!get_pool_columns(columns, guards))
+        return error::integrity;
+
+    // Label of the row if present, labeled false if not in a component.
+    const auto rows = columns.cells.size();
+    const auto present = [&](link_t& label, bool& labeled,
+        pool_link::integer row) NOEXCEPT
     {
-        memo.emplace(link.value, false);
-        return false;
+        if (row >= rows)
+            return false;
+
+        label = algorithm::from_column(columns.cells[row]);
+        labeled = algorithm::is_labeled(label);
+        return algorithm::is_present(label);
     };
 
-    if (is_confirmed_tx(link))
-        return unconfirmable();
-
-    std::vector<tx_link::integer> pending{ link.value };
-    std::unordered_set<tx_link::integer> visited{ link.value };
-    while (!pending.empty())
+    struct item { link_t row; uint64_t value; pool_links spenders; };
+    std::map<link_t, std::vector<item>> components{};
+    for (const auto& receipt: receipts)
     {
-        const tx_link next{ pending.back() };
-        pending.pop_back();
+        link_t label{};
+        bool labeled{};
+        if (!present(label, labeled, receipt.row))
+            continue;
 
-        if (const auto it = memo.find(next.value); it != memo.cend())
+        auto spent = false;
+        auto component = labeled ? label : none;
+        item next
         {
-            if (!it->second)
-                return unconfirmable();
+            labeled ? possible_narrow_cast<link_t>(receipt.row) : none,
+            receipt.value,
+            {}
+        };
+
+        for (const auto spender: receipt.spenders)
+        {
+            if (!present(label, labeled, spender))
+                continue;
+
+            spent = true;
+            if (!labeled)
+                continue;
+
+            component = label;
+            next.spenders.push_back(possible_narrow_cast<link_t>(spender));
+        }
+
+        if (component != none)
+        {
+            components[component].push_back(std::move(next));
+        }
+        else if (!spent)
+        {
+            worst = ceilinged_add(worst, receipt.value);
+            best = ceilinged_add(best, receipt.value);
+        }
+    }
+
+    std::vector<algorithm::mask_t> outcomes{};
+    const algorithm::graph_t graph{ columns };
+    for (const auto& [label, items]: components)
+    {
+        algorithm::component_t component{};
+        const auto exact = algorithm::collect(component, graph, label) &&
+            algorithm::relate(component, graph) &&
+            algorithm::outcomes(component) <= maximum_outcomes;
+
+        if (!exact)
+        {
+            for (const auto& next: items)
+                best = ceilinged_add(best, next.value);
 
             continue;
         }
 
-        for (const auto& point: to_points(next))
+        // Receipt of a row not in component is counted unless spent.
+        uint64_t base{};
+        algorithm::weights_t weights{};
+        const auto member = [&](link_t row) NOEXCEPT
         {
-            const auto prevout = get_point_key(point);
-            if (!find_confirmed_spender(prevout).is_terminal())
-                return unconfirmable();
+            const std::array one_row{ row };
+            return right_zeros(algorithm::members(component, one_row));
+        };
 
-            const auto parent = to_tx(prevout.hash());
-            if (!parent.is_terminal() && !is_confirmed_tx(parent) &&
-                visited.insert(parent.value).second)
-                pending.push_back(parent.value);
+        for (const auto& next: items)
+        {
+            if (next.row == none)
+                base += next.value;
+            else
+                weights[member(next.row)] += next.value;
+
+            for (const auto spender: next.spenders)
+                weights[member(spender)] -= next.value;
         }
+
+        int64_t least{};
+        int64_t greatest{};
+        algorithm::leaves(outcomes, component, graph, maximum_outcomes, {}, {});
+        algorithm::range(least, greatest, outcomes, component, weights);
+        worst = ceilinged_add(worst, base + to_unsigned(least));
+        best = ceilinged_add(best, base + to_unsigned(greatest));
     }
 
-    for (const auto tx: visited)
-        memo.emplace(tx, true);
-
-    return true;
+    return error::success;
 }
 
 TEMPLATE

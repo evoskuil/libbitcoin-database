@@ -32,6 +32,7 @@ namespace database {
 // root txs (height:zero) sorted before transitive (height:max) txs.
 // tied-height transactions sorted by base16 txid (not converted).
 // All confirmed txs are root, unconfirmed may or may not be root.
+// A tx neither confirmed nor confirmable is excluded.
 
 // server/electrum
 TEMPLATE
@@ -140,6 +141,10 @@ history CLASS::get_tx_history(hash_digest&& key, const tx_link& link,
     const auto at = get_confirmed_height(block);
     if (at.is_terminal())
     {
+        // Invalid with unconfirmed_position signals no fault.
+        if (!is_confirmable_tx(link))
+            return { .position = history::unconfirmed_position };
+
         if (!get_tx_fee(fee, link))
             fee = history::missing_prevout;
 
@@ -209,7 +214,7 @@ history CLASS::get_tx_unconfirmed_history(hash_digest&& key,
         return {};
 
     // Invalid with unconfirmed_position signals no fault.
-    if (!get_confirmed_height(find_strong(link)).is_terminal())
+    if (!is_confirmable_tx(link))
         return { .position = history::unconfirmed_position };
 
     uint64_t fee{};

@@ -120,7 +120,7 @@ bool CLASS::populate_with_metadata(const input& input, bool chain,
 
         // Genesis coinbase is unspendable, so no confirmed spender is at zero,
         // which therefore distinguishes unconfirmed spender.
-        if (pool && !is_spent(input.point()))
+        if (pool && !store_.ins.exists(input.point()))
         {
             // Any spender (including duplicate tx) not found.
             metadata.spender_height = max_uint32;

@@ -81,6 +81,16 @@ using inpoints = std::vector<inpoint>;
 using outpoint = system::chain::outpoint;
 using outpoints = std::vector<outpoint>;
 
+/// Existence of a tx relative to the confirmed chain: in a confirmed block,
+/// pooled and able to confirm, pooled and not able to confirm, or neither.
+enum class tx_state : uint8_t
+{
+    unknown,
+    confirmed,
+    confirmable,
+    unconfirmable
+};
+
 /// Custom data carriers.
 /// ---------------------------------------------------------------------------
 /// Also: position, header_state, fee_rate, span, unspent, history.
@@ -90,7 +100,6 @@ using sizes = std::pair<size_t, size_t>;
 using counts = std::pair<size_t, size_t>;
 using threshold = std::pair<size_t, tx_link::integer>;
 using thresholds = std::vector<threshold>;
-using confirmables = std::unordered_map<tx_link::integer, bool>;
 using compact_matches = std::vector<std::pair<size_t, pool_link::integer>>;
 using silent_match = std::tuple<size_t, hash_digest, system::ec_compressed>;
 using silent_matches = std::vector<silent_match>;

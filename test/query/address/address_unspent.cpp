@@ -19,6 +19,7 @@
 #include "../../test.hpp"
 #include "../../mocks/blocks.hpp"
 #include "../../mocks/chunk_store.hpp"
+#include "../../mocks/pooling.hpp"
 
 BC_FIXTURE_TEST_SUITE(query_address_tests, test::directory_setup_fixture)
 
@@ -72,32 +73,8 @@ BC_AUTO_TEST_CASE(query_address__get_unspent__turbo_genesis__expected)
     const std::atomic_bool cancel{};
     BC_REQUIRE(!query.get_unconfirmed_unspent(cancel, out, test::block1a_address0, max_size_t, true));
 
-    // tx4/5 contain one address output each.
-    // block1b (unconfirmed) contains 2 address outputs, both spent by block2b (0 unspent).
-    // block2b (unconfirmed) contains 1 address output, so 3 total address outputs.
-    BC_CHECK_EQUAL(out.size(), 3u);
-
-    BC_CHECK_EQUAL(out.at(0).height, unspent_output::unused_height);
-    BC_CHECK_EQUAL(out.at(0).position, unspent_output::unconfirmed_position);
-    BC_CHECK_EQUAL(out.at(0).out.value(), 0x08u);
-    BC_CHECK_EQUAL(out.at(0).out.point().index(), 0u);
-    BC_CHECK_EQUAL(out.at(0).out.point().hash(), test::tx4.hash(false));
-
-    BC_CHECK_EQUAL(out.at(1).height, unspent_output::unused_height);
-    BC_CHECK_EQUAL(out.at(1).position, unspent_output::unconfirmed_position);
-    BC_CHECK_EQUAL(out.at(1).out.value(), 0x85u);
-    BC_CHECK_EQUAL(out.at(1).out.point().index(), 0u);
-    BC_CHECK_EQUAL(out.at(1).out.point().hash(), test::tx5.hash(false));
-
-    BC_CHECK_EQUAL(out.at(2).height, unspent_output::unused_height);
-    BC_CHECK_EQUAL(out.at(2).position, unspent_output::unconfirmed_position);
-    BC_CHECK_EQUAL(out.at(2).out.value(), 0xb2u);
-    BC_CHECK_EQUAL(out.at(2).out.point().index(), 0u);
-    BC_CHECK_EQUAL(out.at(2).out.point().hash(), test::block2b.transactions_ptr()->at(0)->hash(false));
-
-    // Arbitrary but consistent sort based on chain::point::operator<.
-    BC_CHECK(out.at(0).out < out.at(1).out);
-    BC_CHECK(out.at(1).out < out.at(2).out);
+    // Neither tx4/5 nor the block1b/2b txs are confirmed or pooled.
+    BC_CHECK(out.empty());
 
     out.clear();
     BC_REQUIRE(!query.get_confirmed_unspent(cancel, out, test::block1a_address0, max_size_t, true));
@@ -126,11 +103,8 @@ BC_AUTO_TEST_CASE(query_address__get_unspent__turbo_genesis__expected)
     out.clear();
     BC_REQUIRE(!query.get_unspent(cancel, out, test::block1a_address0, max_size_t, true));
 
-    // As get_unconfirmed_unspent() and get_confirmed_unspent() are mutually-
-    // exclusive, get_unspent() contains 3 + 3 = 6 address outputs.
-    BC_CHECK_EQUAL(out.size(), 6u);
-
-    // same as get_unconfirmed_unspent()
+    // Same as get_confirmed_unspent().
+    BC_CHECK_EQUAL(out.size(), 3u);
 
     BC_CHECK_EQUAL(out.at(0).height, 2u);
     BC_CHECK_EQUAL(out.at(0).position, 0u);
@@ -149,26 +123,95 @@ BC_AUTO_TEST_CASE(query_address__get_unspent__turbo_genesis__expected)
     BC_CHECK_EQUAL(out.at(2).out.value(), 0x83u);
     BC_CHECK_EQUAL(out.at(2).out.point().index(), 0u);
     BC_CHECK_EQUAL(out.at(2).out.point().hash(), test::block3a.transactions_ptr()->at(0)->hash(false));
+}
 
-    // same as get_confirmed_unspent()
+BC_AUTO_TEST_CASE(query_address__get_unspent__confirmable__unspent_only)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
 
-    BC_CHECK_EQUAL(out.at(3).height, unspent_output::unused_height);
-    BC_CHECK_EQUAL(out.at(3).position, unspent_output::unconfirmed_position);
-    BC_CHECK_EQUAL(out.at(3).out.value(), 0x08u);
-    BC_CHECK_EQUAL(out.at(3).out.point().index(), 0u);
-    BC_CHECK_EQUAL(out.at(3).out.point().hash(), test::tx4.hash(false));
+    store.set_pooling();
+    const auto parent = test::to_pay(test::genesis_coinbase(), 2u);
+    const auto child = test::to_pay(parent.hash(false), 1u);
+    BC_REQUIRE(test::archive_pool(query, parent));
+    BC_REQUIRE(test::archive_pool(query, child));
 
-    BC_CHECK_EQUAL(out.at(4).height, unspent_output::unused_height);
-    BC_CHECK_EQUAL(out.at(4).position, unspent_output::unconfirmed_position);
-    BC_CHECK_EQUAL(out.at(4).out.value(), 0x85u);
-    BC_CHECK_EQUAL(out.at(4).out.point().index(), 0u);
-    BC_CHECK_EQUAL(out.at(4).out.point().hash(), test::tx5.hash(false));
+    unspent_outputs out{};
+    const std::atomic_bool cancel{};
+    BC_REQUIRE(!query.get_unspent(cancel, out, test::pay_address(), max_size_t, true));
+    BC_REQUIRE_EQUAL(out.size(), 1u);
+    BC_REQUIRE_EQUAL(out.front().out.point().hash(), child.hash(false));
+    BC_REQUIRE_EQUAL(out.front().position, unspent_output::unconfirmed_position);
 
-    BC_CHECK_EQUAL(out.at(5).height, unspent_output::unused_height);
-    BC_CHECK_EQUAL(out.at(5).position, unspent_output::unconfirmed_position);
-    BC_CHECK_EQUAL(out.at(5).out.value(), 0xb2u);
-    BC_CHECK_EQUAL(out.at(5).out.point().index(), 0u);
-    BC_CHECK_EQUAL(out.at(5).out.point().hash(), test::block2b.transactions_ptr()->at(0)->hash(false));
+    BC_REQUIRE(!query.get_unconfirmed_unspent(cancel, out, test::pay_address(), max_size_t, true));
+    BC_REQUIRE_EQUAL(out.size(), 1u);
+    BC_REQUIRE_EQUAL(out.front().out.point().hash(), child.hash(false));
+}
+
+BC_AUTO_TEST_CASE(query_address__get_unspent__unknown_spender__unspent)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
+    BC_REQUIRE(query.set(test::to_pay(test::genesis_coinbase(), 2u)));
+
+    unspent_outputs out{};
+    const std::atomic_bool cancel{};
+    BC_REQUIRE(!query.get_unspent(cancel, out, test::genesis_address0, max_size_t, true));
+    BC_REQUIRE_EQUAL(out.size(), 1u);
+    BC_REQUIRE_EQUAL(out.front().height, 0u);
+}
+
+BC_AUTO_TEST_CASE(query_address__get_unspent__confirmable_spender__spent)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
+
+    store.set_pooling();
+    const auto parent = test::to_pay(test::genesis_coinbase(), 2u);
+    const auto child = test::to_pay(parent.hash(false), 1u);
+    BC_REQUIRE(test::archive_pool(query, parent));
+    BC_REQUIRE(test::archive_pool(query, child));
+
+    unspent_outputs out{};
+    const std::atomic_bool cancel{};
+    BC_REQUIRE(!query.get_unspent(cancel, out, test::genesis_address0, max_size_t, true));
+    BC_REQUIRE(out.empty());
+}
+
+BC_AUTO_TEST_CASE(query_address__get_unspent__unconfirmable__confirmed_only)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
+
+    store.set_pooling();
+    const auto parent = test::to_pay(test::genesis_coinbase(), 2u);
+    const auto child = test::to_pay(parent.hash(false), 1u);
+    BC_REQUIRE(test::archive_pool(query, parent));
+    BC_REQUIRE(test::archive_pool(query, child));
+    BC_REQUIRE(!test::archive_confirm(query, test::to_pay(test::genesis_coinbase(), 3u)).is_terminal());
+
+    unspent_outputs out{};
+    const std::atomic_bool cancel{};
+    BC_REQUIRE(!query.get_unspent(cancel, out, test::pay_address(), max_size_t, true));
+    BC_REQUIRE_EQUAL(out.size(), 1u);
+    BC_REQUIRE_EQUAL(out.front().height, 1u);
+    BC_REQUIRE_EQUAL(out.front().out.value(), 3u);
 }
 
 // duplicate instances (one tx archived twice, only one instance associated)

@@ -62,6 +62,17 @@ struct pooled_row
 
 using pooled_rows = std::vector<pooled_row>;
 
+/// Value of an output of a confirmable tx, with pool rows of the tx and of
+/// its confirmable spenders.
+struct pool_receipt
+{
+    table::pool::link::integer row{};
+    uint64_t value{};
+    std::vector<table::pool::link::integer> spenders{};
+};
+
+using pool_receipts = std::vector<pool_receipt>;
+
 } // namespace database
 } // namespace libbitcoin
 

@@ -37,6 +37,33 @@ pool_link CLASS::to_pool_row(const tx_link& link) const NOEXCEPT
 }
 
 TEMPLATE
+tx_state CLASS::get_tx_state(const tx_link& link) const NOEXCEPT
+{
+    using algorithm = system::pool::algorithm;
+    if (is_confirmed_tx(link))
+        return tx_state::confirmed;
+
+    // A row is committed before it is indexed.
+    const auto row = to_pool_row(link);
+    const auto& index = store_.pool_index;
+    if (row.is_terminal() || row.value >= index.count().value)
+        return tx_state::unknown;
+
+    const auto cell = index.cells.at(row.value);
+    if (algorithm::is_present(cell))
+        return tx_state::confirmable;
+
+    return algorithm::is_absent(cell) ? tx_state::unconfirmable :
+        tx_state::unknown;
+}
+
+TEMPLATE
+bool CLASS::is_confirmable_tx(const tx_link& link) const NOEXCEPT
+{
+    return get_tx_state(link) == tx_state::confirmable;
+}
+
+TEMPLATE
 bool CLASS::get_pooled_time(uint32_t& out, const tx_link& link) const NOEXCEPT
 {
     if (!store_.pool.enabled())

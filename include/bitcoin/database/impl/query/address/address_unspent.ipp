@@ -31,7 +31,7 @@ namespace database {
 // Unconfirmed unspent are included at end of list in consistent order.
 
 // ununsed
-// Only unconfirmed outputs that are not spent (by an unconfirmed tx).
+// Only confirmable outputs that are not spent.
 TEMPLATE
 code CLASS::get_unconfirmed_unspent(const stopper& cancel, unspent_outputs& out,
     const hash_digest& key, size_t limit, bool turbo) const NOEXCEPT
@@ -46,9 +46,6 @@ code CLASS::get_unconfirmed_unspent(const stopper& cancel, unspent_outputs& out,
     return parallel_unspent_transform(cancel, turbo, out, outs,
         [this](const output_link& link, auto& cancel, auto& fail) NOEXCEPT
         {
-            // Exclude if spent by any tx. Given output must be confirmed this
-            // is only unconfirmeds, but checking both via is_spent() is much
-            // faster than calling is_unconfirmed_spent().
             if (cancel || fail || is_spent(link))
                 return unspent_output{};
 
@@ -85,7 +82,7 @@ code CLASS::get_confirmed_unspent(const stopper& cancel, unspent_outputs& out,
 }
 
 // server/electrum
-// All outputs that are not spent by any tx (confirmed or unconfirmed).
+// Confirmed and confirmable outputs that are not spent.
 TEMPLATE
 code CLASS::get_unspent(const stopper& cancel, unspent_outputs& out,
     const hash_digest& key, size_t limit, bool turbo) const NOEXCEPT
@@ -100,7 +97,6 @@ code CLASS::get_unspent(const stopper& cancel, unspent_outputs& out,
     return parallel_unspent_transform(cancel, turbo, out, outs,
         [this](const output_link& link, auto& cancel, auto& fail) NOEXCEPT
         {
-            // Exclude if spent by any tx, confirmed or unconfirmed.
             if (cancel || fail || is_spent(link))
                 return unspent_output{};
 
@@ -137,6 +133,11 @@ unspent_output CLASS::get_tx_unspent(const output_link& link) const NOEXCEPT
         height = at.value;
         if (!get_tx_position(position, strong, block))
             return {};
+    }
+    else if (!is_confirmable_tx(tx))
+    {
+        // Invalid with unconfirmed_position signals no fault.
+        return { .position = unspent_output::unconfirmed_position };
     }
 
     return { { { std::move(hash), index }, out.value }, height, position };
@@ -180,7 +181,7 @@ unspent_output CLASS::get_tx_unconfirmed_unspent(const output_link& link) const 
     const auto tx = out.parent_fk;
 
     // Invalid with unconfirmed_position signals no fault.
-    if (!get_confirmed_height(find_strong(tx)).is_terminal())
+    if (!is_confirmable_tx(tx))
         return { .position = unspent_output::unconfirmed_position };
 
     auto hash = get_tx_key(tx);
