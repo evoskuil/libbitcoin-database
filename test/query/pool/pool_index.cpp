@@ -172,6 +172,40 @@ BC_AUTO_TEST_CASE(query_pool__set_pool_block__rival_pooled_after_prevout_cache__
     BC_REQUIRE_EQUAL(pool_cell(query, store, rival), absent_conflicted);
 }
 
+// The spender is pooled and its rival pooled after the block's prevouts are cached.
+BC_AUTO_TEST_CASE(query_pool__set_pool_block__pooled_spender_rival_pooled_after_prevout_cache__excluded)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
+
+    store.set_pooling();
+    const auto spender = to_spend(genesis_coinbase(), 4'999'998'500);
+    const auto rival = to_spend(genesis_coinbase(), 4'999'999'000);
+    const auto pooled_spender = pool_populated(query, spender);
+    const auto block = test::to_block(spender);
+    const auto stored = query.set(block, context{ 0, 1, 0 }, {}, false, true);
+    const auto link = query.to_header(block.hash());
+    const auto cached = query.populate_with_metadata(block) && query.set_prevouts(link, block);
+    const auto pooled_rival = pool_populated(query, rival);
+    const auto before = pool_cell(query, store, rival);
+    const auto pushed = query.push_candidate(link) && query.push_confirmed(link, true);
+    const auto applied = query.set_pool_block(link, true);
+
+    BC_REQUIRE(pooled_spender);
+    BC_REQUIRE(stored);
+    BC_REQUIRE(cached);
+    BC_REQUIRE(pooled_rival);
+    BC_REQUIRE(system::pool::algorithm::is_present(before));
+    BC_REQUIRE(pushed);
+    BC_REQUIRE(applied);
+    BC_REQUIRE_EQUAL(pool_cell(query, store, spender), system::pool::algorithm::boundary);
+    BC_REQUIRE_EQUAL(pool_cell(query, store, rival), system::bit_or(absent_rivaled, system::pool::algorithm::conflicted));
+}
+
 BC_AUTO_TEST_CASE(query_pool__set_pool_block__unpooled_rival_no_prevout_cache__excluded_and_revived)
 {
     settings settings{ test::database_settings() };

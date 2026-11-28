@@ -1320,7 +1320,7 @@ protected:
         system::pool::algorithm::link_t bound=system::pool::algorithm::none)
         const NOEXCEPT;
 
-    /// Pooled spenders of points spent by txs (their conflicts).
+    /// Archived spenders of points spent by txs (txs among them).
     bool get_pool_conflicts(tx_links& out, const tx_links& txs) const NOEXCEPT;
 
     /// A point of pooled tx is spent by a confirmed tx.
