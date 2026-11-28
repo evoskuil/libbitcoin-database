@@ -312,7 +312,6 @@ bool CLASS::get_pooled_spender(system::pool::algorithm::link_t& out,
 }
 
 // protected
-// Point archived with one spender is not in duplicate table.
 TEMPLATE
 bool CLASS::get_pool_conflicts(tx_links& out,
     const tx_links& txs) const NOEXCEPT
@@ -326,14 +325,8 @@ bool CLASS::get_pool_conflicts(tx_links& out,
         // Point links are contiguous (computed).
         const auto end = record.points_fk + record.ins_count;
         for (auto fk = record.points_fk; fk < end; ++fk)
-        {
-            const auto point = get_point_key(fk);
-            if (!store_.duplicate.exists(point))
-                continue;
-
-            for (const auto& in: to_spenders(point))
-                out.push_back(to_input_tx(in).value);
-        }
+            if (!get_doubles(out, get_point_key(fk)))
+                return false;
     }
 
     return true;

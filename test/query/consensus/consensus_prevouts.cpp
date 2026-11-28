@@ -145,6 +145,34 @@ BC_AUTO_TEST_CASE(query_consensus__get_block_prevouts__spending_block__expected)
     BC_REQUIRE_EQUAL(cache.spends.at(1).second, spends.at(1).second);
 }
 
+BC_AUTO_TEST_CASE(query_consensus__get_block_prevouts__double_spend__both_spenders)
+{
+    settings settings{ test::database_settings() };
+    settings.path = TEST_DIRECTORY;
+    test::chunk_store store{ settings };
+    test::query_accessor query{ store };
+    BC_REQUIRE(!store.create(test::events_handler));
+    BC_REQUIRE(query.initialize(test::genesis));
+    BC_REQUIRE(query.set(test::block1a, context{ 0, 1, 0 }, {}, false, false));
+    BC_REQUIRE(query.set_strong(1));
+
+    // tx5 spends output 0 of the block1a transaction, tx4 spends outputs 0 and 1.
+    BC_REQUIRE(query.set(test::tx5));
+    const block spending{ header{ 1, test::block1a.hash(), hash_digest{ 0x43 }, 0, 0, 0 }, transactions{ make_coinbase(), test::tx4 } };
+    BC_REQUIRE(query.set(spending, context{ 0, 2, 0 }, {}, false, false));
+    const auto tx4_fk = query.to_tx(test::tx4.hash(false));
+    const auto tx5_fk = query.to_tx(test::tx5.hash(false));
+    BC_REQUIRE(!tx4_fk.is_terminal());
+    BC_REQUIRE(!tx5_fk.is_terminal());
+
+    system::data_chunk prevouts{};
+    table::prevout::spends spends{};
+    tx_links conflicts{};
+    BC_REQUIRE(query.get_block_prevouts(prevouts, spends, conflicts, 2));
+    std::ranges::sort(conflicts);
+    BC_REQUIRE(conflicts == (tx_links{ std::min(tx4_fk.value, tx5_fk.value), std::max(tx4_fk.value, tx5_fk.value) }));
+}
+
 BC_AUTO_TEST_CASE(query_consensus__get_block_prevouts__internal_spend__terminal)
 {
     settings settings{ test::database_settings() };
